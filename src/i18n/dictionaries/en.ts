@@ -323,6 +323,8 @@ const en: Dictionary = {
     revoke: 'Revoke',
     alsoCourier: 'Also a courier',
     invitationSent: 'Invitation created',
+    invitationEmailed: 'Invitation sent by email',
+    invitationNoEmail: 'Invitation created. Copy the link and share it yourself',
   },
   courier: {
     title: 'Deliveries',

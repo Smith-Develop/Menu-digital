@@ -274,13 +274,19 @@ falta la CLI de Supabase ni abrir el puerto 5432.
 
 ---
 
-## Antes de abrir al público
+## Correo
 
-**Confirmación de correo.** La instancia de Supabase viene con
-`mailer_autoconfirm = false`, así que nadie puede registrarse hasta que se
-confirme su correo. Configura SMTP en el panel de Supabase, o desactiva la
-confirmación si prefieres altas inmediatas. Sin una de las dos cosas, `/register`
-y `/join/<token>` dejan al usuario esperando un correo que no llega.
+Los correos salen de **dos sitios distintos**:
+
+| Qué correo | Quién lo manda | Dónde se configura |
+|---|---|---|
+| Confirmación de registro y recuperación | GoTrue (Supabase Auth) | Variables del despliegue de Supabase |
+| Invitación al equipo | La aplicación | `SMTP_*` en `.env.local` |
+
+El SMTP de la aplicación ya está puesto. **Falta el de GoTrue**: sin él nadie
+puede registrarse, porque la instancia exige confirmar el correo
+(`mailer_autoconfirm = false`) y ese correo no llega a enviarse. Las variables
+exactas están en [`docs/correo.md`](docs/correo.md).
 
 ## Comandos
 

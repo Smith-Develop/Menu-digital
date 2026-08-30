@@ -91,7 +91,13 @@ export function StaffManager({
       toast(result.error === 'PLAN_LIMIT_STAFF' ? t.dashboard.limitReached : t.common.error, 'error');
       return;
     }
-    toast(t.team.invitationSent, 'success');
+
+    // Si el correo no salió, la invitación existe igual: se avisa para que la
+    // pasen a mano con el enlace de la lista.
+    toast(
+      result.data.emailSent ? t.team.invitationEmailed : t.team.invitationNoEmail,
+      result.data.emailSent ? 'success' : 'info',
+    );
     setInviting(false);
     setInviteEmail('');
     router.refresh();

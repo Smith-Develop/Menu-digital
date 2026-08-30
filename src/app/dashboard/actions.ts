@@ -7,6 +7,11 @@ import { requireStaffContext } from '@/lib/auth';
 import { canManageMenu, canManageStaff } from '@/lib/auth-permissions';
 import { tableCode as makeTableCode } from '@/lib/utils';
 import { getCurrency } from '@/lib/money';
+import { sendMail } from '@/lib/mailer';
+import { staffInvitationEmail } from '@/lib/emails/staff-invitation';
+import { getPublicOrigin } from '@/lib/request-url';
+import { getBrand } from '@/lib/brand';
+import { getI18n } from '@/i18n';
 
 export type Result<T = undefined> =
   | ({ ok: true } & (T extends undefined ? { data?: never } : { data: T }))
@@ -599,7 +604,7 @@ export async function inviteStaff(input: {
   email: string;
   role: 'admin' | 'manager' | 'waiter' | 'kitchen' | 'cashier';
   asCourier?: boolean;
-}): Promise<Result<{ token: string }>> {
+}): Promise<Result<{ token: string; emailSent: boolean }>> {
   const { context, error } = await guard('staff');
   if (!context) return fail(error);
 
@@ -632,8 +637,32 @@ export async function inviteStaff(input: {
 
   if (dbError) return fail(dbError.message);
 
+  // El correo es un extra: si el SMTP falla, la invitación sigue creada y el
+  // panel muestra el enlace para pasarlo a mano.
+  const [origin, brand, { t }] = await Promise.all([getPublicOrigin(), getBrand(), getI18n()]);
+  const inviteUrl = `${origin.replace(/\/$/, '')}/join/${token}`;
+
+  const message = staffInvitationEmail({
+    restaurantName: context.restaurant.name,
+    restaurantLogo: context.restaurant.logo_url,
+    role: input.role,
+    asCourier: input.asCourier ?? false,
+    inviteUrl,
+    brandColor: context.restaurant.primary_color,
+    appName: brand.appName,
+    t,
+  });
+
+  const mail = await sendMail({
+    to: email,
+    subject: message.subject,
+    html: message.html,
+    text: message.text,
+    replyTo: context.restaurant.email ?? undefined,
+  });
+
   revalidatePath('/dashboard/staff');
-  return { ok: true, data: { token } };
+  return { ok: true, data: { token, emailSent: mail.ok } };
 }
 
 export async function revokeInvitation(id: string): Promise<Result> {

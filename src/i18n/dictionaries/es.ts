@@ -321,6 +321,8 @@ const es = {
     revoke: 'Anular',
     alsoCourier: 'También será repartidor',
     invitationSent: 'Invitación creada',
+    invitationEmailed: 'Invitación enviada por correo',
+    invitationNoEmail: 'Invitación creada. Copia el enlace y pásaselo tú',
   },
   courier: {
     title: 'Repartos',
