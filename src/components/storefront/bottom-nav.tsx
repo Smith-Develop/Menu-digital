@@ -22,7 +22,7 @@ export function BottomNav({ cartHref = '/cart' }: { cartHref?: string }) {
 
   return (
     <nav
-      className="sticky bottom-0 z-40 mt-auto border-t border-surface-line bg-white/95 backdrop-blur"
+      className="sticky bottom-0 z-40 mt-auto border-t border-surface-line bg-white/95 backdrop-blur lg:hidden"
       style={{ paddingBottom: 'var(--safe-bottom)' }}
     >
       <ul className="flex items-stretch justify-around">

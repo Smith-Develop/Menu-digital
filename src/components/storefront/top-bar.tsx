@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { ShoppingBag } from 'lucide-react';
 import { useCartCount } from '@/lib/cart';
 import { useT } from '@/i18n/provider';
@@ -18,12 +17,10 @@ export function TopBar({
   cities,
   location,
   cartHref = '/cart',
-  brand,
 }: {
   cities: CityOption[];
   location: { city: string; citySlug: string; address: string | null } | null;
   cartHref?: string;
-  brand: { appName: string; logoUrl: string | null };
 }) {
   const t = useT();
   const count = useCartCount();
@@ -32,18 +29,8 @@ export function TopBar({
     <header className="flex items-center justify-between gap-3 px-5 pb-3 pt-5">
       <LocationPicker cities={cities} current={location} />
 
-      <div className="flex items-center gap-2">
-        <Link
-          href="/"
-          className="hidden items-center gap-2 lg:flex"
-          aria-label={brand.appName}
-        >
-          {brand.logoUrl ? (
-            <Image src={brand.logoUrl} alt={brand.appName} width={28} height={28} className="rounded-lg" />
-          ) : null}
-          <span className="font-display text-base font-bold text-ink">{brand.appName}</span>
-        </Link>
-
+      {/* En escritorio el logotipo y el carrito viven en DesktopHeader. */}
+      <div className="flex items-center gap-2 lg:hidden">
         <Link
           href={cartHref}
           className="relative flex h-11 w-11 items-center justify-center rounded-full bg-ink text-white transition-transform active:scale-95"

@@ -38,6 +38,9 @@ export default async function SettingsPage() {
           acceptsCard: restaurant.accepts_card,
           acceptsTpv: restaurant.accepts_tpv,
           isOpen: restaurant.is_open,
+          primaryColor: restaurant.primary_color,
+          accentColor: restaurant.accent_color,
+          textColor: restaurant.text_color,
         }}
       />
     </div>

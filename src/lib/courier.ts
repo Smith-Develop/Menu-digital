@@ -20,9 +20,7 @@ export const getCourierProfile = cache(async (): Promise<Courier | null> => {
   return data ?? null;
 });
 
-export const VEHICLES = ['foot', 'bike', 'moto', 'car'] as const;
-export type Vehicle = (typeof VEHICLES)[number];
-
-export function isVehicle(value: unknown): value is Vehicle {
-  return typeof value === 'string' && (VEHICLES as readonly string[]).includes(value);
-}
+// Los vehículos viven en courier-vehicles.ts para que el formulario de alta,
+// que es cliente, no arrastre las APIs de servidor de este módulo.
+export { VEHICLES, isVehicle } from '@/lib/courier-vehicles';
+export type { Vehicle } from '@/lib/courier-vehicles';

@@ -205,3 +205,88 @@ export async function addStaffByEmail(
   revalidatePath('/dashboard/staff');
   return { ok: true };
 }
+
+// ========================= Marca de la aplicación ========================
+
+const brandingSchema = z.object({
+  app_name: z.string().min(1).max(40),
+  tagline: z.string().min(1).max(120),
+  description: z.string().min(1).max(400),
+  logo_url: z.string().url().nullable().optional(),
+  icon_url: z.string().url().nullable().optional(),
+  primary_color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+  accent_color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+  text_color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+});
+
+export async function updateBranding(input: unknown): Promise<Result> {
+  const admin = await requireAdmin();
+  if (!admin) return { ok: false, error: 'FORBIDDEN' };
+
+  const parsed = brandingSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'INVALID_INPUT' };
+
+  const supabase = await createServerSupabase();
+  const { error } = await supabase
+    .from('app_settings')
+    .update({ ...parsed.data, updated_by: admin.id })
+    .eq('id', true);
+
+  if (error) return { ok: false, error: error.message };
+
+  // La marca pinta toda la interfaz y el manifiesto de la PWA.
+  revalidatePath('/', 'layout');
+  return { ok: true };
+}
+
+// ============================ Notificaciones =============================
+
+const notificationSchema = z.object({
+  id: z.string().uuid().optional(),
+  title: z.string().min(1).max(80),
+  body: z.string().max(400).nullable().optional(),
+  image_url: z.string().url().nullable().optional(),
+  link_url: z.string().max(400).nullable().optional(),
+  link_label: z.string().max(40).nullable().optional(),
+  audience: z.enum(['all', 'cities']),
+  cities: z.array(z.string()).default([]),
+  starts_at: z.string().datetime().optional(),
+  ends_at: z.string().datetime().nullable().optional(),
+  is_active: z.boolean().default(true),
+});
+
+export async function saveNotification(input: unknown): Promise<Result> {
+  const admin = await requireAdmin();
+  if (!admin) return { ok: false, error: 'FORBIDDEN' };
+
+  const parsed = notificationSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'INVALID_INPUT' };
+
+  const { id, ...values } = parsed.data;
+  if (values.audience === 'cities' && values.cities.length === 0) {
+    return { ok: false, error: 'CITIES_REQUIRED' };
+  }
+
+  const supabase = await createServerSupabase();
+  const { error } = id
+    ? await supabase.from('notifications').update(values).eq('id', id)
+    : await supabase.from('notifications').insert({ ...values, created_by: admin.id });
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath('/admin/notifications');
+  revalidatePath('/');
+  return { ok: true };
+}
+
+export async function deleteNotification(id: string): Promise<Result> {
+  if (!(await requireAdmin())) return { ok: false, error: 'FORBIDDEN' };
+
+  const supabase = await createServerSupabase();
+  const { error } = await supabase.from('notifications').delete().eq('id', id);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath('/admin/notifications');
+  revalidatePath('/');
+  return { ok: true };
+}

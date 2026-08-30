@@ -6,7 +6,9 @@ import { Input, Select, Switch, Textarea } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { FileUpload } from '@/components/dashboard/file-upload';
-import { updateRestaurantSettings } from '@/app/dashboard/actions';
+import { updateRestaurantSettings, updateRestaurantTheme } from '@/app/dashboard/actions';
+import { ColorInput } from '@/components/ui/color-input';
+import { brandCssVariables } from '@/lib/brand-theme';
 import { CURRENCIES, formatAmount, parseAmount, getCurrency } from '@/lib/money';
 import { useT } from '@/i18n/provider';
 
@@ -34,6 +36,9 @@ export type SettingsValues = {
   acceptsCard: boolean;
   acceptsTpv: boolean;
   isOpen: boolean;
+  primaryColor: string;
+  accentColor: string;
+  textColor: string;
 };
 
 export function SettingsForm({
@@ -236,9 +241,102 @@ export function SettingsForm({
         </div>
       </section>
 
+      <ThemeSection
+        initial={{
+          primaryColor: initial.primaryColor,
+          accentColor: initial.accentColor,
+          textColor: initial.textColor,
+        }}
+      />
+
       <Button type="submit" loading={saving} size="lg">
         {t.common.save}
       </Button>
     </form>
+  );
+}
+
+/**
+ * Colores de la tienda del restaurante.
+ *
+ * Se guarda aparte del resto de ajustes porque tiene su propia vista previa y
+ * el dueño suele venir solo a tocar esto.
+ */
+function ThemeSection({
+  initial,
+}: {
+  initial: { primaryColor: string; accentColor: string; textColor: string };
+}) {
+  const t = useT();
+  const toast = useToast();
+  const router = useRouter();
+  const [colors, setColors] = useState(initial);
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    setSaving(true);
+    const result = await updateRestaurantTheme({
+      primary_color: colors.primaryColor,
+      accent_color: colors.accentColor,
+      text_color: colors.textColor,
+    });
+    setSaving(false);
+
+    if (!result.ok) {
+      toast(result.error === 'INVALID_COLOR' ? t.common.error : t.common.error, 'error');
+      return;
+    }
+    toast(t.common.save, 'success');
+    router.refresh();
+  }
+
+  return (
+    <section className="space-y-5 rounded-2xl bg-white p-6 shadow-chip">
+      <div>
+        <h2 className="font-display text-base font-bold text-ink-700">{t.dashboard.appearance}</h2>
+        <p className="mt-1 text-sm text-ink-300">{t.dashboard.appearanceHint}</p>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[1fr_260px]">
+        <div className="grid gap-5 sm:grid-cols-3">
+          <ColorInput
+            label={t.dashboard.primaryColor}
+            value={colors.primaryColor}
+            onChange={(v) => setColors({ ...colors, primaryColor: v })}
+          />
+          <ColorInput
+            label={t.dashboard.accentColor}
+            value={colors.accentColor}
+            onChange={(v) => setColors({ ...colors, accentColor: v })}
+          />
+          <ColorInput
+            label={t.dashboard.textColor}
+            value={colors.textColor}
+            onChange={(v) => setColors({ ...colors, textColor: v })}
+          />
+        </div>
+
+        <div
+          className="rounded-2xl border border-surface-line p-4"
+          style={brandCssVariables(colors) as React.CSSProperties}
+        >
+          <p className="mb-3 text-xs font-bold uppercase tracking-wide text-ink-300">
+            {t.admin.preview}
+          </p>
+          <p className="mb-3 font-display text-base font-bold text-ink">Pizza Margherita</p>
+          <div className="mb-3 flex gap-2">
+            <span className="chip bg-accent text-accent-contrast">26 cm</span>
+            <span className="chip bg-surface-field text-ink-600">33 cm</span>
+          </div>
+          <button type="button" className="btn-primary w-full text-xs">
+            {t.product.addToCart}
+          </button>
+        </div>
+      </div>
+
+      <Button type="button" onClick={save} loading={saving}>
+        {t.common.save}
+      </Button>
+    </section>
   );
 }

@@ -48,6 +48,13 @@ export type TrackedOrder = {
     avg_prep_minutes: number;
   };
   table: { name: string; code: string } | null;
+  courier: {
+    name: string | null;
+    phone: string | null;
+    vehicle: string;
+    lat: number | null;
+    lng: number | null;
+  } | null;
   items: {
     name: string;
     image: string | null;
@@ -208,6 +215,32 @@ export function OrderTracker({ order: initial, token }: { order: TrackedOrder; t
             </a>
           )}
         </section>
+
+        {/* Repartidor asignado */}
+        {order.courier && (
+          <section className="mt-4 flex items-center gap-3 rounded-2xl bg-brand-50 p-4">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white text-brand">
+              <Bike className="h-5 w-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-brand-700">
+                {t.courier.assignedCourier}
+              </p>
+              <p className="truncate text-sm font-bold text-ink-700">
+                {order.courier.name ?? '—'}
+              </p>
+            </div>
+            {order.courier.phone && (
+              <a
+                href={`tel:${order.courier.phone}`}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-brand text-brand-contrast"
+                aria-label={order.courier.phone}
+              >
+                <Phone className="h-4 w-4" />
+              </a>
+            )}
+          </section>
+        )}
 
         {/* Líneas */}
         <section className="mt-7">

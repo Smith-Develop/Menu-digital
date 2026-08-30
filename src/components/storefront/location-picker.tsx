@@ -80,7 +80,9 @@ export function LocationPicker({
   }
 
   const label = current?.city ?? t.location.chooseCity;
-  const sub = current?.address || (current ? t.location.addAddress : t.location.chooseCityHint);
+  // La dirección guardada es lo que de verdad confirma al cliente que pedirá
+  // donde quiere, así que se muestra debajo de la ciudad cuando la hay.
+  const detail = current?.address ?? (current ? null : t.location.chooseCityHint);
 
   return (
     <>
@@ -103,6 +105,9 @@ export function LocationPicker({
             {label}
             <span className="ml-1 font-normal text-ink-300">▾</span>
           </span>
+          {detail && (
+            <span className="block truncate text-xs text-ink-300">{detail}</span>
+          )}
         </span>
       </button>
 

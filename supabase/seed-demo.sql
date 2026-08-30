@@ -1,8 +1,9 @@
 -- =============================================================
 --  Menu Digital · restaurante de demostración
 --
---  Las contraseñas llegan como marcadores __ADMIN_PW__, __OWNER_PW__ y
---  __KITCHEN_PW__ que scripts/seed-demo.py sustituye desde el entorno,
+--  Las contraseñas llegan como marcadores __ADMIN_PW__, __OWNER_PW__,
+--  __KITCHEN_PW__ y __COURIER_PW__ que scripts/seed-demo.py sustituye desde
+--  el entorno,
 --  para que este archivo pueda vivir en el repositorio sin secretos.
 --  Es idempotente: si el restaurante ya existe, no hace nada.
 -- =============================================================
@@ -20,6 +21,8 @@ declare
   v_product     uuid;
   v_group       uuid;
   v_table       record;
+  v_courier_user uuid;
+  v_courier_id   uuid;
 begin
   if exists (select 1 from public.restaurants where slug = 'la-trattoria') then
     raise notice 'El seed de demostración ya estaba aplicado.';
@@ -180,6 +183,38 @@ begin
      'DOCG, cosecha 2021.', 490,
      'https://images.unsplash.com/photo-1553361371-9b22f78e8b1d?w=800&h=600&fit=crop',
      2, 120, array['Uva Sangiovese'], array['Sulfitos'], 4.3, 21, false, 8);
+
+  -- ---------- Repartidor de ejemplo ----------
+  -- Se da de alta como repartidor y queda vinculado al restaurante: así se
+  -- puede probar el circuito completo listo → aceptar → entregado.
+  if not exists (select 1 from auth.users where email = 'repartidor@yumi.app') then
+    v_courier_user := gen_random_uuid();
+
+    insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
+                            email_confirmed_at, created_at, updated_at,
+                            raw_app_meta_data, raw_user_meta_data,
+                            confirmation_token, recovery_token, email_change_token_new, email_change)
+    values ('00000000-0000-0000-0000-000000000000', v_courier_user, 'authenticated', 'authenticated',
+            'repartidor@yumi.app', crypt('__COURIER_PW__', gen_salt('bf')), now(), now(), now(),
+            '{"provider":"email","providers":["email"]}'::jsonb,
+            '{"full_name":"Luis Reparto","role":"courier"}'::jsonb, '', '', '', '');
+
+    insert into auth.identities (id, user_id, provider_id, identity_data, provider,
+                                 last_sign_in_at, created_at, updated_at)
+    values (gen_random_uuid(), v_courier_user, v_courier_user::text,
+            jsonb_build_object('sub', v_courier_user::text, 'email', 'repartidor@yumi.app',
+                               'email_verified', true),
+            'email', now(), now(), now());
+
+    update public.profiles set role = 'courier' where id = v_courier_user;
+
+    insert into public.couriers (user_id, phone, vehicle, status, city)
+    values (v_courier_user, '+34 611 222 333', 'moto', 'available', 'Madrid')
+    returning id into v_courier_id;
+
+    insert into public.restaurant_couriers (restaurant_id, courier_id)
+    values (v_rest_id, v_courier_id);
+  end if;
 
   -- ---------- Mesas ----------
   for v_table in

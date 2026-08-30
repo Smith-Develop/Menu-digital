@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, LogOut, Package, Store } from 'lucide-react';
+import { Bell, LayoutDashboard, LogOut, Package, Palette, Store } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { LocaleSwitcher } from '@/components/locale-switcher';
 import { useT } from '@/i18n/provider';
@@ -17,6 +17,8 @@ export function AdminNav({ userName }: { userName: string }) {
     { href: '/admin', icon: LayoutDashboard, label: t.dashboard.overview, exact: true },
     { href: '/admin/restaurants', icon: Store, label: t.admin.restaurants },
     { href: '/admin/plans', icon: Package, label: t.admin.plans },
+    { href: '/admin/branding', icon: Palette, label: t.admin.branding },
+    { href: '/admin/notifications', icon: Bell, label: t.admin.notifications },
   ];
 
   async function signOut() {

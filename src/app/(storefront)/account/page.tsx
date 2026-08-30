@@ -8,10 +8,12 @@ import {
   Receipt,
   Settings,
   Shield,
+  Truck,
   UserRound,
 } from 'lucide-react';
 import { getI18n } from '@/i18n';
 import { getSessionProfile, getStaffContext } from '@/lib/auth';
+import { getCourierProfile } from '@/lib/courier';
 import { SignOutButton } from '@/components/auth/sign-out-button';
 import { LocaleSwitcher } from '@/components/locale-switcher';
 import { initials } from '@/lib/utils';
@@ -22,7 +24,9 @@ export const metadata = { title: 'Mi perfil' };
 export default async function AccountPage() {
   const { t } = await getI18n();
   const profile = await getSessionProfile();
-  const staff = profile ? await getStaffContext() : null;
+  const [staff, courier] = profile
+    ? await Promise.all([getStaffContext(), getCourierProfile()])
+    : [null, null];
 
   if (!profile) {
     return (
@@ -62,6 +66,15 @@ export default async function AccountPage() {
           ],
         ]
       : []),
+    // El panel de repartos es una entrada más: cualquiera puede darse de alta,
+    // también quien ya sea dueño de un restaurante.
+    [
+      {
+        href: '/courier',
+        icon: Truck,
+        label: courier ? t.courier.dashboard : t.courier.becomeCourier,
+      },
+    ],
     ...(profile.role === 'superadmin'
       ? [[{ href: '/admin', icon: Shield, label: t.admin.title }]]
       : []),

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { registerAsCourier } from '@/app/courier/actions';
-import { VEHICLES, type Vehicle } from '@/lib/courier';
+import { VEHICLES, type Vehicle } from '@/lib/courier-vehicles';
 import { useT } from '@/i18n/provider';
 import { cn } from '@/lib/utils';
 

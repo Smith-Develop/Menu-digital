@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { getSessionProfile, requireStaffContext } from '@/lib/auth';
 import { canManageStaff } from '@/lib/auth-permissions';
-import { isVehicle } from '@/lib/courier';
+import { isVehicle } from '@/lib/courier-vehicles';
 
 export type Result<T = undefined> =
   | ({ ok: true } & (T extends undefined ? { data?: never } : { data: T }))

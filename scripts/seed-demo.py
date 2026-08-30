@@ -2,7 +2,7 @@
 """
 Aplica supabase/seed-demo.sql sustituyendo las contraseñas desde el entorno.
 
-  DEMO_ADMIN_PW=... DEMO_OWNER_PW=... DEMO_KITCHEN_PW=... \
+  DEMO_ADMIN_PW=... DEMO_OWNER_PW=... DEMO_KITCHEN_PW=... DEMO_COURIER_PW=... \
   SUPABASE_STUDIO_AUTH=user:pass python3 scripts/seed-demo.py
 """
 import json
@@ -19,6 +19,7 @@ REPLACEMENTS = {
     "__ADMIN_PW__": os.environ.get("DEMO_ADMIN_PW"),
     "__OWNER_PW__": os.environ.get("DEMO_OWNER_PW"),
     "__KITCHEN_PW__": os.environ.get("DEMO_KITCHEN_PW"),
+    "__COURIER_PW__": os.environ.get("DEMO_COURIER_PW"),
 }
 
 missing = [k for k, v in REPLACEMENTS.items() if not v]

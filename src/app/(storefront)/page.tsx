@@ -2,7 +2,6 @@ import Link from 'next/link';
 import { MapPin, Search, Store } from 'lucide-react';
 import { getI18n } from '@/i18n';
 import { getSessionProfile } from '@/lib/auth';
-import { getBrand } from '@/lib/brand';
 import { resolveCity } from '@/lib/customer-location';
 import {
   listRestaurants,
@@ -35,10 +34,9 @@ export default async function MarketplacePage() {
   const { t } = await getI18n();
   const { location, citySlug, cities } = await resolveCity();
 
-  const [profile, brand, restaurants, categories, featured, banners, notifications] =
+  const [profile, restaurants, categories, featured, banners, notifications] =
     await Promise.all([
       getSessionProfile(),
-      getBrand(),
       listRestaurants({ limit: 24, citySlug }),
       listGlobalCategories(10, citySlug),
       listFeaturedProducts(10, citySlug),
@@ -55,11 +53,7 @@ export default async function MarketplacePage() {
     <>
       <NotificationPopup notifications={notifications} />
 
-      <TopBar
-        cities={cities}
-        location={location}
-        brand={{ appName: brand.appName, logoUrl: brand.logoUrl }}
-      />
+      <TopBar cities={cities} location={location} />
 
       <div className="px-5 lg:px-0">
         <p className="text-base text-ink lg:text-lg">
