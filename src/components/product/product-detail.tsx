@@ -144,7 +144,7 @@ export function ProductDetail({
   const has3d = Boolean(product.model3dUrl);
 
   return (
-    <div className="flex min-h-dvh flex-col">
+    <div className="flex flex-1 flex-col overflow-hidden">
       <header className="flex items-center gap-4 px-5 pb-2 pt-4">
         <button
           type="button"
@@ -166,7 +166,7 @@ export function ProductDetail({
         </button>
       </header>
 
-      <div className="flex-1 px-5 pb-6">
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-6">
         {/* Visor: foto o 3D según el conmutador */}
         <div className="relative h-[220px] w-full overflow-hidden rounded-2xl bg-surface-muted">
           {mode === '3d' && has3d ? (

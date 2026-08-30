@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { createServerSupabase } from '@/lib/supabase/server';
+import { createServerSupabase, createPublicSupabase } from '@/lib/supabase/server';
 import { requireStaffContext } from '@/lib/auth';
 import { canManageMenu, canManageStaff } from '@/lib/auth-permissions';
 import { tableCode as makeTableCode } from '@/lib/utils';
@@ -29,58 +29,13 @@ async function guard(kind: 'menu' | 'staff' = 'menu') {
   return { context, error: null };
 }
 
-// ============================== Categorías ==============================
-
-const categorySchema = z.object({
-  id: z.string().uuid().optional(),
-  name: z.string().min(1).max(80),
-  description: z.string().max(300).optional().nullable(),
-  image_url: z.string().url().optional().nullable(),
-  position: z.coerce.number().int().min(0).default(0),
-  is_active: z.boolean().default(true),
-});
-
-export async function saveCategory(input: unknown): Promise<Result> {
-  const { context, error } = await guard();
-  if (!context) return fail(error);
-
-  const parsed = categorySchema.safeParse(input);
-  if (!parsed.success) return fail('INVALID_INPUT');
-
-  const supabase = await createServerSupabase();
-  const { id, ...values } = parsed.data;
-
-  const { error: dbError } = id
-    ? await supabase.from('categories').update(values).eq('id', id).eq('restaurant_id', context.restaurant.id)
-    : await supabase.from('categories').insert({ ...values, restaurant_id: context.restaurant.id });
-
-  if (dbError) return fail(dbError.message);
-  revalidatePath('/dashboard/menu');
-  revalidatePath(`/r/${context.restaurant.slug}`);
-  return { ok: true };
-}
-
-export async function deleteCategory(id: string): Promise<Result> {
-  const { context, error } = await guard();
-  if (!context) return fail(error);
-
-  const supabase = await createServerSupabase();
-  const { error: dbError } = await supabase
-    .from('categories')
-    .delete()
-    .eq('id', id)
-    .eq('restaurant_id', context.restaurant.id);
-
-  if (dbError) return fail(dbError.message);
-  revalidatePath('/dashboard/menu');
-  return { ok: true };
-}
-
 // =============================== Platos =================================
 
 const productSchema = z.object({
   id: z.string().uuid().optional(),
-  category_id: z.string().uuid().nullable().optional(),
+  // La categoría sale del catálogo que mantiene la plataforma, no del propio
+  // restaurante: es lo que permite agrupar platos de locales distintos.
+  catalog_category_id: z.string().uuid().nullable().optional(),
   name: z.string().min(1).max(120),
   description: z.string().max(600).nullable().optional(),
   price_cents: z.coerce.number().int().min(0),
@@ -713,4 +668,101 @@ export async function updatePrintSettings(input: {
 
   revalidatePath('/dashboard', 'layout');
   return { ok: true };
+}
+
+/**
+ * Alta directa de un miembro del equipo.
+ *
+ * El restaurante crea la cuenta y entrega la contraseña en mano, sin esperar a
+ * que la persona acepte una invitación. Se usa el registro normal de Supabase
+ * con un cliente sin sesión: crear usuarios con la clave de administración
+ * exigiría tener esa clave en el servidor de la aplicación, y no hace falta
+ * para esto.
+ *
+ * Si la instancia exige confirmar el correo, la cuenta queda creada pero el
+ * empleado tendrá que confirmarla antes de poder entrar; el panel lo avisa.
+ */
+export async function createStaffAccount(input: {
+  email: string;
+  password: string;
+  fullName: string;
+  phone?: string | null;
+  role: 'admin' | 'manager' | 'waiter' | 'kitchen' | 'cashier';
+  asCourier?: boolean;
+}): Promise<Result<{ needsConfirmation: boolean }>> {
+  const { context, error } = await guard('staff');
+  if (!context) return fail(error);
+
+  const email = input.email.trim().toLowerCase();
+  if (!email.includes('@')) return fail('INVALID_EMAIL');
+  if (input.password.length < 8) return fail('PASSWORD_TOO_SHORT');
+
+  const supabase = await createServerSupabase();
+
+  const max = context.subscription?.plan?.max_staff ?? null;
+  if (max !== null) {
+    const { count } = await supabase
+      .from('restaurant_staff')
+      .select('id', { count: 'exact', head: true })
+      .eq('restaurant_id', context.restaurant.id)
+      .eq('is_active', true);
+    if ((count ?? 0) >= max) return fail('PLAN_LIMIT_STAFF');
+  }
+
+  // Si ya tiene perfil, basta con vincularlo: no se le toca la contraseña.
+  const { data: existing } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('email', email)
+    .maybeSingle();
+
+  let userId = existing?.id ?? null;
+  let needsConfirmation = false;
+
+  if (!userId) {
+    // Cliente aparte, sin persistir sesión: registrar a otro no debe cambiar
+    // la sesión del dueño que está usando el panel.
+    const anon = createPublicSupabase();
+    const { data, error: signUpError } = await anon.auth.signUp({
+      email,
+      password: input.password,
+      options: { data: { full_name: input.fullName.trim(), role: 'restaurant' } },
+    });
+
+    if (signUpError || !data.user) {
+      return fail(signUpError?.message ?? 'SIGNUP_FAILED');
+    }
+
+    userId = data.user.id;
+    needsConfirmation = !data.session;
+  }
+
+  const { error: linkError } = await supabase
+    .from('restaurant_staff')
+    .upsert(
+      { restaurant_id: context.restaurant.id, user_id: userId, role: input.role, is_active: true },
+      { onConflict: 'restaurant_id,user_id' },
+    );
+
+  if (linkError) return fail(linkError.message);
+
+  if (input.asCourier) {
+    const { data: courier } = await supabase
+      .from('couriers')
+      .upsert({ user_id: userId, phone: input.phone?.trim() || null }, { onConflict: 'user_id' })
+      .select('id')
+      .maybeSingle();
+
+    if (courier) {
+      await supabase
+        .from('restaurant_couriers')
+        .upsert(
+          { restaurant_id: context.restaurant.id, courier_id: courier.id, is_active: true },
+          { onConflict: 'restaurant_id,courier_id' },
+        );
+    }
+  }
+
+  revalidatePath('/dashboard/staff');
+  return { ok: true, data: { needsConfirmation } };
 }

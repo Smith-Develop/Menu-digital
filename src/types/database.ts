@@ -94,6 +94,45 @@ export type Database = {
         };
         Relationships: [];
       };
+      catalog_categories: {
+        Row: {
+          id: string;
+          name: string;
+          slug: string;
+          description: string | null;
+          image_url: string | null;
+          icon: string | null;
+          position: number;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          slug: string;
+          description?: string | null;
+          image_url?: string | null;
+          icon?: string | null;
+          position?: number;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          slug?: string;
+          description?: string | null;
+          image_url?: string | null;
+          icon?: string | null;
+          position?: number;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       categories: {
         Row: {
           id: string;
@@ -755,7 +794,6 @@ export type Database = {
         Row: {
           id: string;
           restaurant_id: string;
-          category_id: string | null;
           name: string;
           description: string | null;
           price_cents: number;
@@ -777,11 +815,11 @@ export type Database = {
           position: number;
           created_at: string;
           updated_at: string;
+          catalog_category_id: string | null;
         };
         Insert: {
           id?: string;
           restaurant_id: string;
-          category_id?: string | null;
           name: string;
           description?: string | null;
           price_cents: number;
@@ -803,11 +841,11 @@ export type Database = {
           position?: number;
           created_at?: string;
           updated_at?: string;
+          catalog_category_id?: string | null;
         };
         Update: {
           id?: string;
           restaurant_id?: string;
-          category_id?: string | null;
           name?: string;
           description?: string | null;
           price_cents?: number;
@@ -829,6 +867,7 @@ export type Database = {
           position?: number;
           created_at?: string;
           updated_at?: string;
+          catalog_category_id?: string | null;
         };
         Relationships: [];
       };
@@ -1303,6 +1342,7 @@ export type Database = {
       table_bill: { Args: { p_table_code: string }; Returns: Json };
       accept_staff_invitation: { Args: { p_token: string }; Returns: Json };
       invitation_preview: { Args: { p_token: string }; Returns: Json };
+      home_categories: { Args: { p_city_slug?: string | null; p_limit?: number }; Returns: { id: string; name: string; slug: string; image_url: string | null; products: number }[] };
       is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };
       is_staff_of: { Args: { rid: string }; Returns: boolean };
     };

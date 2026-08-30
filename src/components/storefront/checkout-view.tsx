@@ -1,9 +1,10 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-import { Banknote, CreditCard, Smartphone } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Banknote, CreditCard, MapPin, Pencil, Smartphone } from 'lucide-react';
 import { ScreenHeader } from '@/components/ui/misc';
+import { CheckoutIdentity } from '@/components/storefront/checkout-identity';
 import { Input, Textarea } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
 import { lineTotal, cartToOrderItems } from '@/lib/cart';
@@ -48,6 +49,8 @@ export function CheckoutView({
   taxRate,
   accepts,
   customer,
+  isSignedIn,
+  savedLocation,
 }: {
   slug: string;
   orderType: Enums<'order_type'>;
@@ -58,6 +61,8 @@ export function CheckoutView({
   taxRate: number;
   accepts: { cash: boolean; card: boolean; tpv: boolean };
   customer: { name: string; phone: string; email: string };
+  isSignedIn: boolean;
+  savedLocation: { city: string; address: string | null } | null;
 }) {
   const t = useT();
   const toast = useToast();
@@ -80,7 +85,59 @@ export function CheckoutView({
   const [name, setName] = useState(customer.name);
   const [phone, setPhone] = useState(customer.phone);
   const [email, setEmail] = useState(customer.email);
-  const [address, setAddress] = useState('');
+  const [signedIn, setSignedIn] = useState(isSignedIn);
+
+  /*
+   * La sesión se comprueba contra el cliente de Supabase y no solo contra lo
+   * que trajo el servidor: al iniciar sesión aquí mismo, el estado del servidor
+   * puede llegar todavía sin cookie y dejaría el botón bloqueado con la sesión
+   * ya abierta.
+   */
+  useEffect(() => {
+    const supabase = createClient();
+    let active = true;
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (active && data.session) setSignedIn(true);
+    });
+
+    /** Rellena los datos del pedido con el perfil, para no preguntar dos veces. */
+    async function hydrateFromProfile(userId: string) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, phone, email')
+        .eq('id', userId)
+        .maybeSingle();
+      if (!active || !profile) return;
+
+      setName((current) => current || profile.full_name || '');
+      setPhone((current) => current || profile.phone || '');
+      setEmail((current) => current || profile.email || '');
+    }
+
+    supabase.auth.getUser().then(({ data }) => {
+      if (active && data.user) void hydrateFromProfile(data.user.id);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!active) return;
+      setSignedIn(Boolean(session));
+      if (session?.user) void hydrateFromProfile(session.user.id);
+    });
+
+    return () => {
+      active = false;
+      listener.subscription.unsubscribe();
+    };
+  }, []);
+  // La dirección guardada evita volver a pedirle al cliente lo que ya nos dijo.
+  const savedFull = savedLocation
+    ? [savedLocation.address, savedLocation.city].filter(Boolean).join(', ')
+    : '';
+  const [address, setAddress] = useState(savedFull);
+  const [editingAddress, setEditingAddress] = useState(!savedFull);
+  // Con sesión los datos personales llegan del perfil: solo se editan a petición.
+  const [editingData, setEditingData] = useState(!isSignedIn);
   const [addressNotes, setAddressNotes] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -149,11 +206,22 @@ export function CheckoutView({
   }
 
   return (
-    <div className="flex min-h-dvh flex-col">
+    <div className="flex flex-1 flex-col overflow-hidden">
       <ScreenHeader title={t.checkout.title} backHref={`/r/${slug}/cart`} />
 
-      <div className="flex-1 px-5 pb-6">
-        <section>
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-6">
+        {!signedIn && (
+          <div className="mb-7">
+            <CheckoutIdentity
+              defaultName={name}
+              defaultEmail={email}
+              defaultPhone={phone}
+              onReady={() => setSignedIn(true)}
+            />
+          </div>
+        )}
+
+        <section className={cn(!signedIn && 'pointer-events-none opacity-40')}>
           <p className="label">{t.checkout.paymentMethod}</p>
           <div className="grid grid-cols-3 gap-3">
             {methods.map(({ id, icon: Icon, label }) => {
@@ -182,40 +250,85 @@ export function CheckoutView({
           </p>
         </section>
 
-        <section className="mt-7 space-y-4">
-          <p className="label">{t.checkout.yourData}</p>
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            label={t.auth.fullName}
-            placeholder={t.auth.fullName}
-            autoComplete="name"
-          />
-          <Input
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            label={t.auth.phone}
-            type="tel"
-            placeholder="+34 600 000 000"
-            autoComplete="tel"
-          />
-          <Input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            label={`${t.auth.email} (${t.common.optional})`}
-            type="email"
-            autoComplete="email"
-          />
+        <section className={cn('mt-7 space-y-4', !signedIn && 'pointer-events-none opacity-40')}>
+          <div className="flex items-center justify-between gap-3">
+            <p className="label mb-0">{t.checkout.yourData}</p>
+            {signedIn && !editingData && (
+              <button
+                type="button"
+                onClick={() => setEditingData(true)}
+                className="inline-flex items-center gap-1 text-xs font-bold text-brand"
+              >
+                <Pencil className="h-3 w-3" />
+                {t.checkout.changeAddress}
+              </button>
+            )}
+          </div>
+
+          {signedIn && !editingData && (name || email) && (
+            <div className="rounded-xl bg-surface-field px-4 py-3">
+              <p className="text-sm font-semibold text-ink-700">{name || email}</p>
+              <p className="mt-0.5 text-xs text-ink-300">
+                {[phone, email].filter(Boolean).join(' · ')}
+              </p>
+            </div>
+          )}
+          {(editingData || !signedIn) && (
+            <>
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                label={t.auth.fullName}
+                placeholder={t.auth.fullName}
+                autoComplete="name"
+              />
+              <Input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                label={t.auth.phone}
+                type="tel"
+                placeholder="+34 600 000 000"
+                autoComplete="tel"
+              />
+              <Input
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                label={`${t.auth.email} (${t.common.optional})`}
+                type="email"
+                autoComplete="email"
+              />
+            </>
+          )}
 
           {orderType === 'delivery' && (
             <>
-              <Input
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                label={t.cart.deliveryAddress}
-                placeholder="Calle, número, piso"
-                autoComplete="street-address"
-              />
+              {!editingAddress && savedFull ? (
+                <div className="flex items-start gap-3 rounded-xl bg-brand-50 px-4 py-3">
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-brand-700">
+                      {t.checkout.usingSavedAddress}
+                    </p>
+                    <p className="truncate text-sm font-semibold text-ink-700">{address}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditingAddress(true)}
+                    className="inline-flex shrink-0 items-center gap-1 text-xs font-bold text-brand"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    {t.checkout.changeAddress}
+                  </button>
+                </div>
+              ) : (
+                <Input
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  label={t.cart.deliveryAddress}
+                  placeholder="Calle, número, piso"
+                  autoComplete="street-address"
+                />
+              )}
               <Input
                 value={addressNotes}
                 onChange={(e) => setAddressNotes(e.target.value)}
@@ -235,7 +348,7 @@ export function CheckoutView({
           />
         </section>
 
-        <section className="mt-7 rounded-2xl bg-surface-field p-5">
+        <section className={cn('mt-7 rounded-2xl bg-surface-field p-5', !signedIn && 'opacity-40')}>
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between">
               <dt className="text-ink-400">{t.common.subtotal}</dt>
@@ -287,7 +400,7 @@ export function CheckoutView({
         <button
           type="button"
           onClick={submit}
-          disabled={submitting || lines.length === 0}
+          disabled={submitting || lines.length === 0 || !signedIn}
           className="btn-primary w-full py-4 text-[15px] uppercase tracking-wide"
         >
           {submitting

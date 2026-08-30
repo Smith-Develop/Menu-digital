@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
+import { BROWSE_COOKIE } from '@/lib/store-context';
 
 /**
  * Rutas que exigen sesión. El rol concreto lo comprueba cada layout.
@@ -27,6 +28,18 @@ export async function middleware(request: NextRequest) {
     url.pathname = '/dashboard';
     url.search = '';
     return NextResponse.redirect(url);
+  }
+
+  // Visitar cualquier pantalla del escaparate deja marcado que el cliente está
+  // navegando por Yumi; así, al entrar en una tienda, se le ofrece volver.
+  // El QR de mesa hace lo contrario y fija el modo tienda.
+  const MARKETPLACE_PATHS = ['/', '/search', '/orders', '/account', '/cart'];
+  if (MARKETPLACE_PATHS.includes(pathname)) {
+    response.cookies.set(BROWSE_COOKIE, 'marketplace', {
+      path: '/',
+      maxAge: 60 * 60 * 24 * 30,
+      sameSite: 'lax',
+    });
   }
 
   return response;

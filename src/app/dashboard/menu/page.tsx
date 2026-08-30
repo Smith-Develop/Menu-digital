@@ -12,7 +12,8 @@ export default async function MenuPage() {
   const supabase = await createServerSupabase();
 
   const [{ data: categories }, { data: products }] = await Promise.all([
-    supabase.from('categories').select('*').eq('restaurant_id', restaurant.id).order('position'),
+    // Catálogo de la plataforma: el restaurante elige de aquí, no crea categorías.
+    supabase.from('catalog_categories').select('*').eq('is_active', true).order('position'),
     supabase.from('products').select('*').eq('restaurant_id', restaurant.id).order('position'),
   ]);
 
@@ -31,8 +32,7 @@ export default async function MenuPage() {
       <div>
         <h1 className="font-display text-2xl font-bold text-ink">{t.dashboard.menu}</h1>
         <p className="mt-1 text-sm text-ink-300">
-          {(products ?? []).length} {t.dashboard.products.toLowerCase()} ·{' '}
-          {(categories ?? []).length} {t.dashboard.categories.toLowerCase()}
+          {(products ?? []).length} {t.dashboard.products.toLowerCase()}
         </p>
       </div>
 
@@ -44,14 +44,11 @@ export default async function MenuPage() {
         categories={(categories ?? []).map((c) => ({
           id: c.id,
           name: c.name,
-          description: c.description,
           imageUrl: c.image_url,
-          position: c.position,
-          isActive: c.is_active,
         }))}
         products={(products ?? []).map((p) => ({
           id: p.id,
-          categoryId: p.category_id,
+          categoryId: p.catalog_category_id,
           name: p.name,
           description: p.description,
           priceCents: p.price_cents,

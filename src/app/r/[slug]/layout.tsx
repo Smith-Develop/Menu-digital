@@ -45,8 +45,14 @@ export default async function RestaurantLayout({
   return (
     // Cada restaurante pinta su tienda con sus propios colores: las variables
     // sobrescriben aquí las de la marca global sin tocar el resto de la app.
+    /*
+     * Alto exacto de la ventana, no mínimo: así el scroll vive dentro de <main>
+     * y cada pantalla puede quedarse quieta si le conviene. Restar píxeles a
+     * ojo para la cabecera y la barra inferior no funcionaba, porque ambas
+     * cambian de alto entre móvil y escritorio.
+     */
     <div
-      className="flex min-h-dvh flex-col bg-surface-soft"
+      className="flex h-dvh flex-col overflow-hidden bg-surface-soft"
       style={
         brandCssVariables({
           primaryColor: restaurant.primary_color,
@@ -72,9 +78,23 @@ export default async function RestaurantLayout({
           inTable={inTable}
         />
 
-        <div className="mx-auto w-full max-w-[480px] flex-1 bg-white lg:max-w-3xl lg:rounded-sheet lg:shadow-chip">
-          {children}
-        </div>
+        {/*
+          En móvil, la columna estrecha del diseño. A partir de `lg` la tienda
+          ocupa el ancho de la página igual que el escaparate: abrir la carta en
+          un ordenador y ver una tira de 480 px en medio de la pantalla se veía
+          roto.
+        */}
+        {/*
+          El contenedor no scrollea: reparte el alto y deja que cada pantalla
+          decida. La carta se desplaza entera; el carrito y los avisos se quedan
+          fijos y mueven solo su lista, para que el botón de acción no se vaya
+          nunca por debajo del borde.
+        */}
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="mx-auto flex w-full min-w-0 max-w-[480px] flex-1 flex-col overflow-hidden bg-white lg:max-w-6xl lg:bg-transparent">
+            {children}
+          </div>
+        </main>
 
         <RestaurantNav slug={restaurant.slug} inTable={inTable} />
       </CartProvider>

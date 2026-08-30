@@ -2,7 +2,7 @@ import { createPublicSupabase } from '@/lib/supabase/server';
 import type { Tables } from '@/types/database';
 
 export type Restaurant = Tables<'restaurants'>;
-export type Category = Tables<'categories'>;
+export type Category = Tables<'catalog_categories'>;
 export type Product = Tables<'products'>;
 export type OptionGroup = Tables<'option_groups'> & { options: Tables<'options'>[] };
 export type ProductWithOptions = Product & { optionGroups: OptionGroup[] };
@@ -59,8 +59,13 @@ export async function listHomeBanners(citySlug: string | null, limit = 6): Promi
   return (data as HomeBanner[] | null) ?? [];
 }
 
-/** Banners propios de un restaurante, para su tienda. */
-export async function getRestaurantBanners(restaurantId: string) {
+/**
+ * Banners propios de un restaurante, para su tienda.
+ *
+ * Se descartan los que usan la misma imagen que la portada: el cliente ya la
+ * ha visto arriba y repetirla parece un fallo de maquetación.
+ */
+export async function getRestaurantBanners(restaurantId: string, coverUrl?: string | null) {
   const supabase = createPublicSupabase();
   const nowIso = new Date().toISOString();
   const { data } = await supabase
@@ -71,7 +76,8 @@ export async function getRestaurantBanners(restaurantId: string) {
     .or(`starts_at.is.null,starts_at.lte.${nowIso}`)
     .or(`ends_at.is.null,ends_at.gte.${nowIso}`)
     .order('position');
-  return data ?? [];
+
+  return (data ?? []).filter((banner) => !coverUrl || banner.image_url !== coverUrl);
 }
 
 export async function getRestaurantBySlug(slug: string): Promise<Restaurant | null> {
@@ -85,17 +91,6 @@ export async function getRestaurantBySlug(slug: string): Promise<Restaurant | nu
   return data ?? null;
 }
 
-export async function getRestaurantCategories(restaurantId: string): Promise<Category[]> {
-  const supabase = createPublicSupabase();
-  const { data } = await supabase
-    .from('categories')
-    .select('*')
-    .eq('restaurant_id', restaurantId)
-    .eq('is_active', true)
-    .order('position');
-  return data ?? [];
-}
-
 export async function getRestaurantProducts(
   restaurantId: string,
   options?: { categoryId?: string; search?: string; featuredOnly?: boolean },
@@ -107,7 +102,7 @@ export async function getRestaurantProducts(
     .eq('restaurant_id', restaurantId)
     .order('position');
 
-  if (options?.categoryId) query = query.eq('category_id', options.categoryId);
+  if (options?.categoryId) query = query.eq('catalog_category_id', options.categoryId);
   if (options?.featuredOnly) query = query.eq('is_featured', true);
   if (options?.search) {
     const term = `%${options.search}%`;
@@ -206,39 +201,37 @@ export async function getTableByCode(code: string) {
   return { table, restaurant };
 }
 
-/** Categorías agregadas de la ciudad del cliente (los "chips" de la portada). */
-export async function listGlobalCategories(limit = 12, citySlug?: string | null) {
+/** Categorías del catálogo con platos servibles en la ciudad del cliente. */
+export async function listHomeCategories(citySlug?: string | null, limit = 12) {
+  const supabase = createPublicSupabase();
+  const { data } = await supabase.rpc('home_categories', {
+    p_city_slug: citySlug ?? null,
+    p_limit: limit,
+  });
+  return (data as { id: string; name: string; slug: string; image_url: string | null; products: number }[] | null) ?? [];
+}
+
+/** Categorías del catálogo presentes en la carta de un restaurante. */
+export async function getRestaurantCategories(restaurantId: string) {
   const supabase = createPublicSupabase();
 
-  let restaurantIds: string[] | null = null;
-  if (citySlug) {
-    const { data: restaurants } = await supabase
-      .from('restaurants')
-      .select('id')
-      .eq('is_active', true)
-      .eq('city_slug', citySlug);
-    restaurantIds = (restaurants ?? []).map((r) => r.id);
-    if (restaurantIds.length === 0) return [];
-  }
+  const { data: products } = await supabase
+    .from('products')
+    .select('catalog_category_id')
+    .eq('restaurant_id', restaurantId)
+    .not('catalog_category_id', 'is', null);
 
-  let categoryQuery = supabase
-    .from('categories')
-    .select('name, image_url')
+  const ids = [...new Set((products ?? []).map((p) => p.catalog_category_id))].filter(
+    Boolean,
+  ) as string[];
+  if (ids.length === 0) return [];
+
+  const { data } = await supabase
+    .from('catalog_categories')
+    .select('*')
+    .in('id', ids)
     .eq('is_active', true)
-    .limit(200);
-  if (restaurantIds) categoryQuery = categoryQuery.in('restaurant_id', restaurantIds);
+    .order('position');
 
-  const { data } = await categoryQuery;
-
-  const seen = new Map<string, string | null>();
-  for (const row of data ?? []) {
-    const key = row.name.trim().toLowerCase();
-    if (!seen.has(key)) seen.set(key, row.image_url);
-  }
-
-  return [...seen.entries()].slice(0, limit).map(([name, image]) => ({
-    name: name.charAt(0).toUpperCase() + name.slice(1),
-    slug: name,
-    image_url: image,
-  }));
+  return data ?? [];
 }

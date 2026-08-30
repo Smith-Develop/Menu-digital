@@ -5,7 +5,7 @@ import { getSessionProfile } from '@/lib/auth';
 import { resolveCity } from '@/lib/customer-location';
 import {
   listRestaurants,
-  listGlobalCategories,
+  listHomeCategories,
   listFeaturedProducts,
   listHomeBanners,
 } from '@/lib/queries/public';
@@ -38,7 +38,7 @@ export default async function MarketplacePage() {
     await Promise.all([
       getSessionProfile(),
       listRestaurants({ limit: 24, citySlug }),
-      listGlobalCategories(10, citySlug),
+      listHomeCategories(citySlug, 10),
       listFeaturedProducts(10, citySlug),
       listHomeBanners(citySlug, 6),
       createPublicSupabase()
@@ -50,7 +50,7 @@ export default async function MarketplacePage() {
   const cityName = location?.city ?? cities.find((c) => c.city_slug === citySlug)?.city;
 
   return (
-    <>
+    <div className="page-enter">
       <NotificationPopup notifications={notifications} />
 
       <TopBar cities={cities} location={location} />
@@ -84,10 +84,10 @@ export default async function MarketplacePage() {
           <div className="no-scrollbar flex gap-4 overflow-x-auto px-5 pb-2 lg:flex-wrap lg:overflow-visible lg:px-0">
             {categories.map((category) => (
               <CategoryChip
-                key={category.slug}
+                key={category.id}
                 label={category.name}
                 image={category.image_url}
-                href={`/search?q=${encodeURIComponent(category.name)}`}
+                href={`/search?cat=${category.slug}`}
               />
             ))}
           </div>
@@ -122,7 +122,7 @@ export default async function MarketplacePage() {
             className="rounded-2xl bg-white shadow-chip"
           />
         ) : (
-          <div className="grid gap-7 md:grid-cols-2 xl:grid-cols-3">
+          <div className="stagger grid gap-7 md:grid-cols-2 xl:grid-cols-3">
             {restaurants.map((restaurant) => (
               <RestaurantCard
                 key={restaurant.id}
@@ -174,6 +174,6 @@ export default async function MarketplacePage() {
           {t.storefront.deliverTo}: <span className="font-semibold text-ink-500">{cityName}</span>
         </p>
       )}
-    </>
+    </div>
   );
 }

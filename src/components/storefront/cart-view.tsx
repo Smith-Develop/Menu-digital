@@ -91,10 +91,15 @@ export function CartView({
   };
 
   return (
-    <div className="flex min-h-dvh flex-col">
-      <ScreenHeader title={t.cart.title} backHref={`/r/${slug}`} />
+    /*
+     * Alto fijo en lugar de página larga: el resumen y el botón de pedir se
+     * quedan siempre a la vista y solo hace scroll la lista de platos. Con la
+     * página entera desplazándose, en móvil el botón quedaba fuera de pantalla.
+     */
+    <div className="flex h-full flex-1 flex-col overflow-hidden">
+      <ScreenHeader title={t.cart.title} backHref={`/r/${slug}`} className="shrink-0" />
 
-      <ul className="flex-1 divide-y divide-surface-line px-5">
+      <ul className="min-h-0 flex-1 divide-y divide-surface-line overflow-y-auto px-5">
         {lines.map((line) => (
           <li key={line.key} className="flex gap-4 py-4 animate-fade-up">
             <span className="relative h-[90px] w-[90px] shrink-0 overflow-hidden rounded-xl bg-surface-muted">
@@ -146,7 +151,10 @@ export function CartView({
         ))}
       </ul>
 
-      <div className="mt-4 rounded-t-sheet bg-surface-field px-5 pb-5 pt-6">
+      <div
+        className="shrink-0 rounded-t-sheet bg-surface-field px-5 pt-5 shadow-sheet"
+        style={{ paddingBottom: 'calc(1.25rem + var(--safe-bottom))' }}
+      >
         {available.length > 1 ? (
           <>
             <p className="label">{t.cart.orderType}</p>
@@ -196,7 +204,7 @@ export function CartView({
           className="mb-5"
         />
 
-        <dl className="space-y-2 text-sm">
+        <dl className="space-y-1.5 text-sm">
           <Row label={t.common.subtotal} value={formatMoney(subtotal, currency, currencyDecimals)} />
           {discount > 0 && (
             <Row
@@ -219,7 +227,7 @@ export function CartView({
           {tax > 0 && <Row label={t.common.taxes} value={formatMoney(tax, currency, currencyDecimals)} />}
         </dl>
 
-        <div className="mt-4 flex items-center justify-between border-t border-surface-line pt-4">
+        <div className="mt-3 flex items-center justify-between border-t border-surface-line pt-3">
           <span className="text-xs font-bold uppercase tracking-wide text-ink-300">
             {t.common.total}
           </span>
@@ -240,7 +248,7 @@ export function CartView({
           type="button"
           disabled={belowMinimum}
           onClick={() => router.push(`/r/${slug}/checkout?type=${orderType}`)}
-          className="btn-primary mt-5 w-full py-4 text-[15px] uppercase tracking-wide"
+          className="btn-primary mt-4 w-full py-3.5 text-[15px] uppercase tracking-wide"
         >
           {t.cart.placeOrder}
         </button>

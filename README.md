@@ -24,6 +24,14 @@ del cliente**. Es instalable como PWA.
 | Cocina | `/kitchen` | Tablero de comandas con aviso sonoro y contador de minutos |
 | Superadministrador | `/admin` | Restaurantes, planes, cupones de plataforma, marca y notificaciones por ciudad |
 
+### Pedir exige cuenta
+
+Antes de confirmar, el cliente se registra o inicia sesión desde el propio
+checkout. Sin cuenta pierde el seguimiento en cuanto cierra la pestaña, porque
+el enlace del pedido vive solo en esa navegación. Si ya tiene ciudad y
+dirección guardadas, se usan tal cual y sus datos personales llegan del perfil:
+no se le vuelve a preguntar lo que ya dijo.
+
 ### Dos cestas, no una
 
 Pedir sentado y pedir a domicilio son carritos separados, con su propia clave en
@@ -68,6 +76,14 @@ todo momento desde qué mesa está pidiendo, sin arrastrar parámetros en la URL
 Cada plato admite un `.glb` (3D + AR en Android vía Scene Viewer) y,
 opcionalmente, un `.usdz` (AR en iOS vía Quick Look). El visor usa
 `<model-viewer>`, cargado solo en el navegador porque es un *web component*.
+
+### Las categorías las mantiene la plataforma
+
+El catálogo de categorías (`catalog_categories`) lo gestiona el
+superadministrador y los restaurantes eligen de él al crear un plato. Es lo que
+permite que los chips de la portada agrupen de verdad: cuando cada local
+inventaba las suyas, "Pizzas" de uno y "Pizza" de otro eran filtros distintos
+que no se cruzaban.
 
 ### La ciudad manda
 
@@ -120,12 +136,20 @@ chrome --kiosk-printing --app=https://tu-dominio/dashboard/orders
 Con la impresora de tickets como predeterminada del sistema, a partir de ahí las
 comandas salen directas.
 
-### Altas del equipo por invitación
+### Altas del equipo, de dos maneras
 
-El restaurante no crea cuentas ajenas: genera un enlace `/join/<token>` que la
-persona abre para registrarse con su propia contraseña. Así no hace falta la
-clave de administración de Supabase en el servidor y nadie maneja credenciales
-de otro. La invitación va atada a un correo concreto y se consume al usarse.
+- **Invitación por enlace** (`/join/<token>`): la persona abre el enlace y elige
+  su propia contraseña. El restaurante nunca ve credenciales ajenas. El enlace
+  va atado a un correo concreto, caduca a los 14 días y se consume al usarse.
+  Se envía por correo automáticamente.
+- **Alta directa**: el restaurante crea la cuenta y entrega la contraseña en
+  mano, sin esperar a que nadie acepte nada. Usa el registro normal de Supabase
+  con un cliente sin sesión, de modo que dar de alta a otro no toca la sesión de
+  quien está en el panel.
+
+Si la instancia exige confirmar el correo, el alta directa deja la cuenta creada
+pero sin poder entrar hasta que se confirme; el panel lo avisa. Ver
+[`docs/correo.md`](docs/correo.md).
 
 ### Suscripciones
 
@@ -182,6 +206,8 @@ Las migraciones de `supabase/migrations/` se aplican **en orden**:
 | `0012_order_coupon.sql` | `place_order` con cupón, cuenta de mesa e invitaciones |
 | `0013_coupons_rls.sql` | RLS de cupones e invitaciones |
 | `0014_profiles_team_read.sql` | El restaurante ve los datos de su propio equipo |
+| `0015_catalog_categories.sql` | Catálogo global de categorías y migración de las antiguas |
+| `0016_drop_legacy_categories.sql` | Retirada de la categoría por restaurante |
 
 `supabase/seed-demo.sql` crea un restaurante de ejemplo con carta, mesas y
 cuentas. Las contraseñas llegan por entorno para que el archivo pueda vivir en
@@ -254,6 +280,13 @@ que sí tienen sesión, usan Realtime.
 **El historial de estados lo escriben dos triggers.** Las marcas de tiempo se
 sellan en `BEFORE` (para que viajen en la misma fila) y el evento se inserta en
 `AFTER`, cuando el pedido ya existe y la clave foránea se puede satisfacer.
+
+**El alto de las pantallas de acción es fijo, no mínimo.** En el carrito y en
+los avisos de mesa el scroll vive dentro de la lista, para que el botón de
+acción no acabe por debajo del borde de la pantalla. El layout de la tienda
+reparte el alto y cada pantalla decide si se desplaza entera o solo por dentro:
+restar píxeles a ojo no servía, porque la cabecera y la barra inferior cambian
+de alto entre móvil y escritorio.
 
 **Detrás de un proxy, `request.url` es la dirección interna.** Redirigir con ella
 mandaba los QR de mesa a `localhost`. El origen público se saca de las cabeceras

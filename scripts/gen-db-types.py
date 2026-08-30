@@ -169,6 +169,7 @@ export type Database = {
     out.append("      table_bill: { Args: { p_table_code: string }; Returns: Json };")
     out.append("      accept_staff_invitation: { Args: { p_token: string }; Returns: Json };")
     out.append("      invitation_preview: { Args: { p_token: string }; Returns: Json };")
+    out.append("      home_categories: { Args: { p_city_slug?: string | null; p_limit?: number }; Returns: { id: string; name: string; slug: string; image_url: string | null; products: number }[] };")
     out.append("      is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };")
     out.append("      is_staff_of: { Args: { rid: string }; Returns: boolean };")
     out.append("    };")

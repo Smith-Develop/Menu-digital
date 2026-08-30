@@ -25,7 +25,14 @@ export function DishImage({
   return (
     <div className={cn('relative overflow-hidden bg-surface-muted', className)}>
       {src ? (
-        <Image src={src} alt={alt} fill sizes={sizes} priority={priority} className="object-cover" />
+        <Image
+          src={src}
+          alt={alt}
+          fill
+          sizes={sizes}
+          priority={priority}
+          className="img-fade object-cover"
+        />
       ) : (
         <div className="flex h-full w-full items-center justify-center text-ink-200">
           <ShoppingBag className="h-7 w-7" />
@@ -197,7 +204,7 @@ export function RestaurantCard({
   const t = useT();
 
   return (
-    <Link href={`/r/${slug}`} className="group block">
+    <Link href={`/r/${slug}`} className="lift group block">
       <div className="relative h-[150px] w-full overflow-hidden rounded-2xl bg-surface-muted">
         {cover ? (
           <Image
@@ -205,7 +212,7 @@ export function RestaurantCard({
             alt={name}
             fill
             sizes="(max-width: 480px) 100vw, 440px"
-            className="object-cover transition-transform duration-500 group-hover:scale-105"
+            className="img-fade object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
           <div className="flex h-full items-center justify-center text-ink-200">

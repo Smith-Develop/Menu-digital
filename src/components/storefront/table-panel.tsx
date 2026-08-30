@@ -116,10 +116,14 @@ export function TablePanel({
   }
 
   return (
-    <div className="pb-8">
-      <ScreenHeader title={t.table.calls} backHref={`/r/${slug}`} />
+    /*
+     * Igual que el carrito: alto fijo y scroll interno, para que el botón de
+     * pedir la cuenta no se vaya nunca por debajo del borde de la pantalla.
+     */
+    <div className="flex h-full flex-1 flex-col overflow-hidden">
+      <ScreenHeader title={t.table.calls} backHref={`/r/${slug}`} className="shrink-0" />
 
-      <div className="px-5">
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-6">
         <div className="rounded-2xl bg-ink px-5 py-6 text-white animate-fade-up">
           <p className="text-xs font-bold uppercase tracking-[0.1em] text-white/60">
             {t.table.welcome}
@@ -243,20 +247,27 @@ export function TablePanel({
               </div>
 
               <p className="mt-3 text-center text-xs text-ink-300">{t.table.paidWhenSettled}</p>
-
-              <button
-                type="button"
-                onClick={() => call('bill')}
-                disabled={pending !== null}
-                className="btn-primary mt-4 w-full"
-              >
-                <Receipt className="h-4 w-4" />
-                {t.table.callBill}
-              </button>
             </>
           )}
         </section>
       </div>
+
+      {orders.length > 0 && (
+        <div
+          className="shrink-0 border-t border-surface-line bg-white px-5 pt-4"
+          style={{ paddingBottom: 'calc(1rem + var(--safe-bottom))' }}
+        >
+          <button
+            type="button"
+            onClick={() => call('bill')}
+            disabled={pending !== null}
+            className="btn-primary w-full"
+          >
+            <Receipt className="h-4 w-4" />
+            {t.table.callBill}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

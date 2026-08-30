@@ -104,28 +104,14 @@ begin
   values (v_rest_id, v_plan_id, 'active', now(), now() + interval '30 days', v_admin_id);
 
   -- ---------- Carta ----------
-  insert into public.categories (restaurant_id, name, description, image_url, position)
-  values (v_rest_id, 'Pizzas', 'Horno de leña, masa de 48 horas',
-          'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=200&h=200&fit=crop', 1)
-  returning id into v_cat_pizza;
-
-  insert into public.categories (restaurant_id, name, description, image_url, position)
-  values (v_rest_id, 'Pastas', 'Pasta fresca elaborada cada mañana',
-          'https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=200&h=200&fit=crop', 2)
-  returning id into v_cat_pasta;
-
-  insert into public.categories (restaurant_id, name, description, image_url, position)
-  values (v_rest_id, 'Hamburguesas', 'Carne madurada y pan brioche',
-          'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=200&h=200&fit=crop', 3)
-  returning id into v_cat_burger;
-
-  insert into public.categories (restaurant_id, name, description, image_url, position)
-  values (v_rest_id, 'Bebidas', 'Refrescos, vinos y cervezas',
-          'https://images.unsplash.com/photo-1544145945-f90425340c7e?w=200&h=200&fit=crop', 4)
-  returning id into v_cat_drinks;
+  -- Las categorías salen del catálogo de la plataforma, no del restaurante.
+  select id into v_cat_pizza  from public.catalog_categories where slug = 'pizzas';
+  select id into v_cat_pasta  from public.catalog_categories where slug = 'pastas';
+  select id into v_cat_burger from public.catalog_categories where slug = 'hamburguesas';
+  select id into v_cat_drinks from public.catalog_categories where slug = 'bebidas';
 
   -- Pizza Margherita: con tamaños, extras y modelo 3D.
-  insert into public.products (restaurant_id, category_id, name, description, price_cents,
+  insert into public.products (restaurant_id, catalog_category_id, name, description, price_cents,
                                image_url, model_3d_url, prep_minutes, calories,
                                ingredients, allergens, tags, rating, rating_count, is_featured, position)
   values (v_rest_id, v_cat_pizza, 'Pizza Margherita',
@@ -151,7 +137,7 @@ begin
     (v_group, 'Jamón ibérico', 350, 3),
     (v_group, 'Champiñones', 120, 4);
 
-  insert into public.products (restaurant_id, category_id, name, description, price_cents,
+  insert into public.products (restaurant_id, catalog_category_id, name, description, price_cents,
                                image_url, prep_minutes, calories, ingredients, allergens,
                                rating, rating_count, is_featured, position)
   values

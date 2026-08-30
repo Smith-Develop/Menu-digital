@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Check, Copy, Link2, MailPlus, Trash2, UserRound } from 'lucide-react';
+import { Check, Copy, Link2, MailPlus, Trash2, UserPlus, UserRound } from 'lucide-react';
 import { Input, Select, Switch } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Sheet } from '@/components/ui/sheet';
@@ -15,6 +15,7 @@ import {
   removeStaff,
   inviteStaff,
   revokeInvitation,
+  createStaffAccount,
 } from '@/app/dashboard/actions';
 import { useT } from '@/i18n/provider';
 import { STAFF_ROLES, staffRoleLabel } from '@/lib/staff-roles';
@@ -64,6 +65,69 @@ export function StaffManager({
   const [inviteRole, setInviteRole] = useState<Enums<'staff_role'>>('waiter');
   const [inviteCourier, setInviteCourier] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+
+  // Alta directa: el restaurante crea la cuenta y entrega la contraseña.
+  const [creating, setCreating] = useState(false);
+  const [newStaff, setNewStaff] = useState({
+    fullName: '',
+    email: '',
+    phone: '',
+    password: '',
+    role: 'waiter' as Enums<'staff_role'>,
+    asCourier: false,
+  });
+
+  /** Contraseña legible pero difícil de adivinar, para dictarla en persona. */
+  function suggestPassword() {
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+    const bytes = crypto.getRandomValues(new Uint32Array(12));
+    setNewStaff((current) => ({
+      ...current,
+      password: Array.from(bytes, (n) => alphabet[n % alphabet.length]).join(''),
+    }));
+  }
+
+  async function createAccount() {
+    if (!newStaff.email.trim() || !newStaff.fullName.trim()) {
+      toast(t.common.required, 'error');
+      return;
+    }
+    if (newStaff.password.length < 8) {
+      toast(t.auth.passwordTooShort, 'error');
+      return;
+    }
+
+    setSaving(true);
+    const result = await createStaffAccount({
+      email: newStaff.email,
+      password: newStaff.password,
+      fullName: newStaff.fullName,
+      phone: newStaff.phone,
+      role: newStaff.role as 'admin' | 'manager' | 'waiter' | 'kitchen' | 'cashier',
+      asCourier: newStaff.asCourier,
+    });
+    setSaving(false);
+
+    if (!result.ok) {
+      toast(
+        result.error === 'PLAN_LIMIT_STAFF'
+          ? t.dashboard.limitReached
+          : result.error === 'PASSWORD_TOO_SHORT'
+            ? t.auth.passwordTooShort
+            : t.common.error,
+        'error',
+      );
+      return;
+    }
+
+    toast(
+      result.data.needsConfirmation ? t.team.createdNeedsConfirmation : t.team.created,
+      result.data.needsConfirmation ? 'info' : 'success',
+    );
+    setCreating(false);
+    setNewStaff({ fullName: '', email: '', phone: '', password: '', role: 'waiter', asCourier: false });
+    router.refresh();
+  }
 
   const inviteUrl = (token: string) => `${siteUrl.replace(/\/$/, '')}/join/${token}`;
 
@@ -148,10 +212,22 @@ export function StaffManager({
     <>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="max-w-xl text-sm text-ink-300">{t.team.inviteLinkHint}</p>
-        <Button onClick={() => setInviting(true)}>
-          <MailPlus className="h-4 w-4" />
-          {t.dashboard.inviteStaff}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="ghost"
+            onClick={() => {
+              suggestPassword();
+              setCreating(true);
+            }}
+          >
+            <UserPlus className="h-4 w-4" />
+            {t.team.createAccount}
+          </Button>
+          <Button onClick={() => setInviting(true)}>
+            <MailPlus className="h-4 w-4" />
+            {t.dashboard.inviteStaff}
+          </Button>
+        </div>
       </div>
 
       {invitations.length > 0 && (
@@ -269,6 +345,80 @@ export function StaffManager({
           })}
         </ul>
       )}
+
+      <Sheet
+        open={creating}
+        onClose={() => setCreating(false)}
+        title={t.team.createAccount}
+        footer={
+          <Button size="block" loading={saving} onClick={createAccount}>
+            {t.common.create}
+          </Button>
+        }
+      >
+        <div className="space-y-4">
+          <p className="rounded-xl bg-blue-50 px-4 py-3 text-xs text-blue-800">
+            {t.team.createAccountHint}
+          </p>
+
+          <Input
+            value={newStaff.fullName}
+            onChange={(e) => setNewStaff({ ...newStaff, fullName: e.target.value })}
+            label={t.auth.fullName}
+            placeholder="Ana García"
+            required
+          />
+          <Input
+            type="email"
+            value={newStaff.email}
+            onChange={(e) => setNewStaff({ ...newStaff, email: e.target.value })}
+            label={t.auth.email}
+            placeholder="ana@restaurante.com"
+            required
+          />
+          <Input
+            type="tel"
+            value={newStaff.phone}
+            onChange={(e) => setNewStaff({ ...newStaff, phone: e.target.value })}
+            label={`${t.auth.phone} (${t.common.optional})`}
+          />
+
+          <div>
+            <span className="label">{t.auth.password}</span>
+            <div className="flex gap-2">
+              <input
+                value={newStaff.password}
+                onChange={(e) => setNewStaff({ ...newStaff, password: e.target.value })}
+                className="field flex-1 font-mono"
+                minLength={8}
+                spellCheck={false}
+              />
+              <button type="button" onClick={suggestPassword} className="btn-ghost shrink-0 text-xs">
+                {t.team.generatePassword}
+              </button>
+            </div>
+            <span className="mt-1.5 block text-xs text-ink-300">{t.team.passwordHint}</span>
+          </div>
+
+          <Select
+            value={newStaff.role}
+            onChange={(e) => setNewStaff({ ...newStaff, role: e.target.value as Enums<'staff_role'> })}
+            label="Rol"
+          >
+            {STAFF_ROLES.filter((role) => role !== 'owner').map((role) => (
+              <option key={role} value={role}>
+                {staffRoleLabel(role, t)}
+              </option>
+            ))}
+          </Select>
+
+          <Switch
+            checked={newStaff.asCourier}
+            onChange={(v) => setNewStaff({ ...newStaff, asCourier: v })}
+            label={t.team.alsoCourier}
+          />
+        </div>
+      </Sheet>
 
       <Sheet
         open={inviting}

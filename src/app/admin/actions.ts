@@ -290,3 +290,63 @@ export async function deleteNotification(id: string): Promise<Result> {
   revalidatePath('/');
   return { ok: true };
 }
+
+// ====================== Catálogo de categorías ==========================
+
+const catalogCategorySchema = z.object({
+  id: z.string().uuid().optional(),
+  name: z.string().min(1).max(60),
+  slug: z.string().min(1).max(60).regex(/^[a-z0-9-]+$/),
+  description: z.string().max(200).nullable().optional(),
+  image_url: z.string().url().nullable().optional(),
+  position: z.coerce.number().int().min(0).default(0),
+  is_active: z.boolean().default(true),
+});
+
+/**
+ * Alta y edición del catálogo de categorías.
+ *
+ * Lo mantiene el superadministrador porque es lo que agrupa platos de
+ * restaurantes distintos en la portada: si cada local inventara las suyas,
+ * "Pizzas" y "Pizza" serían dos filtros que no se cruzan.
+ */
+export async function saveCatalogCategory(input: unknown): Promise<Result> {
+  if (!(await requireAdmin())) return { ok: false, error: 'FORBIDDEN' };
+
+  const parsed = catalogCategorySchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'INVALID_INPUT' };
+
+  const supabase = await createServerSupabase();
+  const { id, ...values } = parsed.data;
+
+  const { error } = id
+    ? await supabase.from('catalog_categories').update(values).eq('id', id)
+    : await supabase.from('catalog_categories').insert(values);
+
+  if (error) {
+    return { ok: false, error: error.code === '23505' ? 'SLUG_TAKEN' : error.message };
+  }
+
+  revalidatePath('/admin/categories');
+  revalidatePath('/', 'layout');
+  return { ok: true };
+}
+
+export async function deleteCatalogCategory(id: string): Promise<Result> {
+  if (!(await requireAdmin())) return { ok: false, error: 'FORBIDDEN' };
+
+  const supabase = await createServerSupabase();
+
+  // Los platos que la usaban quedan sin categoría, no se borran.
+  const { count } = await supabase
+    .from('products')
+    .select('id', { count: 'exact', head: true })
+    .eq('catalog_category_id', id);
+
+  const { error } = await supabase.from('catalog_categories').delete().eq('id', id);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath('/admin/categories');
+  revalidatePath('/', 'layout');
+  return { ok: true, ...(count ? { orphaned: count } : {}) } as Result;
+}

@@ -68,10 +68,13 @@ begin
     insert into public.subscriptions (restaurant_id, plan_id, status, current_period_start, current_period_end)
     values (v_rest, v_plan, 'active', now(), now() + interval '30 days');
 
-    insert into public.categories (restaurant_id, name, position)
-    values (v_rest, v_row.cat_name, 1) returning id into v_cat;
+    -- Categoría del catálogo de la plataforma; se crea si aún no existiera.
+    insert into public.catalog_categories (name, slug, position)
+    values (v_row.cat_name, public.slugify(v_row.cat_name), 50)
+    on conflict (slug) do nothing;
+    select id into v_cat from public.catalog_categories where slug = public.slugify(v_row.cat_name);
 
-    insert into public.products (restaurant_id, category_id, name, description, price_cents,
+    insert into public.products (restaurant_id, catalog_category_id, name, description, price_cents,
                                  image_url, prep_minutes, rating, rating_count, is_featured, position)
     values (v_rest, v_cat, v_row.dish_name, v_row.dish_desc, v_row.dish_price,
             v_row.dish_img, 20, v_row.rating, 40, true, 1);

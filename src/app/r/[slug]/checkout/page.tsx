@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { getRestaurantBySlug } from '@/lib/queries/public';
 import { getTableCodeFor } from '@/lib/table-session';
 import { getSessionProfile } from '@/lib/auth';
+import { getCustomerLocation } from '@/lib/customer-location';
 import { CheckoutView } from '@/components/storefront/checkout-view';
 import type { Enums } from '@/types/database';
 
@@ -18,7 +19,11 @@ export default async function CheckoutPage({
   const restaurant = await getRestaurantBySlug(slug);
   if (!restaurant) notFound();
 
-  const [tableCode, profile] = await Promise.all([getTableCodeFor(slug), getSessionProfile()]);
+  const [tableCode, profile, location] = await Promise.all([
+    getTableCodeFor(slug),
+    getSessionProfile(),
+    getCustomerLocation(),
+  ]);
 
   const requested = (['dine_in', 'delivery', 'pickup'] as const).includes(
     type as Enums<'order_type'>,
@@ -47,6 +52,8 @@ export default async function CheckoutPage({
         phone: profile?.phone ?? '',
         email: profile?.email ?? '',
       }}
+      isSignedIn={Boolean(profile)}
+      savedLocation={location ? { city: location.city, address: location.address } : null}
     />
   );
 }

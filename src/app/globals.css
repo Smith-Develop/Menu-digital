@@ -168,6 +168,37 @@
   .lift:hover {
     @apply -translate-y-0.5 shadow-card;
   }
+
+  /* Entrada de página: cada navegación aparece con un fundido corto. */
+  .page-enter {
+    animation: fade-up 0.32s cubic-bezier(0.4, 0, 0.2, 1) both;
+  }
+
+  /* Imágenes que aparecen al cargar en lugar de dar un salto. */
+  .img-fade {
+    animation: fadeIn 0.4s ease-out both;
+  }
+
+  /* Placeholder con brillo mientras llega el contenido. */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      theme('colors.surface.muted') 25%,
+      theme('colors.surface.line') 37%,
+      theme('colors.surface.muted') 63%
+    );
+    background-size: 400% 100%;
+    @apply animate-shimmer;
+  }
+}
+
+@layer utilities {
+  /* Suaviza el cambio de altura de los paneles que crecen. */
+  .transition-size {
+    transition:
+      max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+      opacity 0.2s ease-out;
+  }
 }
 
 @media print {

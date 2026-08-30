@@ -77,7 +77,7 @@ export function MenuBrowser({
 
   return (
     <>
-      <div className="sticky top-0 z-20 bg-white/95 px-5 py-3 backdrop-blur">
+      <div className="sticky top-[57px] z-20 bg-white/95 px-5 py-3 backdrop-blur lg:top-[65px] lg:rounded-t-sheet">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
           <input
@@ -116,7 +116,7 @@ export function MenuBrowser({
         {visible.length === 0 ? (
           <p className="py-10 text-center text-sm text-ink-300">{t.common.empty}</p>
         ) : (
-          <div className="grid grid-cols-2 gap-x-4 gap-y-12 pb-4">
+          <div className="stagger grid grid-cols-2 gap-x-4 gap-y-12 pb-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {visible.map((product) => (
               <article key={product.id} className="relative pt-12">
                 <Link href={`/r/${slug}/p/${product.id}`} className="block">

@@ -7,28 +7,20 @@ import { Box, ImageIcon, Layers, Pencil, Plus, Star, Trash2 } from 'lucide-react
 import { Sheet, ConfirmDialog } from '@/components/ui/sheet';
 import { Input, Select, Switch, Textarea } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Badge, EmptyState } from '@/components/ui/misc';
+import { EmptyState } from '@/components/ui/misc';
 import { useToast } from '@/components/ui/toast';
 import { FileUpload } from '@/components/dashboard/file-upload';
 import { OptionGroupsEditor } from '@/components/dashboard/option-groups-editor';
-import {
-  saveCategory,
-  deleteCategory,
-  saveProduct,
-  deleteProduct,
-  toggleProductAvailability,
-} from '@/app/dashboard/actions';
+import { saveProduct, deleteProduct, toggleProductAvailability } from '@/app/dashboard/actions';
 import { formatAmount, parseAmount, formatMoney } from '@/lib/money';
 import { useT } from '@/i18n/provider';
 import { cn } from '@/lib/utils';
 
+/** Categoría del catálogo de la plataforma; el restaurante solo la elige. */
 export type ManagedCategory = {
   id: string;
   name: string;
-  description: string | null;
   imageUrl: string | null;
-  position: number;
-  isActive: boolean;
 };
 
 export type ManagedOptionGroup = {
@@ -109,13 +101,11 @@ export function MenuManager({
   const toast = useToast();
   const router = useRouter();
 
-  const [tab, setTab] = useState<'products' | 'categories'>('products');
   const [filter, setFilter] = useState<string | null>(null);
 
   const [productDraft, setProductDraft] = useState<Draft | null>(null);
-  const [categoryDraft, setCategoryDraft] = useState<Partial<ManagedCategory> | null>(null);
   const [optionsFor, setOptionsFor] = useState<ManagedProduct | null>(null);
-  const [confirm, setConfirm] = useState<{ kind: 'product' | 'category'; id: string } | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const visible = filter ? products.filter((p) => p.categoryId === filter) : products;
@@ -126,7 +116,7 @@ export function MenuManager({
 
     const result = await saveProduct({
       id: productDraft.id,
-      category_id: productDraft.categoryId,
+      catalog_category_id: productDraft.categoryId,
       name: productDraft.name,
       description: productDraft.description || null,
       price_cents: productDraft.priceCents,
@@ -163,43 +153,17 @@ export function MenuManager({
     router.refresh();
   }
 
-  async function submitCategory() {
-    if (!categoryDraft?.name) return;
-    setSaving(true);
-
-    const result = await saveCategory({
-      id: categoryDraft.id,
-      name: categoryDraft.name,
-      description: categoryDraft.description || null,
-      image_url: categoryDraft.imageUrl || null,
-      position: categoryDraft.position ?? 0,
-      is_active: categoryDraft.isActive ?? true,
-    });
-
-    setSaving(false);
-    if (!result.ok) {
-      toast(t.common.error, 'error');
-      return;
-    }
-    toast(t.common.save, 'success');
-    setCategoryDraft(null);
-    router.refresh();
-  }
-
   async function runDelete() {
-    if (!confirm) return;
+    if (!confirmId) return;
     setSaving(true);
-    const result =
-      confirm.kind === 'product'
-        ? await deleteProduct(confirm.id)
-        : await deleteCategory(confirm.id);
+    const result = await deleteProduct(confirmId);
     setSaving(false);
 
     if (!result.ok) {
       toast(t.common.error, 'error');
       return;
     }
-    setConfirm(null);
+    setConfirmId(null);
     router.refresh();
   }
 
@@ -215,36 +179,14 @@ export function MenuManager({
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-1 rounded-xl bg-surface-field p-1">
-          {(['products', 'categories'] as const).map((key) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setTab(key)}
-              className={cn(
-                'rounded-lg px-4 py-2 text-sm font-bold transition-colors',
-                tab === key ? 'bg-white text-ink shadow-sm' : 'text-ink-400',
-              )}
-            >
-              {key === 'products' ? t.dashboard.products : t.dashboard.categories}
-            </button>
-          ))}
-        </div>
-
-        <Button
-          onClick={() =>
-            tab === 'products'
-              ? setProductDraft(emptyDraft(filter))
-              : setCategoryDraft({ name: '', isActive: true, position: categories.length })
-          }
-        >
+        <p className="max-w-xl text-sm text-ink-300">{t.catalog.askAdmin}</p>
+        <Button onClick={() => setProductDraft(emptyDraft(filter))}>
           <Plus className="h-4 w-4" />
-          {tab === 'products' ? t.dashboard.newProduct : t.dashboard.newCategory}
+          {t.dashboard.newProduct}
         </Button>
       </div>
 
-      {tab === 'products' ? (
-        <>
+      <>
           {categories.length > 0 && (
             <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
               <FilterPill label={t.common.all} active={filter === null} onClick={() => setFilter(null)} />
@@ -354,7 +296,7 @@ export function MenuManager({
                         <IconAction
                           label={t.common.delete}
                           danger
-                          onClick={() => setConfirm({ kind: 'product', id: product.id })}
+                          onClick={() => setConfirmId(product.id)}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </IconAction>
@@ -365,49 +307,7 @@ export function MenuManager({
               ))}
             </ul>
           )}
-        </>
-      ) : categories.length === 0 ? (
-        <EmptyState
-          icon={<Layers className="h-7 w-7" />}
-          title={t.common.empty}
-          className="rounded-2xl bg-white shadow-chip"
-        />
-      ) : (
-        <ul className="space-y-3">
-          {categories.map((category) => (
-            <li
-              key={category.id}
-              className="flex items-center gap-4 rounded-2xl bg-white p-4 shadow-chip"
-            >
-              <span className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-surface-muted">
-                {category.imageUrl && (
-                  <Image src={category.imageUrl} alt={category.name} fill sizes="56px" className="object-cover" />
-                )}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-bold text-ink-700">{category.name}</p>
-                <p className="truncate text-xs text-ink-300">
-                  {products.filter((p) => p.categoryId === category.id).length}{' '}
-                  {t.dashboard.products.toLowerCase()}
-                </p>
-              </div>
-              {!category.isActive && <Badge tone="neutral">{t.common.inactive}</Badge>}
-              <div className="flex gap-1">
-                <IconAction label={t.common.edit} onClick={() => setCategoryDraft(category)}>
-                  <Pencil className="h-3.5 w-3.5" />
-                </IconAction>
-                <IconAction
-                  label={t.common.delete}
-                  danger
-                  onClick={() => setConfirm({ kind: 'category', id: category.id })}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </IconAction>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+      </>
 
       {/* ---------- Editor de plato ---------- */}
       <Sheet
@@ -456,8 +356,9 @@ export function MenuManager({
                   setProductDraft({ ...productDraft, categoryId: e.target.value || null })
                 }
                 label={t.common.category}
+                hint={categories.length === 0 ? t.catalog.askAdmin : undefined}
               >
-                <option value="">{t.common.none}</option>
+                <option value="">{t.catalog.noCategoryYet}</option>
                 {categories.map((category) => (
                   <option key={category.id} value={category.id}>
                     {category.name}
@@ -549,48 +450,6 @@ export function MenuManager({
         )}
       </Sheet>
 
-      {/* ---------- Editor de categoría ---------- */}
-      <Sheet
-        open={categoryDraft !== null}
-        onClose={() => setCategoryDraft(null)}
-        title={categoryDraft?.id ? t.common.edit : t.dashboard.newCategory}
-        footer={
-          <Button size="block" loading={saving} onClick={submitCategory}>
-            {t.common.save}
-          </Button>
-        }
-      >
-        {categoryDraft && (
-          <div className="space-y-5">
-            <Input
-              value={categoryDraft.name ?? ''}
-              onChange={(e) => setCategoryDraft({ ...categoryDraft, name: e.target.value })}
-              label={t.common.name}
-              placeholder="Pizzas"
-              required
-            />
-            <Textarea
-              value={categoryDraft.description ?? ''}
-              onChange={(e) => setCategoryDraft({ ...categoryDraft, description: e.target.value })}
-              label={t.common.description}
-              rows={2}
-            />
-            <FileUpload
-              bucket="products"
-              restaurantId={restaurantId}
-              value={categoryDraft.imageUrl ?? null}
-              onChange={(url) => setCategoryDraft({ ...categoryDraft, imageUrl: url })}
-              label={t.common.image}
-            />
-            <Switch
-              checked={categoryDraft.isActive ?? true}
-              onChange={(v) => setCategoryDraft({ ...categoryDraft, isActive: v })}
-              label={t.common.active}
-            />
-          </div>
-        )}
-      </Sheet>
-
       {/* ---------- Opciones del plato ---------- */}
       <Sheet
         open={optionsFor !== null}
@@ -613,8 +472,8 @@ export function MenuManager({
       </Sheet>
 
       <ConfirmDialog
-        open={confirm !== null}
-        onClose={() => setConfirm(null)}
+        open={confirmId !== null}
+        onClose={() => setConfirmId(null)}
         onConfirm={runDelete}
         title={t.common.delete}
         message={t.common.confirm}
