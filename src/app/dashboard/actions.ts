@@ -495,3 +495,92 @@ export async function updateOrderPaymentStatus(
   revalidatePath('/dashboard/orders');
   return { ok: true };
 }
+
+// =============================== Banners ================================
+
+const bannerSchema = z.object({
+  id: z.string().uuid().optional(),
+  title: z.string().max(80).nullable().optional(),
+  subtitle: z.string().max(160).nullable().optional(),
+  image_url: z.string().url(),
+  link_url: z.string().max(400).nullable().optional(),
+  position: z.coerce.number().int().min(0).default(0),
+  is_active: z.boolean().default(true),
+  starts_at: z.string().datetime().nullable().optional(),
+  ends_at: z.string().datetime().nullable().optional(),
+});
+
+export async function saveBanner(input: unknown): Promise<Result> {
+  const { context, error } = await guard();
+  if (!context) return fail(error);
+
+  const parsed = bannerSchema.safeParse(input);
+  if (!parsed.success) return fail('INVALID_INPUT');
+
+  const supabase = await createServerSupabase();
+  const { id, ...values } = parsed.data;
+
+  const { error: dbError } = id
+    ? await supabase
+        .from('banners')
+        .update(values)
+        .eq('id', id)
+        .eq('restaurant_id', context.restaurant.id)
+    : await supabase.from('banners').insert({ ...values, restaurant_id: context.restaurant.id });
+
+  if (dbError) return fail(dbError.message);
+
+  revalidatePath('/dashboard/banners');
+  revalidatePath(`/r/${context.restaurant.slug}`);
+  revalidatePath('/');
+  return { ok: true };
+}
+
+export async function deleteBanner(id: string): Promise<Result> {
+  const { context, error } = await guard();
+  if (!context) return fail(error);
+
+  const supabase = await createServerSupabase();
+  const { error: dbError } = await supabase
+    .from('banners')
+    .delete()
+    .eq('id', id)
+    .eq('restaurant_id', context.restaurant.id);
+
+  if (dbError) return fail(dbError.message);
+
+  revalidatePath('/dashboard/banners');
+  revalidatePath('/');
+  return { ok: true };
+}
+
+/** Colores propios de la tienda del restaurante. */
+export async function updateRestaurantTheme(input: {
+  primary_color: string;
+  accent_color: string;
+  text_color: string;
+}): Promise<Result> {
+  const { context, error } = await guard();
+  if (!context) return fail(error);
+
+  const hex = /^#[0-9a-fA-F]{6}$/;
+  if (![input.primary_color, input.accent_color, input.text_color].every((c) => hex.test(c))) {
+    return fail('INVALID_COLOR');
+  }
+
+  const supabase = await createServerSupabase();
+  const { error: dbError } = await supabase
+    .from('restaurants')
+    .update({
+      primary_color: input.primary_color,
+      accent_color: input.accent_color,
+      text_color: input.text_color,
+    })
+    .eq('id', context.restaurant.id);
+
+  if (dbError) return fail(dbError.message);
+
+  revalidatePath('/dashboard/settings');
+  revalidatePath(`/r/${context.restaurant.slug}`);
+  return { ok: true };
+}

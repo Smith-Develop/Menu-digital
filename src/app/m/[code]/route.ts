@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getTableByCode } from '@/lib/queries/public';
 import { tableCookieName } from '@/lib/table-session';
+import { originFromRequest } from '@/lib/request-url';
 
 /**
  * Punto de entrada de los QR de mesa.
@@ -16,12 +17,16 @@ export async function GET(
   const { code } = await params;
   const found = await getTableByCode(code);
 
+  // El origen sale de las cabeceras del proxy, no de request.url: si no,
+  // el QR escaneado en el móvil acabaría redirigiendo a localhost.
+  const origin = originFromRequest(request);
+
   if (!found) {
-    return NextResponse.redirect(new URL('/?error=table_not_found', request.url));
+    return NextResponse.redirect(new URL('/?error=table_not_found', origin));
   }
 
   const { table, restaurant } = found;
-  const response = NextResponse.redirect(new URL(`/r/${restaurant.slug}`, request.url));
+  const response = NextResponse.redirect(new URL(`/r/${restaurant.slug}`, origin));
 
   response.cookies.set(tableCookieName(restaurant.slug), table.code, {
     path: '/',

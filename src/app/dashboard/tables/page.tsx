@@ -1,7 +1,7 @@
 import { getI18n } from '@/i18n';
 import { requireStaffContext } from '@/lib/auth';
 import { createServerSupabase } from '@/lib/supabase/server';
-import { env } from '@/lib/env';
+import { getPublicOrigin } from '@/lib/request-url';
 import { TablesManager } from '@/components/dashboard/tables-manager';
 import { ShareLinks } from '@/components/dashboard/share-links';
 
@@ -12,6 +12,8 @@ export default async function TablesPage() {
   const { restaurant, subscription } = await requireStaffContext();
   const { t } = await getI18n();
   const supabase = await createServerSupabase();
+
+  const siteUrl = await getPublicOrigin();
 
   const { data: tables } = await supabase
     .from('tables')
@@ -29,10 +31,10 @@ export default async function TablesPage() {
         </p>
       </div>
 
-      <ShareLinks siteUrl={env.siteUrl} slug={restaurant.slug} name={restaurant.name} />
+      <ShareLinks siteUrl={siteUrl} slug={restaurant.slug} name={restaurant.name} />
 
       <TablesManager
-        siteUrl={env.siteUrl}
+        siteUrl={siteUrl}
         restaurantName={restaurant.name}
         tables={(tables ?? []).map((table) => ({
           id: table.id,

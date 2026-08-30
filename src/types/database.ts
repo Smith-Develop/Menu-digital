@@ -7,6 +7,93 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type Database = {
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          id: boolean;
+          app_name: string;
+          tagline: string;
+          description: string;
+          logo_url: string | null;
+          icon_url: string | null;
+          primary_color: string;
+          accent_color: string;
+          text_color: string;
+          updated_by: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          id?: boolean;
+          app_name?: string;
+          tagline?: string;
+          description?: string;
+          logo_url?: string | null;
+          icon_url?: string | null;
+          primary_color?: string;
+          accent_color?: string;
+          text_color?: string;
+          updated_by?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          id?: boolean;
+          app_name?: string;
+          tagline?: string;
+          description?: string;
+          logo_url?: string | null;
+          icon_url?: string | null;
+          primary_color?: string;
+          accent_color?: string;
+          text_color?: string;
+          updated_by?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      banners: {
+        Row: {
+          id: string;
+          restaurant_id: string;
+          title: string | null;
+          subtitle: string | null;
+          image_url: string;
+          link_url: string | null;
+          position: number;
+          is_active: boolean;
+          starts_at: string | null;
+          ends_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          restaurant_id: string;
+          title?: string | null;
+          subtitle?: string | null;
+          image_url: string;
+          link_url?: string | null;
+          position?: number;
+          is_active?: boolean;
+          starts_at?: string | null;
+          ends_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          restaurant_id?: string;
+          title?: string | null;
+          subtitle?: string | null;
+          image_url?: string;
+          link_url?: string | null;
+          position?: number;
+          is_active?: boolean;
+          starts_at?: string | null;
+          ends_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       categories: {
         Row: {
           id: string;
@@ -43,6 +130,63 @@ export type Database = {
         };
         Relationships: [];
       };
+      couriers: {
+        Row: {
+          id: string;
+          user_id: string;
+          phone: string | null;
+          vehicle: string;
+          status: Enums<"courier_status">;
+          city: string | null;
+          lat: number | null;
+          lng: number | null;
+          location_updated_at: string | null;
+          rating: number;
+          rating_count: number;
+          deliveries_count: number;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+          city_slug: string | null;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          phone?: string | null;
+          vehicle?: string;
+          status?: Enums<"courier_status">;
+          city?: string | null;
+          lat?: number | null;
+          lng?: number | null;
+          location_updated_at?: string | null;
+          rating?: number;
+          rating_count?: number;
+          deliveries_count?: number;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+          city_slug?: string | null;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          phone?: string | null;
+          vehicle?: string;
+          status?: Enums<"courier_status">;
+          city?: string | null;
+          lat?: number | null;
+          lng?: number | null;
+          location_updated_at?: string | null;
+          rating?: number;
+          rating_count?: number;
+          deliveries_count?: number;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+          city_slug?: string | null;
+        };
+        Relationships: [];
+      };
       favorites: {
         Row: {
           user_id: string;
@@ -58,6 +202,57 @@ export type Database = {
           user_id?: string;
           product_id?: string;
           created_at?: string;
+        };
+        Relationships: [];
+      };
+      notifications: {
+        Row: {
+          id: string;
+          title: string;
+          body: string | null;
+          image_url: string | null;
+          link_url: string | null;
+          link_label: string | null;
+          audience: Enums<"notification_audience">;
+          cities: string[];
+          starts_at: string;
+          ends_at: string | null;
+          is_active: boolean;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          body?: string | null;
+          image_url?: string | null;
+          link_url?: string | null;
+          link_label?: string | null;
+          audience?: Enums<"notification_audience">;
+          cities?: string[];
+          starts_at?: string;
+          ends_at?: string | null;
+          is_active?: boolean;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          title?: string;
+          body?: string | null;
+          image_url?: string | null;
+          link_url?: string | null;
+          link_label?: string | null;
+          audience?: Enums<"notification_audience">;
+          cities?: string[];
+          starts_at?: string;
+          ends_at?: string | null;
+          is_active?: boolean;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
         };
         Relationships: [];
       };
@@ -232,6 +427,8 @@ export type Database = {
           cancel_reason: string | null;
           created_at: string;
           updated_at: string;
+          courier_id: string | null;
+          picked_up_at: string | null;
         };
         Insert: {
           id?: string;
@@ -268,6 +465,8 @@ export type Database = {
           cancel_reason?: string | null;
           created_at?: string;
           updated_at?: string;
+          courier_id?: string | null;
+          picked_up_at?: string | null;
         };
         Update: {
           id?: string;
@@ -304,6 +503,8 @@ export type Database = {
           cancel_reason?: string | null;
           created_at?: string;
           updated_at?: string;
+          courier_id?: string | null;
+          picked_up_at?: string | null;
         };
         Relationships: [];
       };
@@ -535,6 +736,30 @@ export type Database = {
         };
         Relationships: [];
       };
+      restaurant_couriers: {
+        Row: {
+          id: string;
+          restaurant_id: string;
+          courier_id: string;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          restaurant_id: string;
+          courier_id: string;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          restaurant_id?: string;
+          courier_id?: string;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       restaurant_staff: {
         Row: {
           id: string;
@@ -607,6 +832,9 @@ export type Database = {
           is_open: boolean;
           created_at: string;
           updated_at: string;
+          city_slug: string | null;
+          accent_color: string;
+          text_color: string;
         };
         Insert: {
           id?: string;
@@ -646,6 +874,9 @@ export type Database = {
           is_open?: boolean;
           created_at?: string;
           updated_at?: string;
+          city_slug?: string | null;
+          accent_color?: string;
+          text_color?: string;
         };
         Update: {
           id?: string;
@@ -685,6 +916,9 @@ export type Database = {
           is_open?: boolean;
           created_at?: string;
           updated_at?: string;
+          city_slug?: string | null;
+          accent_color?: string;
+          text_color?: string;
         };
         Relationships: [];
       };
@@ -870,13 +1104,23 @@ export type Database = {
       get_order_by_token: { Args: { p_token: string }; Returns: Json };
       call_waiter: { Args: { p_table_code: string; p_type?: Enums<'call_type'>; p_note?: string | null }; Returns: Json };
       restaurant_stats: { Args: { p_restaurant_id: string; p_days?: number }; Returns: Json };
+      list_cities: { Args: { [_ in never]: never }; Returns: { city: string; city_slug: string; restaurants: number }[] };
+      nearest_city: { Args: { p_lat: number; p_lng: number }; Returns: { city: string; city_slug: string; distance_km: number }[] };
+      home_banners: { Args: { p_city_slug?: string | null; p_limit?: number }; Returns: { id: string; title: string | null; subtitle: string | null; image_url: string; link_url: string | null; restaurant_id: string; restaurant_name: string; restaurant_slug: string }[] };
+      active_notifications: { Args: { p_city_slug?: string | null }; Returns: { id: string; title: string; body: string | null; image_url: string | null; link_url: string | null; link_label: string | null }[] };
+      courier_take_order: { Args: { p_order_id: string }; Returns: Json };
+      courier_complete_order: { Args: { p_order_id: string }; Returns: Json };
+      courier_stats: { Args: { [_ in never]: never }; Returns: Json };
+      my_courier_id: { Args: { [_ in never]: never }; Returns: string | null };
       is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };
       is_staff_of: { Args: { rid: string }; Returns: boolean };
     };
     Enums: {
-      app_role: "superadmin" | "restaurant" | "customer";
+      app_role: "superadmin" | "restaurant" | "customer" | "courier";
       call_status: "pending" | "attended" | "cancelled";
       call_type: "waiter" | "bill" | "water" | "help";
+      courier_status: "offline" | "available" | "busy";
+      notification_audience: "all" | "cities";
       order_item_status: "queued" | "preparing" | "ready" | "served";
       order_status: "pending" | "confirmed" | "preparing" | "ready" | "delivering" | "completed" | "cancelled";
       order_type: "dine_in" | "delivery" | "pickup";

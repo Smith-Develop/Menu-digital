@@ -3,6 +3,7 @@ import { getRestaurantBySlug } from '@/lib/queries/public';
 import { getTableCodeFor } from '@/lib/table-session';
 import { RestaurantProvider } from '@/components/storefront/restaurant-provider';
 import { RestaurantNav } from '@/components/storefront/restaurant-nav';
+import { brandCssVariables } from '@/lib/brand';
 import type { Metadata } from 'next';
 
 export async function generateMetadata({
@@ -39,7 +40,18 @@ export default async function RestaurantLayout({
   const tableCode = await getTableCodeFor(slug);
 
   return (
-    <div className="mobile-shell flex flex-col">
+    // Cada restaurante pinta su tienda con sus propios colores: las variables
+    // sobrescriben aquí las de la marca global sin tocar el resto de la app.
+    <div
+      className="mobile-shell flex flex-col lg:max-w-2xl lg:shadow-chip"
+      style={
+        brandCssVariables({
+          primaryColor: restaurant.primary_color,
+          accentColor: restaurant.accent_color,
+          textColor: restaurant.text_color,
+        }) as React.CSSProperties
+      }
+    >
       <RestaurantProvider
         slug={restaurant.slug}
         name={restaurant.name}

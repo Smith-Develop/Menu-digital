@@ -7,8 +7,17 @@ export type Product = Tables<'products'>;
 export type OptionGroup = Tables<'option_groups'> & { options: Tables<'options'>[] };
 export type ProductWithOptions = Product & { optionGroups: OptionGroup[] };
 
-/** Restaurantes visibles en el marketplace. */
-export async function listRestaurants(options?: { search?: string; limit?: number }) {
+/**
+ * Restaurantes visibles en el marketplace.
+ *
+ * `citySlug` acota el listado a la ciudad del cliente: no tiene sentido
+ * enseñarle locales que no reparten donde está.
+ */
+export async function listRestaurants(options?: {
+  search?: string;
+  limit?: number;
+  citySlug?: string | null;
+}) {
   const supabase = createPublicSupabase();
   let query = supabase
     .from('restaurants')
@@ -18,12 +27,50 @@ export async function listRestaurants(options?: { search?: string; limit?: numbe
     .order('rating', { ascending: false })
     .limit(options?.limit ?? 40);
 
+  if (options?.citySlug) query = query.eq('city_slug', options.citySlug);
+
   if (options?.search) {
     const term = `%${options.search}%`;
     query = query.or(`name.ilike.${term},description.ilike.${term},city.ilike.${term}`);
   }
 
   const { data } = await query;
+  return data ?? [];
+}
+
+export type HomeBanner = {
+  id: string;
+  title: string | null;
+  subtitle: string | null;
+  image_url: string;
+  link_url: string | null;
+  restaurant_id: string;
+  restaurant_name: string;
+  restaurant_slug: string;
+};
+
+/** Banners de la portada: aleatorios y solo de la ciudad del cliente. */
+export async function listHomeBanners(citySlug: string | null, limit = 6): Promise<HomeBanner[]> {
+  const supabase = createPublicSupabase();
+  const { data } = await supabase.rpc('home_banners', {
+    p_city_slug: citySlug,
+    p_limit: limit,
+  });
+  return (data as HomeBanner[] | null) ?? [];
+}
+
+/** Banners propios de un restaurante, para su tienda. */
+export async function getRestaurantBanners(restaurantId: string) {
+  const supabase = createPublicSupabase();
+  const nowIso = new Date().toISOString();
+  const { data } = await supabase
+    .from('banners')
+    .select('*')
+    .eq('restaurant_id', restaurantId)
+    .eq('is_active', true)
+    .or(`starts_at.is.null,starts_at.lte.${nowIso}`)
+    .or(`ends_at.is.null,ends_at.gte.${nowIso}`)
+    .order('position');
   return data ?? [];
 }
 
@@ -107,26 +154,32 @@ export async function getProduct(
   };
 }
 
-/** Platos destacados de todo el marketplace, para la portada. */
-export async function listFeaturedProducts(limit = 8) {
+/** Platos destacados de la ciudad del cliente, para la portada. */
+export async function listFeaturedProducts(limit = 8, citySlug?: string | null) {
   const supabase = createPublicSupabase();
+
+  // Primero los restaurantes de la ciudad; sin ellos no hay nada que destacar.
+  let restaurantQuery = supabase
+    .from('restaurants')
+    .select('id, name, slug, currency, currency_decimals')
+    .eq('is_active', true);
+  if (citySlug) restaurantQuery = restaurantQuery.eq('city_slug', citySlug);
+
+  const { data: restaurants } = await restaurantQuery;
+  if (!restaurants?.length) return [];
+
   const { data } = await supabase
     .from('products')
     .select('*')
     .eq('is_featured', true)
     .eq('is_available', true)
+    .in('restaurant_id', restaurants.map((r) => r.id))
     .order('rating', { ascending: false })
     .limit(limit);
 
   if (!data?.length) return [];
 
-  const restaurantIds = [...new Set(data.map((p) => p.restaurant_id))];
-  const { data: restaurants } = await supabase
-    .from('restaurants')
-    .select('id, name, slug, currency, currency_decimals')
-    .in('id', restaurantIds);
-
-  const byId = new Map((restaurants ?? []).map((r) => [r.id, r]));
+  const byId = new Map(restaurants.map((r) => [r.id, r]));
   return data.map((product) => ({ ...product, restaurant: byId.get(product.restaurant_id) ?? null }));
 }
 
@@ -153,14 +206,29 @@ export async function getTableByCode(code: string) {
   return { table, restaurant };
 }
 
-/** Categorías agregadas de todo el marketplace (los "chips" de la portada). */
-export async function listGlobalCategories(limit = 12) {
+/** Categorías agregadas de la ciudad del cliente (los "chips" de la portada). */
+export async function listGlobalCategories(limit = 12, citySlug?: string | null) {
   const supabase = createPublicSupabase();
-  const { data } = await supabase
+
+  let restaurantIds: string[] | null = null;
+  if (citySlug) {
+    const { data: restaurants } = await supabase
+      .from('restaurants')
+      .select('id')
+      .eq('is_active', true)
+      .eq('city_slug', citySlug);
+    restaurantIds = (restaurants ?? []).map((r) => r.id);
+    if (restaurantIds.length === 0) return [];
+  }
+
+  let categoryQuery = supabase
     .from('categories')
     .select('name, image_url')
     .eq('is_active', true)
     .limit(200);
+  if (restaurantIds) categoryQuery = categoryQuery.in('restaurant_id', restaurantIds);
+
+  const { data } = await categoryQuery;
 
   const seen = new Map<string, string | null>();
   for (const row of data ?? []) {

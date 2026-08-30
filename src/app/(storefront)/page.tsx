@@ -1,13 +1,28 @@
 import Link from 'next/link';
-import { Search, Store } from 'lucide-react';
+import { MapPin, Search, Store } from 'lucide-react';
 import { getI18n } from '@/i18n';
 import { getSessionProfile } from '@/lib/auth';
-import { listRestaurants, listGlobalCategories, listFeaturedProducts } from '@/lib/queries/public';
+import { getBrand } from '@/lib/brand';
+import { resolveCity } from '@/lib/customer-location';
+import {
+  listRestaurants,
+  listGlobalCategories,
+  listFeaturedProducts,
+  listHomeBanners,
+} from '@/lib/queries/public';
+import { createPublicSupabase } from '@/lib/supabase/server';
 import { TopBar } from '@/components/storefront/top-bar';
 import { SectionHeader, EmptyState } from '@/components/ui/misc';
 import { CategoryChip, PopularCard, RestaurantCard } from '@/components/storefront/cards';
+import { BannerCarousel } from '@/components/storefront/banner-carousel';
+import {
+  NotificationPopup,
+  type PopupNotification,
+} from '@/components/storefront/notification-popup';
+import { LocationPicker } from '@/components/storefront/location-picker';
+import { interpolate } from '@/i18n/provider';
 
-export const revalidate = 60;
+export const dynamic = 'force-dynamic';
 
 function greetingKey(): 'goodMorning' | 'goodAfternoon' | 'goodEvening' {
   const hour = new Date().getHours();
@@ -18,41 +33,61 @@ function greetingKey(): 'goodMorning' | 'goodAfternoon' | 'goodEvening' {
 
 export default async function MarketplacePage() {
   const { t } = await getI18n();
-  const [profile, restaurants, categories, featured] = await Promise.all([
-    getSessionProfile(),
-    listRestaurants({ limit: 20 }),
-    listGlobalCategories(10),
-    listFeaturedProducts(8),
-  ]);
+  const { location, citySlug, cities } = await resolveCity();
+
+  const [profile, brand, restaurants, categories, featured, banners, notifications] =
+    await Promise.all([
+      getSessionProfile(),
+      getBrand(),
+      listRestaurants({ limit: 24, citySlug }),
+      listGlobalCategories(10, citySlug),
+      listFeaturedProducts(10, citySlug),
+      listHomeBanners(citySlug, 6),
+      createPublicSupabase()
+        .rpc('active_notifications', { p_city_slug: citySlug })
+        .then(({ data }) => (data as PopupNotification[] | null) ?? []),
+    ]);
 
   const firstName = profile?.full_name?.split(' ')[0];
-  const location = [restaurants[0]?.city, restaurants[0]?.country].filter(Boolean).join(', ');
+  const cityName = location?.city ?? cities.find((c) => c.city_slug === citySlug)?.city;
 
   return (
     <>
-      <TopBar location={location || undefined} />
+      <NotificationPopup notifications={notifications} />
 
-      <div className="px-5">
-        <p className="text-base text-ink">
+      <TopBar
+        cities={cities}
+        location={location}
+        brand={{ appName: brand.appName, logoUrl: brand.logoUrl }}
+      />
+
+      <div className="px-5 lg:px-0">
+        <p className="text-base text-ink lg:text-lg">
           {firstName ? `${t.storefront.greeting} ${firstName}, ` : ''}
           <span className="font-bold">{t.storefront[greetingKey()]}</span>
         </p>
 
         <Link
           href="/search"
-          className="mt-4 flex items-center gap-3 rounded-xl bg-surface-field px-4 py-4 text-ink-400"
+          className="mt-4 flex items-center gap-3 rounded-xl bg-surface-field px-4 py-4 text-ink-400 transition-colors hover:bg-surface-muted lg:max-w-xl"
         >
           <Search className="h-5 w-5" />
           <span className="text-[15px]">{t.common.searchPlaceholder}</span>
         </Link>
       </div>
 
+      {banners.length > 0 && (
+        <div className="mt-6 lg:-mx-0">
+          <BannerCarousel banners={banners} className="lg:[&_ul]:px-0" />
+        </div>
+      )}
+
       {categories.length > 0 && (
-        <section className="mt-7">
-          <div className="px-5">
+        <section className="mt-8">
+          <div className="px-5 lg:px-0">
             <SectionHeader title={t.storefront.categories} href="/search" actionLabel={t.common.seeAll} />
           </div>
-          <div className="no-scrollbar flex gap-4 overflow-x-auto px-5 pb-2">
+          <div className="no-scrollbar flex gap-4 overflow-x-auto px-5 pb-2 lg:flex-wrap lg:overflow-visible lg:px-0">
             {categories.map((category) => (
               <CategoryChip
                 key={category.slug}
@@ -65,9 +100,13 @@ export default async function MarketplacePage() {
         </section>
       )}
 
-      <section className="mt-7 px-5">
+      <section className="mt-8 px-5 lg:px-0">
         <SectionHeader
-          title={t.storefront.openRestaurants}
+          title={
+            cityName
+              ? `${t.storefront.openRestaurants} · ${cityName}`
+              : t.storefront.openRestaurants
+          }
           href="/search"
           actionLabel={t.common.seeAll}
         />
@@ -75,12 +114,22 @@ export default async function MarketplacePage() {
         {restaurants.length === 0 ? (
           <EmptyState
             icon={<Store className="h-7 w-7" />}
-            title={t.storefront.noRestaurants}
-            description={t.common.empty}
+            title={
+              cityName
+                ? interpolate(t.location.noRestaurantsInCity, { city: cityName })
+                : t.storefront.noRestaurants
+            }
+            description={t.location.noRestaurantsInCityHint}
+            action={
+              <div className="inline-flex">
+                <LocationPicker cities={cities} current={location} variant="inline" />
+              </div>
+            }
+            className="rounded-2xl bg-white shadow-chip"
           />
         ) : (
-          <div className="space-y-7">
-            {restaurants.slice(0, 8).map((restaurant) => (
+          <div className="grid gap-7 md:grid-cols-2 xl:grid-cols-3">
+            {restaurants.map((restaurant) => (
               <RestaurantCard
                 key={restaurant.id}
                 slug={restaurant.slug}
@@ -102,18 +151,16 @@ export default async function MarketplacePage() {
       </section>
 
       {featured.length > 0 && (
-        <section className="mt-9 pb-8">
-          <div className="px-5">
+        <section className="mt-10 pb-8">
+          <div className="px-5 lg:px-0">
             <SectionHeader title={t.storefront.popular} />
           </div>
-          <div className="no-scrollbar flex gap-4 overflow-x-auto px-5 pb-4">
+          <div className="no-scrollbar flex gap-4 overflow-x-auto px-5 pb-4 lg:px-0">
             {featured.map((product) => (
               <PopularCard
                 key={product.id}
                 href={
-                  product.restaurant
-                    ? `/r/${product.restaurant.slug}/p/${product.id}`
-                    : '/search'
+                  product.restaurant ? `/r/${product.restaurant.slug}/p/${product.id}` : '/search'
                 }
                 name={product.name}
                 subtitle={product.restaurant?.name}
@@ -125,6 +172,13 @@ export default async function MarketplacePage() {
             ))}
           </div>
         </section>
+      )}
+
+      {cityName && (
+        <p className="px-5 pb-6 text-center text-xs text-ink-300 lg:px-0">
+          <MapPin className="mr-1 inline h-3 w-3" />
+          {t.storefront.deliverTo}: <span className="font-semibold text-ink-500">{cityName}</span>
+        </p>
       )}
     </>
   );

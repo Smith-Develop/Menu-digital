@@ -10,26 +10,34 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        /**
+         * El color de marca es configurable desde el panel de superadministración
+         * y cada restaurante puede tener el suyo, así que sale de variables CSS.
+         * `--brand-rgb` va en canales sueltos para que `bg-brand/20` siga
+         * funcionando; las escalas se derivan con color-mix sobre ese mismo tono.
+         */
         brand: {
-          DEFAULT: '#FF7622', // botones primarios (ADD TO CART, PLACE ORDER)
-          50: '#FFF3EC',
-          100: '#FFE3D1',
-          200: '#FFC7A3',
-          300: '#FFA871',
-          400: '#FF8B44',
-          500: '#FF7622',
-          600: '#FC6E2A', // "DELIVER TO", enlaces de acento
-          700: '#E2560E',
-          800: '#B7440C',
-          900: '#8A340A',
+          DEFAULT: 'rgb(var(--brand-rgb) / <alpha-value>)',
+          50: 'color-mix(in srgb, rgb(var(--brand-rgb)) 10%, white)',
+          100: 'color-mix(in srgb, rgb(var(--brand-rgb)) 20%, white)',
+          200: 'color-mix(in srgb, rgb(var(--brand-rgb)) 38%, white)',
+          300: 'color-mix(in srgb, rgb(var(--brand-rgb)) 58%, white)',
+          400: 'color-mix(in srgb, rgb(var(--brand-rgb)) 78%, white)',
+          500: 'rgb(var(--brand-rgb) / <alpha-value>)',
+          600: 'color-mix(in srgb, rgb(var(--brand-rgb)) 92%, black)',
+          700: 'color-mix(in srgb, rgb(var(--brand-rgb)) 80%, black)',
+          800: 'color-mix(in srgb, rgb(var(--brand-rgb)) 64%, black)',
+          900: 'color-mix(in srgb, rgb(var(--brand-rgb)) 48%, black)',
+          contrast: 'var(--brand-contrast, #ffffff)',
         },
         accent: {
-          DEFAULT: '#FFCA28', // chip de categoría activa, botón bolsa
-          soft: '#FFE9A8',
-          dark: '#DFB300', // Star-Dark
+          DEFAULT: 'rgb(var(--accent-rgb) / <alpha-value>)',
+          soft: 'color-mix(in srgb, rgb(var(--accent-rgb)) 42%, white)',
+          dark: 'color-mix(in srgb, rgb(var(--accent-rgb)) 84%, black)',
+          contrast: 'var(--accent-contrast, #1A1817)',
         },
         ink: {
-          DEFAULT: '#1A1817', // Shade/4
+          DEFAULT: 'var(--ink, #1A1817)', // Shade/4, configurable desde el panel
           700: '#32343E',
           600: '#403F3E', // Shade/1
           500: '#646982',

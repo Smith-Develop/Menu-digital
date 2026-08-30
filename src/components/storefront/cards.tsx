@@ -118,6 +118,10 @@ export function FoodCard({
 /**
  * Tarjeta vertical con la imagen sobresaliendo por arriba
  * (patrón "Popular Fast Food" del Figma).
+ *
+ * El ancho y el hueco superior van juntos a propósito: la imagen sobresale la
+ * mitad de su alto sobre la tarjeta, así que el `pt` del contenido tiene que
+ * dejarle sitio. Con medidas más pequeñas la foto se comía el nombre del plato.
  */
 export function PopularCard({
   href,
@@ -137,15 +141,23 @@ export function PopularCard({
   image: string | null;
 }) {
   return (
-    <Link href={href} className="group block w-[150px] shrink-0 pt-10">
-      <div className="relative rounded-2xl bg-white px-4 pb-4 pt-12 shadow-chip transition-transform group-active:scale-[0.98]">
-        <div className="absolute -top-10 left-1/2 h-[110px] w-[110px] -translate-x-1/2">
-          <DishImage src={image} alt={name} className="h-full w-full rounded-full" sizes="110px" />
+    <Link
+      href={href}
+      className="group block w-[186px] shrink-0 pt-[70px] sm:w-[210px] sm:pt-[80px]"
+    >
+      <div className="relative flex min-h-[132px] flex-col rounded-2xl bg-white px-4 pb-4 pt-[78px] shadow-chip transition-transform group-active:scale-[0.98] sm:min-h-[148px] sm:pt-[88px]">
+        <div className="absolute -top-[70px] left-1/2 h-[140px] w-[140px] -translate-x-1/2 sm:-top-20 sm:h-40 sm:w-40">
+          <DishImage
+            src={image}
+            alt={name}
+            className="h-full w-full rounded-full ring-4 ring-white"
+            sizes="(max-width: 640px) 140px, 160px"
+          />
         </div>
-        <p className="truncate text-[15px] font-bold capitalize text-ink-700">{name}</p>
-        {subtitle && <p className="mt-0.5 truncate text-[13px] text-ink-500">{subtitle}</p>}
+        <p className="line-clamp-2 text-[15px] font-bold leading-snug text-ink-700">{name}</p>
+        {subtitle && <p className="mt-1 truncate text-[13px] text-ink-500">{subtitle}</p>}
         {typeof priceCents === 'number' && (
-          <p className="mt-2 text-sm font-bold text-brand">
+          <p className="mt-auto pt-2 text-sm font-bold text-brand">
             {formatMoney(priceCents, currency, currencyDecimals)}
           </p>
         )}

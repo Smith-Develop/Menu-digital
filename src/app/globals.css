@@ -4,9 +4,13 @@
 
 @layer base {
   :root {
-    --brand: #ff7622;
-    --brand-soft: #fff3ec;
-    --accent: #ffca28;
+    /* Valores de partida. El layout raíz los sobrescribe con la marca guardada
+       en el panel, y la tienda de cada restaurante con su color propio. */
+    --brand-rgb: 255 118 34;
+    --brand-contrast: #ffffff;
+    --accent-rgb: 255 202 40;
+    --accent-contrast: #1a1817;
+    --ink: #1a1817;
     --safe-bottom: env(safe-area-inset-bottom, 0px);
   }
 

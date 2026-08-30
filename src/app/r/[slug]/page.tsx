@@ -6,7 +6,9 @@ import {
   getRestaurantBySlug,
   getRestaurantCategories,
   getRestaurantProducts,
+  getRestaurantBanners,
 } from '@/lib/queries/public';
+import { BannerCarousel } from '@/components/storefront/banner-carousel';
 import { getTableCodeFor } from '@/lib/table-session';
 import { createPublicSupabase } from '@/lib/supabase/server';
 import { Rating, EmptyState } from '@/components/ui/misc';
@@ -27,10 +29,11 @@ export default async function RestaurantMenuPage({
   const restaurant = await getRestaurantBySlug(slug);
   if (!restaurant) notFound();
 
-  const [categories, products, tableCode] = await Promise.all([
+  const [categories, products, tableCode, banners] = await Promise.all([
     getRestaurantCategories(restaurant.id),
     getRestaurantProducts(restaurant.id),
     getTableCodeFor(slug),
+    getRestaurantBanners(restaurant.id),
   ]);
 
   let tableName: string | null = null;
@@ -127,6 +130,20 @@ export default async function RestaurantMenuPage({
           </p>
         )}
       </div>
+
+      {banners.length > 0 && (
+        <div className="mt-6">
+          <BannerCarousel
+            banners={banners.map((banner) => ({
+              id: banner.id,
+              title: banner.title,
+              subtitle: banner.subtitle,
+              image_url: banner.image_url,
+              link_url: banner.link_url,
+            }))}
+          />
+        </div>
+      )}
 
       {products.length === 0 ? (
         <EmptyState

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import QRCode from 'qrcode';
+import { originFromRequest } from '@/lib/request-url';
 
 /**
  * Genera el QR de una mesa como PNG o SVG.
@@ -26,16 +27,29 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'INVALID_URL' }, { status: 400 });
   }
 
-  const allowedHost = request.nextUrl.host;
-  const siteHost = (() => {
-    try {
-      return new URL(process.env.NEXT_PUBLIC_SITE_URL ?? '').host;
-    } catch {
-      return null;
-    }
-  })();
+  // Detrás del proxy hay tres hosts válidos: el interno, el público que anuncian
+  // las cabeceras x-forwarded-* y el configurado en el entorno.
+  const allowed = new Set(
+    [
+      request.nextUrl.host,
+      (() => {
+        try {
+          return new URL(originFromRequest(request)).host;
+        } catch {
+          return null;
+        }
+      })(),
+      (() => {
+        try {
+          return new URL(process.env.NEXT_PUBLIC_SITE_URL ?? '').host;
+        } catch {
+          return null;
+        }
+      })(),
+    ].filter(Boolean) as string[],
+  );
 
-  if (target.host !== allowedHost && target.host !== siteHost) {
+  if (!allowed.has(target.host)) {
     return NextResponse.json({ error: 'HOST_NOT_ALLOWED' }, { status: 400 });
   }
 
