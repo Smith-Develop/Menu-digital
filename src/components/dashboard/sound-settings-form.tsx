@@ -16,6 +16,12 @@ import { useT } from '@/i18n/provider';
  * indica que este local todavía usa los tonos de la plataforma, y al desactivar
  * esa casilla pasa a tener los suyos.
  */
+const SOUND_LABEL = (t: ReturnType<typeof useT>) => ({
+  newOrder: t.kitchen.newOrderSound,
+  orderReady: t.kitchen.orderReadySound,
+  waiterCall: t.kitchen.waiterCallSound,
+});
+
 export function SoundSettingsForm({
   initial,
   inherited,
@@ -93,17 +99,15 @@ export function SoundSettingsForm({
           />
 
           <div className="grid gap-4 sm:grid-cols-2">
-            {(['newOrder', 'orderReady'] as const).map((key) => (
+            {(['newOrder', 'orderReady', 'waiterCall'] as const).map((key) => (
               <div key={key}>
-                <span className="label">
-                  {key === 'newOrder' ? t.kitchen.newOrderSound : t.kitchen.orderReadySound}
-                </span>
+                <span className="label">{SOUND_LABEL(t)[key]}</span>
                 <div className="flex gap-2">
                   <Select
                     value={values[key]}
                     onChange={(e) => setValues({ ...values, [key]: e.target.value as SoundId })}
                     className="flex-1"
-                    aria-label={key === 'newOrder' ? t.kitchen.newOrderSound : t.kitchen.orderReadySound}
+                    aria-label={SOUND_LABEL(t)[key]}
                   >
                     {SOUND_IDS.map((id) => (
                       <option key={id} value={id}>

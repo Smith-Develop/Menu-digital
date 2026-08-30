@@ -1,14 +1,16 @@
 import Link from 'next/link';
+import { resolveSounds, type SoundSettings } from '@/lib/sounds';
 import { BellRing, Receipt, TrendingUp, Utensils } from 'lucide-react';
 import { getI18n } from '@/i18n';
 import { requireStaffContext } from '@/lib/auth';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { formatMoney } from '@/lib/money';
 import { StatCard } from '@/components/dashboard/stat-card';
-import { RevenueChart } from '@/components/dashboard/revenue-chart';
 import { LiveOrdersPanel } from '@/components/dashboard/live-orders-panel';
 import type { OrderRow } from '@/components/dashboard/live-orders-panel';
 import { mapOrderRow } from '@/lib/queries/orders';
+import { RestaurantAnalytics, type AnalyticsData } from '@/components/dashboard/restaurant-analytics';
+import { resolveRange, localDay } from '@/lib/analytics-range';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Panel' };
@@ -22,12 +24,18 @@ type Stats = {
   top_products: { name: string; qty: number; cents: number }[];
 };
 
-export default async function DashboardOverview() {
+export default async function DashboardOverview({
+  searchParams,
+}: {
+  searchParams: Promise<{ days?: string; from?: string; to?: string }>;
+}) {
   const { restaurant, staffRole } = await requireStaffContext();
   const { t } = await getI18n();
   const supabase = await createServerSupabase();
 
-  const [{ data: statsRaw }, { data: orders }, { data: calls }] = await Promise.all([
+  const range = resolveRange(await searchParams);
+
+  const [{ data: statsRaw }, { data: orders }, { data: calls }, { data: analytics }] = await Promise.all([
     supabase.rpc('restaurant_stats', { p_restaurant_id: restaurant.id, p_days: 7 }),
     supabase
       .from('orders')
@@ -43,6 +51,11 @@ export default async function DashboardOverview() {
       .eq('status', 'pending')
       .order('created_at', { ascending: false })
       .limit(10),
+    supabase.rpc('restaurant_analytics', {
+      p_restaurant_id: restaurant.id,
+      p_from: range.from.toISOString(),
+      p_to: range.to.toISOString(),
+    }),
   ]);
 
   const stats = (statsRaw as unknown as Stats | null) ?? {
@@ -53,6 +66,17 @@ export default async function DashboardOverview() {
     revenue_series: [],
     top_products: [],
   };
+
+  // Los mismos tonos que la cocina: el restaurante manda sobre la plataforma.
+  const { data: platform } = await supabase
+    .from('app_settings')
+    .select('sound_settings')
+    .eq('id', true)
+    .maybeSingle();
+  const sounds: SoundSettings = resolveSounds(
+    platform?.sound_settings as Partial<SoundSettings> | null,
+    restaurant.sound_settings as Partial<SoundSettings> | null,
+  );
 
   const orderIds = (orders ?? []).map((o) => o.id);
   const { data: items } = orderIds.length
@@ -77,7 +101,17 @@ export default async function DashboardOverview() {
     }),
   );
 
-  const tableIds = [...new Set((orders ?? []).map((o) => o.table_id).filter(Boolean))] as string[];
+  // Las mesas de los avisos cuentan igual que las de los pedidos: si sólo se
+  // miran estas últimas, un aviso de una mesa que no tiene pedido en curso sale
+  // sin nombre y nadie sabe a dónde ir.
+  const tableIds = [
+    ...new Set(
+      [
+        ...(orders ?? []).map((o) => o.table_id),
+        ...(calls ?? []).map((c) => c.table_id),
+      ].filter(Boolean),
+    ),
+  ] as string[];
   const { data: tables } = tableIds.length
     ? await supabase.from('tables').select('id, name').in('id', tableIds)
     : { data: [] };
@@ -129,42 +163,20 @@ export default async function DashboardOverview() {
         />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-3">
-        <div className="xl:col-span-2">
-          <RevenueChart
-            title={t.dashboard.revenueChart}
-            series={stats.revenue_series}
-            currency={restaurant.currency}
-            currencyDecimals={restaurant.currency_decimals}
-          />
-        </div>
-
-        <section className="rounded-2xl bg-white p-5 shadow-chip">
-          <h2 className="mb-4 font-display text-base font-bold text-ink-700">
-            {t.dashboard.topProducts}
-          </h2>
-          {stats.top_products.length === 0 ? (
-            <p className="py-6 text-center text-sm text-ink-300">{t.common.empty}</p>
-          ) : (
-            <ol className="space-y-3">
-              {stats.top_products.map((product, index) => (
-                <li key={product.name} className="flex items-center gap-3">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-50 text-xs font-bold text-brand-700">
-                    {index + 1}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink-600">
-                    {product.name}
-                  </span>
-                  <span className="shrink-0 text-xs font-bold text-ink-300">×{product.qty}</span>
-                  <span className="shrink-0 text-sm font-bold text-ink-700">
-                    {formatMoney(product.cents, restaurant.currency, restaurant.currency_decimals)}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          )}
-        </section>
-      </div>
+      {/* Las mismas cifras que tenía la pantalla de Analítica, ahora aquí: eran
+          dos sitios distintos para mirar lo mismo. */}
+      <RestaurantAnalytics
+        data={(analytics as unknown as AnalyticsData | null) ?? null}
+        currency={restaurant.currency}
+        currencyDecimals={restaurant.currency_decimals}
+        range={{
+          days: range.days,
+          custom: range.custom,
+          from: localDay(range.from),
+          to: localDay(new Date(range.to.getTime() - 86_400_000)),
+        }}
+        basePath="/dashboard"
+      />
 
       <section>
         <div className="mb-4 flex items-center justify-between">
@@ -178,6 +190,7 @@ export default async function DashboardOverview() {
           restaurantId={restaurant.id}
           currency={restaurant.currency}
           currencyDecimals={restaurant.currency_decimals}
+          sounds={sounds}
           initialOrders={rows}
           initialCalls={(calls ?? []).map((c) => ({
             id: c.id,

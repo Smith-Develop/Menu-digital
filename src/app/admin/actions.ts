@@ -379,6 +379,7 @@ export async function updatePlatformSounds(value: unknown): Promise<Result> {
   const schema = z.object({
     newOrder: z.enum(['bell', 'chime', 'ding', 'alert', 'soft', 'none']),
     orderReady: z.enum(['bell', 'chime', 'ding', 'alert', 'soft', 'none']),
+    waiterCall: z.enum(['bell', 'chime', 'ding', 'alert', 'soft', 'none']).default('alert'),
     volume: z.coerce.number().min(0).max(1),
     enabled: z.boolean(),
   });
@@ -546,5 +547,69 @@ export async function updateCourier(
   }
 
   revalidatePath('/admin/couriers');
+  return { ok: true };
+}
+
+// =========================== Cuenta del superadmin ===========================
+
+/**
+ * Actualiza los datos de la propia cuenta del superadmin.
+ *
+ * La contraseña no pasa por aquí: la cambia el navegador contra Supabase con la
+ * sesión ya abierta, que es la única forma de exigir la contraseña actual antes
+ * de aceptar una nueva. Aquí sólo viajan nombre y correo.
+ */
+export async function updateOwnAdminAccount(input: {
+  fullName: string;
+  email: string;
+}): Promise<Result> {
+  const admin = await requireAdmin();
+  if (!admin) return { ok: false, error: 'FORBIDDEN' };
+
+  const fullName = input.fullName.trim();
+  const email = input.email.trim().toLowerCase();
+  if (!fullName) return { ok: false, error: 'NAME_REQUIRED' };
+  if (!email.includes('@')) return { ok: false, error: 'INVALID_EMAIL' };
+
+  let service: ReturnType<typeof createAdminSupabase>;
+  try {
+    service = createAdminSupabase();
+  } catch {
+    return { ok: false, error: 'SERVICE_ROLE_MISSING' };
+  }
+
+  const previousEmail = admin.email ?? null;
+  const emailChanged = previousEmail !== email;
+
+  if (emailChanged) {
+    const { error } = await service.auth.admin.updateUserById(admin.id, {
+      email,
+      email_confirm: true,
+    });
+    if (error) {
+      return { ok: false, error: /exists|registered/i.test(error.message) ? 'EMAIL_TAKEN' : error.message };
+    }
+  }
+
+  const { error: profileError } = await service
+    .from('profiles')
+    .update({ full_name: fullName, email })
+    .eq('id', admin.id);
+  if (profileError) return { ok: false, error: profileError.message };
+
+  if (emailChanged) {
+    const brand = await getBrand();
+    const notice = emailChangedNotice({
+      appName: brand.appName,
+      brandColor: brand.primaryColor,
+      fullName,
+      previousEmail,
+      newEmail: email,
+    });
+    if (previousEmail) void sendMail({ to: previousEmail, ...notice.toPrevious });
+    void sendMail({ to: email, ...notice.toNew });
+  }
+
+  revalidatePath('/admin/account');
   return { ok: true };
 }

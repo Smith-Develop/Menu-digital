@@ -39,11 +39,14 @@ export function RestaurantAnalytics({
   currency,
   currencyDecimals,
   range,
+  basePath = '/dashboard',
 }: {
   data: AnalyticsData | null;
   currency: string;
   currencyDecimals: number;
   range: { days: number; custom: boolean; from: string; to: string };
+  /** Ruta a la que apuntan los enlaces del selector de periodo. */
+  basePath?: string;
 }) {
   const { t, locale } = useI18n();
   const router = useRouter();
@@ -94,7 +97,7 @@ export function RestaurantAnalytics({
             <button
               key={days}
               type="button"
-              onClick={() => router.push(`/dashboard/analytics?days=${days}`)}
+              onClick={() => router.push(`${basePath}?days=${days}`)}
               className={cn(
                 'rounded-lg px-3.5 py-2 text-xs font-bold transition-colors',
                 !range.custom && range.days === days ? 'bg-white text-ink shadow-sm' : 'text-ink-400 hover:text-ink',
@@ -123,7 +126,7 @@ export function RestaurantAnalytics({
           />
           <button
             type="button"
-            onClick={() => router.push(`/dashboard/analytics?from=${customFrom}&to=${customTo}`)}
+            onClick={() => router.push(`${basePath}?from=${customFrom}&to=${customTo}`)}
             className="btn-primary text-xs"
           >
             {t.analytics.apply}

@@ -1,6 +1,5 @@
 import 'server-only';
 import { createAdminSupabase } from '@/lib/supabase/server';
-import { env } from '@/lib/env';
 import { getPublicOrigin } from '@/lib/request-url';
 import { getBrand } from '@/lib/brand';
 import { sendMail } from '@/lib/mailer';
@@ -15,6 +14,15 @@ export type ResetResult = { ok: true } | { ok: false; error: string };
  * esta aplicación por su propio SMTP**: el de GoTrue no está configurado en
  * este despliegue y sus correos no salen, así que dejarlo en sus manos
  * significaría que nadie recupera nunca su cuenta.
+ *
+ * Del enlace que devuelve Supabase sólo se aprovecha el token: se descarta su
+ * `action_link`, que apunta a `/auth/v1/verify` y acaba devolviendo al usuario
+ * al dominio de la base de datos. GoTrue sólo respeta un `redirect_to` que esté
+ * en su lista blanca y, si no lo está, lo cambia en silencio por su `SITE_URL`,
+ * de modo que el enlace del correo llevaba a Supabase en vez de a esta
+ * aplicación y allí no había ninguna pantalla donde escribir la contraseña.
+ * Apuntando directamente aquí y canjeando el token en la propia página, el
+ * correo funciona sin tocar la configuración del despliegue de Supabase.
  *
  * Devuelve `ok` aunque el correo no exista, para no revelar qué direcciones
  * están registradas.
@@ -39,7 +47,7 @@ export async function sendPasswordResetFor(email: string): Promise<ResetResult> 
   });
 
   // Correo desconocido: se responde igual que si existiera.
-  if (error || !data?.properties?.action_link) {
+  if (error || !data?.properties?.hashed_token) {
     return { ok: true };
   }
 
@@ -47,36 +55,11 @@ export async function sendPasswordResetFor(email: string): Promise<ResetResult> 
   const message = passwordResetEmail({
     appName: brand.appName,
     brandColor: brand.primaryColor,
-    link: toPublicAuthLink(data.properties.action_link),
+    link: `${origin}/reset-password?token_hash=${encodeURIComponent(data.properties.hashed_token)}&type=recovery`,
   });
 
   const sent = await sendMail({ to: target, ...message });
   if (!sent.ok) return { ok: false, error: sent.error };
 
   return { ok: true };
-}
-
-/**
- * Reescribe el enlace de verificación con la URL pública de Supabase.
- *
- * GoTrue construye el enlace con la dirección que tiene configurada, y en un
- * despliegue con Docker esa suele ser la interna (`http://supabase-kong:8000`),
- * que no resuelve desde el móvil de nadie. Se cambia el origen por el que la
- * aplicación ya usa para hablar con Supabase, dejando intactos el token y los
- * parámetros de redirección.
- */
-function toPublicAuthLink(link: string): string {
-  try {
-    const original = new URL(link);
-    const publicBase = new URL(env.supabaseUrl);
-
-    // Asignar `host` no borra el puerto anterior: hay que limpiarlo aparte,
-    // o el enlace acabaría apuntando al dominio público con el puerto interno.
-    original.protocol = publicBase.protocol;
-    original.hostname = publicBase.hostname;
-    original.port = publicBase.port;
-    return original.toString();
-  } catch {
-    return link;
-  }
 }

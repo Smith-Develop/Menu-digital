@@ -1,4 +1,5 @@
 import { getI18n } from '@/i18n';
+import { resolveSounds, type SoundSettings } from '@/lib/sounds';
 import { requireStaffContext } from '@/lib/auth';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { OrdersBoard } from '@/components/dashboard/orders-board';
@@ -79,11 +80,22 @@ export default async function OrdersPage({
     ),
   );
 
+  const { data: platform } = await supabase
+    .from('app_settings')
+    .select('sound_settings')
+    .eq('id', true)
+    .maybeSingle();
+  const sounds: SoundSettings = resolveSounds(
+    platform?.sound_settings as Partial<SoundSettings> | null,
+    restaurant.sound_settings as Partial<SoundSettings> | null,
+  );
+
   return (
     <div className="space-y-6">
       <h1 className="font-display text-2xl font-bold text-ink">{t.dashboard.liveOrders}</h1>
 
       <OrdersBoard
+        sounds={sounds}
         restaurantId={restaurant.id}
         currency={restaurant.currency}
         currencyDecimals={restaurant.currency_decimals}

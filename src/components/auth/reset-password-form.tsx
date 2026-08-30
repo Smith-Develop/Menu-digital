@@ -12,8 +12,14 @@ import { useT } from '@/i18n/provider';
 /**
  * Elección de contraseña nueva tras seguir el enlace del correo.
  *
- * Supabase abre una sesión de recuperación al llegar con el token, así que
- * aquí basta con actualizar la contraseña del usuario que ya está identificado.
+ * El enlace trae el token en la propia URL (`token_hash`) y se canjea aquí por
+ * una sesión de recuperación. Se hace así, y no dejando que GoTrue redirija,
+ * porque GoTrue sólo acepta destinos que estén en su lista blanca: si no lo
+ * están —y en este despliegue no lo están— devuelve al usuario a la dirección
+ * de la base de datos, donde no hay ninguna pantalla para escribir la clave.
+ *
+ * Se sigue admitiendo la sesión ya abierta y el token en el fragmento, que es
+ * como llegan los enlaces antiguos y los de un despliegue bien configurado.
  */
 export function ResetPasswordForm() {
   const t = useT();
@@ -29,22 +35,47 @@ export function ResetPasswordForm() {
 
   useEffect(() => {
     const supabase = createClient();
+    let cancelled = false;
 
-    // El token puede llegar como sesión ya abierta o en el fragmento de la URL.
-    supabase.auth.getSession().then(({ data }) => {
+    async function open() {
+      const tokenHash = new URLSearchParams(window.location.search).get('token_hash');
+
+      if (tokenHash) {
+        const { error: otpError } = await supabase.auth.verifyOtp({
+          type: 'recovery',
+          token_hash: tokenHash,
+        });
+        if (cancelled) return;
+        setValid(!otpError);
+        setReady(true);
+        // El token ya está canjeado: se borra de la barra de direcciones para
+        // que no quede en el historial ni se comparta por accidente.
+        window.history.replaceState(null, '', window.location.pathname);
+        return;
+      }
+
+      const { data } = await supabase.auth.getSession();
+      if (cancelled) return;
       if (data.session) {
         setValid(true);
         setReady(true);
         return;
       }
+
+      // Enlaces que traen el token en el fragmento: la sesión llega algo después.
       const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (cancelled) return;
         setValid(Boolean(session));
         setReady(true);
       });
-      // Si en dos segundos no llega sesión, el enlace ya no sirve.
-      setTimeout(() => setReady(true), 2000);
+      setTimeout(() => !cancelled && setReady(true), 2000);
       return () => listener.subscription.unsubscribe();
-    });
+    }
+
+    void open();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function onSubmit(event: FormEvent) {

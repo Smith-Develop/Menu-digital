@@ -1,5 +1,5 @@
 /**
- * Avisos sonoros de la cocina.
+ * Avisos sonoros de la cocina y de la sala.
  *
  * Los tonos se sintetizan con la Web Audio API en vez de servir archivos: son
  * secuencias de dos o tres notas, pesan cero y suenan igual en cualquier
@@ -12,6 +12,8 @@ export type SoundId = 'bell' | 'chime' | 'ding' | 'alert' | 'soft' | 'none';
 export type SoundSettings = {
   newOrder: SoundId;
   orderReady: SoundId;
+  /** Llamada desde una mesa: el cliente pide camarero o la cuenta. */
+  waiterCall: SoundId;
   volume: number;
   enabled: boolean;
 };
@@ -19,6 +21,7 @@ export type SoundSettings = {
 export const DEFAULT_SOUNDS: SoundSettings = {
   newOrder: 'bell',
   orderReady: 'chime',
+  waiterCall: 'alert',
   volume: 0.7,
   enabled: true,
 };

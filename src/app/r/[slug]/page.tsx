@@ -33,8 +33,7 @@ export default async function RestaurantMenuPage({
     getRestaurantCategories(restaurant.id),
     getRestaurantProducts(restaurant.id),
     getTableCodeFor(slug),
-    // La portada ya se ve arriba: los banners que repiten esa imagen se omiten.
-    getRestaurantBanners(restaurant.id, restaurant.cover_url),
+    getRestaurantBanners(restaurant.id),
   ]);
 
   let tableName: string | null = null;
@@ -53,8 +52,24 @@ export default async function RestaurantMenuPage({
     <div className="page-enter flex-1 overflow-y-auto pb-6 lg:px-8 lg:py-6">
       {/* Ficha del restaurante: en escritorio, portada y datos van en paralelo. */}
       <div className="lg:grid lg:grid-cols-[minmax(0,420px)_1fr] lg:gap-8 lg:rounded-sheet lg:bg-white lg:p-6 lg:shadow-chip">
+        {/* En la cabecera de la ficha mandan los banners del restaurante, que es
+            donde miran los clientes al entrar y donde el local quiere anunciar
+            lo suyo. La portada queda de respaldo para quien todavía no ha
+            publicado ninguno, para no dejar la ficha con un hueco. */}
         <div className="relative h-[210px] w-full overflow-hidden bg-surface-muted lg:h-full lg:min-h-[240px] lg:rounded-2xl">
-          {restaurant.cover_url ? (
+          {banners.length > 0 ? (
+            <BannerCarousel
+              banners={banners.map((banner) => ({
+                id: banner.id,
+                title: banner.title,
+                subtitle: banner.subtitle,
+                image_url: banner.image_url,
+                link_url: banner.link_url,
+              }))}
+              fullBleed
+              className="h-full"
+            />
+          ) : restaurant.cover_url ? (
             <Image
               src={restaurant.cover_url}
               alt={restaurant.name}
@@ -69,7 +84,7 @@ export default async function RestaurantMenuPage({
             </div>
           )}
           {!restaurant.is_open && (
-            <div className="absolute inset-0 flex items-center justify-center bg-ink/55">
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-ink/55">
               <span className="rounded-full bg-white px-5 py-2 text-sm font-bold uppercase tracking-wide text-ink">
                 {t.storefront.closed}
               </span>
@@ -134,20 +149,6 @@ export default async function RestaurantMenuPage({
           )}
         </div>
       </div>
-
-      {banners.length > 0 && (
-        <div className="mt-6 lg:[&_ul]:px-0">
-          <BannerCarousel
-            banners={banners.map((banner) => ({
-              id: banner.id,
-              title: banner.title,
-              subtitle: banner.subtitle,
-              image_url: banner.image_url,
-              link_url: banner.link_url,
-            }))}
-          />
-        </div>
-      )}
 
       {products.length === 0 ? (
         <EmptyState

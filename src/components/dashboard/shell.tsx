@@ -58,7 +58,6 @@ export function DashboardShell({
   const links = [
     { href: '/dashboard', icon: LayoutDashboard, label: t.dashboard.overview, exact: true, show: true },
     { href: '/dashboard/orders', icon: Receipt, label: t.dashboard.liveOrders, show: true },
-    { href: '/dashboard/analytics', icon: BarChart3, label: t.analytics.title, show: canManageMenu(staffRole) },
     { href: '/dashboard/menu', icon: UtensilsCrossed, label: t.dashboard.menu, show: canManageMenu(staffRole) },
     { href: '/dashboard/tables', icon: QrCode, label: t.dashboard.tables, show: canManageMenu(staffRole) },
     { href: '/dashboard/banners', icon: ImageIcon, label: t.dashboard.banners, show: canManageMenu(staffRole) },

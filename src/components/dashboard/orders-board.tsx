@@ -6,6 +6,7 @@ import { Bike, Receipt, Store, UtensilsCrossed } from 'lucide-react';
 import { Badge, EmptyState } from '@/components/ui/misc';
 import { LiveOrdersPanel, type OrderRow } from '@/components/dashboard/live-orders-panel';
 import { formatMoney } from '@/lib/money';
+import type { SoundSettings } from '@/lib/sounds';
 import { formatDateTime } from '@/lib/utils';
 import { useI18n } from '@/i18n/provider';
 import { cn } from '@/lib/utils';
@@ -21,12 +22,14 @@ export function OrdersBoard({
   restaurantId,
   currency,
   currencyDecimals,
+  sounds,
   orders,
   showHistory,
 }: {
   restaurantId: string;
   currency: string;
   currencyDecimals: number;
+  sounds: SoundSettings;
   orders: OrderRow[];
   showHistory: boolean;
   staffRole?: Enums<'staff_role'>;
@@ -46,6 +49,7 @@ export function OrdersBoard({
           restaurantId={restaurantId}
           currency={currency}
           currencyDecimals={currencyDecimals}
+          sounds={sounds}
           initialOrders={orders}
           initialCalls={[]}
         />

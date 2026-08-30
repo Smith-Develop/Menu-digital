@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef} from 'react';
 import {
   Banknote,
   Bell,
@@ -20,7 +20,8 @@ import {
 import { Badge, EmptyState } from '@/components/ui/misc';
 import { useToast } from '@/components/ui/toast';
 import { createClient } from '@/lib/supabase/client';
-import { updateOrderStatus } from '@/app/dashboard/actions';
+import { playSound, unlockAudio, type SoundSettings } from '@/lib/sounds';
+import { updateOrderStatus, updateOrderPaymentStatus } from '@/app/dashboard/actions';
 import { formatMoney } from '@/lib/money';
 import { minutesSince, formatTime, cn } from '@/lib/utils';
 import { useI18n, interpolate } from '@/i18n/provider';
@@ -28,6 +29,7 @@ import { usePrint } from '@/components/dashboard/print/print-provider';
 import type { TicketOrder } from '@/components/dashboard/print/ticket';
 import { mapOrderRow } from '@/lib/queries/orders';
 import { CourierPicker } from '@/components/dashboard/courier-picker';
+import { ConfirmDialog } from '@/components/ui/sheet';
 import type { Enums } from '@/types/database';
 
 export type OrderRow = {
@@ -155,12 +157,14 @@ export function LiveOrdersPanel({
   restaurantId,
   currency,
   currencyDecimals,
+  sounds,
   initialOrders,
   initialCalls,
 }: {
   restaurantId: string;
   currency: string;
   currencyDecimals: number;
+  sounds: SoundSettings;
   initialOrders: OrderRow[];
   initialCalls: CallRow[];
   staffRole?: Enums<'staff_role'>;
@@ -170,9 +174,27 @@ export function LiveOrdersPanel({
   const router = useRouter();
   const { print, printIfAuto } = usePrint();
   const [orders, setOrders] = useState(initialOrders);
+
+  // Los navegadores no dejan sonar nada hasta que alguien toca la página, así
+  // que el primer clic en cualquier sitio del panel habilita el audio.
+  useEffect(() => {
+    const habilitar = () => unlockAudio();
+    window.addEventListener('pointerdown', habilitar, { once: true });
+    return () => window.removeEventListener('pointerdown', habilitar);
+  }, []);
+
+  const notify = useCallback(
+    (kind: 'newOrder' | 'orderReady' | 'waiterCall') => {
+      if (!sounds.enabled) return;
+      playSound(sounds[kind], sounds.volume);
+    },
+    [sounds],
+  );
   const [calls, setCalls] = useState(initialCalls);
   const [busy, setBusy] = useState<string | null>(null);
   const [assignFor, setAssignFor] = useState<OrderRow | null>(null);
+  const [chargeFor, setChargeFor] = useState<OrderRow | null>(null);
+  const vistos = useRef(new Set(initialCalls.map((c) => c.id)));
 
   useEffect(() => setOrders(initialOrders), [initialOrders]);
   useEffect(() => setCalls(initialCalls), [initialCalls]);
@@ -230,7 +252,10 @@ export function LiveOrdersPanel({
         (payload) => {
           const id = (payload.new as { id?: string })?.id ?? (payload.old as { id?: string })?.id;
           if (!id) return;
-          if (payload.eventType === 'INSERT') toast(t.kitchen.newTicket, 'info');
+          if (payload.eventType === 'INSERT') {
+            toast(t.kitchen.newTicket, 'info');
+            notify('newOrder');
+          }
           void refetchOrder(id);
         },
       )
@@ -250,6 +275,7 @@ export function LiveOrdersPanel({
             ...current,
           ]);
           toast(`${t.table.calls}: ${table?.name ?? ''}`, 'info');
+          notify('waiterCall');
         },
       )
       .subscribe();
@@ -257,12 +283,78 @@ export function LiveOrdersPanel({
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [restaurantId, refetchOrder, toast, t]);
+  }, [restaurantId, refetchOrder, toast, t, notify]);
+
+  /**
+   * Relectura periódica de los avisos de mesa.
+   *
+   * El aviso llega normalmente por el canal en directo, pero ese canal depende
+   * de un servicio aparte que puede caerse o quedarse atrás sin que nadie se
+   * entere: cuando eso pasa, el aviso de una mesa que reclama camarero no suena
+   * y nadie va. Releer cada pocos segundos cuesta una consulta pequeña y
+   * convierte el directo en una mejora de latencia en vez de un requisito.
+   *
+   * Los identificadores ya vistos evitan que un aviso suene dos veces cuando
+   * ambos caminos funcionan.
+   */
+  useEffect(() => {
+    const supabase = createClient();
+    let vivo = true;
+
+    async function releer() {
+      const { data } = await supabase
+        .from('waiter_calls')
+        .select('id, type, table_id, created_at, tables(name)')
+        .eq('restaurant_id', restaurantId)
+        .is('attended_at', null)
+        .order('created_at', { ascending: false });
+
+      if (!vivo || !data) return;
+
+      const frescos: CallRow[] = data.map((row) => ({
+        id: row.id,
+        type: row.type,
+        tableId: row.table_id,
+        tableName: (row as { tables?: { name?: string } | null }).tables?.name ?? null,
+        createdAt: row.created_at,
+      }));
+
+      // La comparación va fuera del actualizador de estado: React puede
+      // invocarlo más de una vez con el mismo valor, y el aviso sonaría
+      // repetido. La lista de vistos vive en una referencia, que no provoca
+      // re-render ni se reinicia entre ciclos.
+      const nuevos = frescos.filter((c) => !vistos.current.has(c.id));
+      vistos.current = new Set(frescos.map((c) => c.id));
+      if (nuevos.length > 0) notify('waiterCall');
+
+      setCalls(frescos);
+    }
+
+    const temporizador = setInterval(releer, 15_000);
+    return () => {
+      vivo = false;
+      clearInterval(temporizador);
+    };
+  }, [restaurantId, notify]);
 
   async function advance(order: OrderRow) {
     const target = nextStatus(order);
     if (!target) return;
 
+    // Un pedido de mesa no puede darse por servido sin cobrarlo. Cerrarlo antes
+    // lo deja fuera de los pedidos activos pero dentro de la cuenta de la mesa,
+    // que sólo se vacía al cobrar: por eso el comensal veía ahí lo que pidió
+    // hace días. Se pregunta antes de cerrar, y si aún no ha pagado, no se
+    // cierra.
+    if (target === 'completed' && order.type === 'dine_in' && order.paymentStatus !== 'paid') {
+      setChargeFor(order);
+      return;
+    }
+
+    await applyStatus(order, target);
+  }
+
+  async function applyStatus(order: OrderRow, target: Enums<'order_status'>) {
     setBusy(order.id);
     // Vía acción de servidor: es la que dispara el aviso al móvil del cliente.
     const result = await updateOrderStatus(order.id, target);
@@ -287,22 +379,27 @@ export function LiveOrdersPanel({
   }
 
   /** Cobrar deja la mesa libre: el pedido sale de la cuenta del comensal. */
-  async function markPaid(order: OrderRow) {
+  async function markPaid(order: OrderRow): Promise<boolean> {
     setBusy(order.id);
-    const supabase = createClient();
-    const { error } = await supabase
-      .from('orders')
-      .update({ payment_status: 'paid' })
-      .eq('id', order.id);
+    const result = await updateOrderPaymentStatus(order.id, 'paid');
     setBusy(null);
 
-    if (error) {
+    if (!result.ok) {
       toast(t.common.error, 'error');
-      return;
+      return false;
     }
     toast(t.dashboard.markedPaid, 'success');
     await refetchOrder(order.id);
     router.refresh();
+    return true;
+  }
+
+  /** Cobrar y cerrar de una vez, que es lo que ocurre al servir en mesa. */
+  async function chargeAndClose() {
+    const order = chargeFor;
+    if (!order) return;
+    setChargeFor(null);
+    if (await markPaid(order)) await applyStatus(order, 'completed');
   }
 
   async function cancel(order: OrderRow) {
@@ -371,6 +468,21 @@ export function LiveOrdersPanel({
           </ul>
         </section>
       )}
+
+      <ConfirmDialog
+        open={chargeFor !== null}
+        onClose={() => setChargeFor(null)}
+        onConfirm={chargeAndClose}
+        title={t.dashboard.chargeBeforeClosing}
+        message={
+          chargeFor
+            ? `${t.dashboard.chargeQuestion} (#${chargeFor.code} · ${formatMoney(chargeFor.totalCents, currency, currencyDecimals)})`
+            : ''
+        }
+        confirmLabel={t.dashboard.alreadyCharged}
+        cancelLabel={t.dashboard.notChargedYet}
+        loading={busy === chargeFor?.id}
+      />
 
       <CourierPicker
         open={assignFor !== null}

@@ -25,10 +25,18 @@ export function BannerCarousel({
   banners,
   autoPlayMs = 6000,
   className,
+  fullBleed = false,
 }: {
   banners: BannerItem[];
   autoPlayMs?: number;
   className?: string;
+  /**
+   * Ocupa todo el hueco del contenedor, sin márgenes ni esquinas redondeadas.
+   * Es como se usa en la cabecera de la ficha de un restaurante, donde el
+   * carrusel hace de portada; en el escaparate, en cambio, las tarjetas se
+   * asoman unas a otras para que se note que hay más.
+   */
+  fullBleed?: boolean;
 }) {
   const trackRef = useRef<HTMLUListElement>(null);
   const [index, setIndex] = useState(0);
@@ -58,7 +66,10 @@ export function BannerCarousel({
     >
       <ul
         ref={trackRef}
-        className="no-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth px-5"
+        className={cn(
+          'no-scrollbar flex snap-x snap-mandatory overflow-x-auto scroll-smooth',
+          fullBleed ? 'h-full' : 'gap-4 px-5',
+        )}
         onScroll={(e) => {
           // Mantiene los puntos sincronizados cuando se desliza con el dedo.
           const track = e.currentTarget;
@@ -79,17 +90,23 @@ export function BannerCarousel({
           return (
             <li
               key={banner.id}
-              className="w-[86%] shrink-0 snap-start sm:w-[420px] lg:w-[520px]"
+              className={cn(
+                'shrink-0 snap-start',
+                fullBleed ? 'h-full w-full' : 'w-[86%] sm:w-[420px] lg:w-[520px]',
+              )}
             >
               <Link
                 href={href}
-                className="group relative block aspect-[16/8] overflow-hidden rounded-2xl bg-surface-muted"
+                className={cn(
+                  'group relative block overflow-hidden bg-surface-muted',
+                  fullBleed ? 'h-full' : 'aspect-[16/8] rounded-2xl',
+                )}
               >
                 <Image
                   src={banner.image_url}
                   alt={banner.title ?? banner.restaurant_name ?? ''}
                   fill
-                  sizes="(max-width: 640px) 86vw, 520px"
+                  sizes={fullBleed ? '(max-width: 1024px) 100vw, 420px' : '(max-width: 640px) 86vw, 520px'}
                   className="object-cover transition-transform duration-500 group-hover:scale-105"
                 />
                 <span className="absolute inset-0 bg-gradient-to-t from-ink/85 via-ink/25 to-transparent" />

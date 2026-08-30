@@ -820,6 +820,7 @@ export async function updateSoundSettings(value: unknown): Promise<Result> {
     .object({
       newOrder: z.enum(['bell', 'chime', 'ding', 'alert', 'soft', 'none']),
       orderReady: z.enum(['bell', 'chime', 'ding', 'alert', 'soft', 'none']),
+      waiterCall: z.enum(['bell', 'chime', 'ding', 'alert', 'soft', 'none']).default('alert'),
       volume: z.coerce.number().min(0).max(1),
       enabled: z.boolean(),
     })

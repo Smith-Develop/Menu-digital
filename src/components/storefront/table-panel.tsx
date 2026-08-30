@@ -15,9 +15,54 @@ import { Badge, EmptyState } from '@/components/ui/misc';
 import { useToast } from '@/components/ui/toast';
 import { createClient } from '@/lib/supabase/client';
 import { formatMoney } from '@/lib/money';
-import { formatTime } from '@/lib/utils';
+import { formatTime, cn } from '@/lib/utils';
 import { useI18n } from '@/i18n/provider';
 import type { Enums } from '@/types/database';
+
+/** Pasos por los que pasa un pedido servido en mesa. */
+const PASOS: Enums<'order_status'>[] = ['confirmed', 'preparing', 'ready', 'completed'];
+
+/**
+ * Progreso del pedido dentro de la cuenta de la mesa.
+ *
+ * El comensal no tiene delante ninguna pantalla de seguimiento como quien pide
+ * a domicilio, así que se le enseña aquí en qué punto va lo suyo y no tiene que
+ * levantar la mano para preguntar.
+ */
+function OrderProgress({ status }: { status: Enums<'order_status'> }) {
+  const { t } = useI18n();
+  if (status === 'cancelled') return null;
+
+  // Un pedido recién hecho aún no está confirmado: se muestra el primer paso
+  // como pendiente en lugar de dejar la barra vacía.
+  const actual = status === 'pending' ? -1 : PASOS.indexOf(status);
+
+  return (
+    <ol className="mt-3 flex items-center gap-1.5">
+      {PASOS.map((paso, i) => {
+        const alcanzado = i <= actual;
+        return (
+          <li key={paso} className="flex flex-1 flex-col gap-1">
+            <span
+              className={cn(
+                'h-1 rounded-full transition-colors',
+                alcanzado ? 'bg-brand' : 'bg-surface-line',
+              )}
+            />
+            <span
+              className={cn(
+                'text-[10px] leading-tight',
+                i === actual ? 'font-bold text-brand' : 'text-ink-300',
+              )}
+            >
+              {paso === 'completed' ? t.table.servedAtTable : t.order.status[paso]}
+            </span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
 
 type CallType = Enums<'call_type'>;
 
@@ -81,8 +126,14 @@ export function TablePanel({
       )
       .subscribe();
 
+    // Además del canal en directo, una relectura periódica: ese canal depende de
+    // un servicio aparte y, si se queda atrás, el comensal vería su pedido
+    // congelado en "en preparación" sin saber que ya está listo.
+    const temporizador = setInterval(() => router.refresh(), 20_000);
+
     return () => {
       void supabase.removeChannel(channel);
+      clearInterval(temporizador);
     };
   }, [tableCode, router]);
 
@@ -210,6 +261,8 @@ export function TablePanel({
                             : t.order.status[order.status]}
                         </Badge>
                       </div>
+
+                      <OrderProgress status={order.status} />
 
                       <ul className="mt-3 space-y-1">
                         {order.items.map((item, index) => (

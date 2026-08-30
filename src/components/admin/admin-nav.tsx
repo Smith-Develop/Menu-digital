@@ -10,6 +10,7 @@ import {
   LogOut,
   Package,
   Palette,
+  UserCog,
   Store,
   Ticket,
 } from 'lucide-react';
@@ -32,6 +33,7 @@ export function AdminNav({ userName }: { userName: string }) {
     { href: '/admin/coupons', icon: Ticket, label: t.coupon.coupons },
     { href: '/admin/branding', icon: Palette, label: t.admin.branding },
     { href: '/admin/notifications', icon: Bell, label: t.admin.notifications },
+    { href: '/admin/account', icon: UserCog, label: t.admin.myAccount },
   ];
 
   async function signOut() {
