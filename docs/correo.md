@@ -33,39 +33,45 @@ a mano: un fallo del servidor de correo no debe impedir dar de alta a nadie.
 
 ## 2. Supabase / GoTrue — **pendiente, lo tienes que hacer tú**
 
-Sin esto **nadie puede registrarse**: la instancia tiene
-`mailer_autoconfirm = false`, así que GoTrue exige confirmar el correo, y sin
-SMTP ese correo no sale nunca. El usuario queda creado pero no puede entrar.
+Sin esto **nadie puede registrarse**. Comprobado en la instancia: GoTrue acepta
+el alta, marca `confirmation_sent_at` y no envía nada. No da error, así que
+parece que funciona hasta que el usuario se queda esperando un correo que no
+llega. La versión desplegada es GoTrue v2.186.
 
-Entra en Coolify → tu servicio de Supabase → Environment Variables y añade:
+Entra en Coolify → tu servicio de Supabase → Environment Variables.
+
+### Nombres de las variables
+
+El `docker-compose` oficial de Supabase lee variables **sin prefijo** y se las
+pasa a GoTrue como `GOTRUE_*`. Según cómo esté montado tu despliegue valdrá uno
+u otro juego. Mira cuáles ya existen en tu servicio y usa esa convención; si no
+hay ninguna, **pon los dos juegos**: el que no se use, se ignora.
+
+| Sin prefijo (compose de Supabase) | Con prefijo (GoTrue directo) |
+|---|---|
+| `SMTP_HOST` | `GOTRUE_SMTP_HOST` |
+| `SMTP_PORT` | `GOTRUE_SMTP_PORT` |
+| `SMTP_USER` | `GOTRUE_SMTP_USER` |
+| `SMTP_PASS` | `GOTRUE_SMTP_PASS` |
+| `SMTP_ADMIN_EMAIL` | `GOTRUE_SMTP_ADMIN_EMAIL` |
+| `SMTP_SENDER_NAME` | `GOTRUE_SMTP_SENDER_NAME` |
+| `SITE_URL` | `GOTRUE_SITE_URL` |
+| `ADDITIONAL_REDIRECT_URLS` | `GOTRUE_URI_ALLOW_LIST` |
+| `ENABLE_EMAIL_AUTOCONFIRM` | `GOTRUE_MAILER_AUTOCONFIRM` |
+
+### Dos avisos que ahorran una tarde
+
+**Puerto 587, no 465.** GoTrue habla STARTTLS. Con 465 (TLS directo) algunas
+versiones se quedan esperando sin dar un error claro. La aplicación sí usa 465
+porque nodemailer lo maneja bien; no es incoherencia, es que hablan distinto.
+
+**`SITE_URL` tiene que ser el dominio público.** Es la base de los enlaces de
+confirmación: si apunta a `localhost`, el correo llega con un enlace inservible.
+
+Reinicia el servicio después de guardar y comprueba con:
 
 ```bash
-SMTP_HOST=smtp.hostinger.com
-SMTP_PORT=587
-SMTP_USER=noreply@tu-dominio.com
-SMTP_PASS=...
-SMTP_ADMIN_EMAIL=noreply@tu-dominio.com
-SMTP_SENDER_NAME=Yumi
-
-SITE_URL=https://yumi.coolify.kaizencode.me
-ADDITIONAL_REDIRECT_URLS=https://yumi.coolify.kaizencode.me/**
-```
-
-Según la plantilla, las mismas variables pueden llamarse con el prefijo
-`GOTRUE_` (`GOTRUE_SMTP_HOST`, `GOTRUE_SMTP_PASS`, `GOTRUE_SITE_URL`…). Si ves
-otras variables con ese prefijo en tu despliegue, usa el prefijo.
-
-**Usa el puerto 587, no el 465.** GoTrue habla STARTTLS; con 465 (TLS directo)
-algunas versiones se quedan colgadas sin dar un error claro.
-
-`SITE_URL` importa: es la base de los enlaces de confirmación. Si apunta a
-`localhost`, el correo llegará con un enlace que no funciona.
-
-Reinicia el servicio y comprueba:
-
-```bash
-curl -s https://TU-SUPABASE/auth/v1/settings -H "apikey: TU_ANON_KEY" \
-  | grep -o '"mailer_autoconfirm":[a-z]*'
+./scripts/check-auth-mail.sh
 ```
 
 ### Alternativa: altas sin confirmar
