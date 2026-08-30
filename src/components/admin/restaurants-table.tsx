@@ -181,6 +181,9 @@ export function RestaurantsTable({ plans, restaurants }: { plans: PlanOption[]; 
               </div>
 
               <div className="flex flex-wrap gap-2">
+                <Link href={`/admin/restaurants/${row.id}`} className="btn-ghost text-xs">
+                  {t.admin.openSheet}
+                </Link>
                 <Link
                   href={`/r/${row.slug}`}
                   target="_blank"

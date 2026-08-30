@@ -186,6 +186,8 @@ export type Database = {
         }[];
       };""")
     out.append("      assign_order_courier: { Args: { p_order_id: string; p_courier_id: string }; Returns: Json };")
+    out.append("      platform_stats: { Args: { p_days?: number }; Returns: Json };")
+    out.append("      restaurant_analytics: { Args: { p_restaurant_id: string; p_from: string; p_to: string }; Returns: Json };")
     out.append("      is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };")
     out.append("      is_staff_of: { Args: { rid: string }; Returns: boolean };")
     out.append("    };")

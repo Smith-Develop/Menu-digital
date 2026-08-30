@@ -7,14 +7,26 @@ import { StatCard } from '@/components/dashboard/stat-card';
 import { Badge } from '@/components/ui/misc';
 import { formatMoney } from '@/lib/money';
 import { formatDate } from '@/lib/utils';
+import { AnalyticsBoard, type PlatformStats } from '@/components/admin/analytics-board';
+import { RangePicker } from '@/components/admin/range-picker';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Superadministración' };
 
-export default async function AdminOverview() {
+export default async function AdminOverview({
+  searchParams,
+}: {
+  searchParams: Promise<{ days?: string }>;
+}) {
   await requireSuperadmin();
   const { t, locale } = await getI18n();
   const supabase = await createServerSupabase();
+
+  const { days: daysParam } = await searchParams;
+  const days = Math.min(Math.max(Number(daysParam) || 30, 1), 365);
+
+  const { data: statsRaw } = await supabase.rpc('platform_stats', { p_days: days });
+  const stats = statsRaw as unknown as PlatformStats | null;
 
   const monthStart = new Date();
   monthStart.setDate(1);
@@ -51,6 +63,15 @@ export default async function AdminOverview() {
   return (
     <div className="space-y-7">
       <h1 className="font-display text-2xl font-bold text-ink">{t.admin.title}</h1>
+
+      {stats && (
+        <>
+          <RangePicker current={days} />
+          <AnalyticsBoard stats={stats} days={days} />
+        </>
+      )}
+
+      <h2 className="font-display text-lg font-bold text-ink-700">{t.admin.subscriptions}</h2>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard

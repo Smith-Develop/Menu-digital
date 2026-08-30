@@ -1434,6 +1434,8 @@ export type Database = {
         }[];
       };
       assign_order_courier: { Args: { p_order_id: string; p_courier_id: string }; Returns: Json };
+      platform_stats: { Args: { p_days?: number }; Returns: Json };
+      restaurant_analytics: { Args: { p_restaurant_id: string; p_from: string; p_to: string }; Returns: Json };
       is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };
       is_staff_of: { Args: { rid: string }; Returns: boolean };
     };
