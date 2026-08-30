@@ -1,0 +1,56 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { Home, Receipt, Search, ShoppingBag, User } from 'lucide-react';
+import { useCartCount } from '@/lib/cart';
+import { useT } from '@/i18n/provider';
+import { cn } from '@/lib/utils';
+
+export function BottomNav({ cartHref = '/cart' }: { cartHref?: string }) {
+  const pathname = usePathname();
+  const t = useT();
+  const count = useCartCount();
+
+  const items = [
+    { href: '/', icon: Home, label: t.nav.home, exact: true },
+    { href: '/search', icon: Search, label: t.common.search },
+    { href: cartHref, icon: ShoppingBag, label: t.nav.cart, badge: count },
+    { href: '/orders', icon: Receipt, label: t.nav.orders },
+    { href: '/account', icon: User, label: t.nav.profile },
+  ];
+
+  return (
+    <nav
+      className="sticky bottom-0 z-40 mt-auto border-t border-surface-line bg-white/95 backdrop-blur"
+      style={{ paddingBottom: 'var(--safe-bottom)' }}
+    >
+      <ul className="flex items-stretch justify-around">
+        {items.map(({ href, icon: Icon, label, badge, exact }) => {
+          const active = exact ? pathname === href : pathname.startsWith(href);
+          return (
+            <li key={href} className="flex-1">
+              <Link
+                href={href}
+                className={cn(
+                  'relative flex flex-col items-center gap-1 py-2.5 text-[10px] font-bold transition-colors',
+                  active ? 'text-brand' : 'text-ink-200 hover:text-ink-400',
+                )}
+              >
+                <span className="relative">
+                  <Icon className="h-[22px] w-[22px]" strokeWidth={active ? 2.4 : 1.9} />
+                  {typeof badge === 'number' && badge > 0 && (
+                    <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[9px] font-bold text-white">
+                      {badge > 9 ? '9+' : badge}
+                    </span>
+                  )}
+                </span>
+                {label}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}

@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --brand: #ff7622;
+    --brand-soft: #fff3ec;
+    --accent: #ffca28;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-surface-soft text-ink font-sans antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* La app es principalmente móvil: ocultamos scrollbars horizontales de los carruseles. */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  input,
+  textarea,
+  select {
+    @apply outline-none;
+  }
+
+  /* Evita el zoom automático de iOS al enfocar un campo. */
+  @supports (-webkit-touch-callout: none) {
+    input,
+    textarea,
+    select {
+      font-size: 16px;
+    }
+  }
+}
+
+@layer components {
+  /* Envoltorio del lienzo móvil: centra la app en pantallas grandes. */
+  .mobile-shell {
+    @apply mx-auto w-full max-w-[480px] min-h-dvh bg-white;
+  }
+
+  .card {
+    @apply rounded-card bg-white shadow-chip;
+  }
+
+  .field {
+    @apply w-full rounded-xl bg-surface-field px-4 py-3.5 text-[15px] text-ink
+           placeholder:text-ink-400 border border-transparent
+           focus:border-brand/40 focus:bg-white transition-colors;
+  }
+
+  .label {
+    @apply mb-2 block text-xs font-bold uppercase tracking-wide text-ink-300;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3.5
+           text-sm font-bold transition-all active:scale-[0.98]
+           disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply btn bg-brand text-white shadow-[0_8px_20px_-8px_rgba(255,118,34,0.9)] hover:bg-brand-700;
+  }
+
+  .btn-ghost {
+    @apply btn border border-surface-line bg-white text-ink hover:bg-surface-soft;
+  }
+
+  .btn-outline {
+    @apply btn border border-brand bg-white text-brand hover:bg-brand-50;
+  }
+
+  .chip {
+    @apply inline-flex shrink-0 items-center gap-2 rounded-pill px-4 py-2.5
+           text-[13px] font-bold transition-colors;
+  }
+
+  .icon-btn {
+    @apply inline-flex h-11 w-11 items-center justify-center rounded-full
+           bg-surface-field text-ink transition-colors hover:bg-surface-muted;
+  }
+
+  .section-title {
+    @apply font-display text-xl font-bold text-ink-700;
+  }
+
+  /* Barra fija inferior de las pantallas de compra. */
+  .bottom-bar {
+    @apply sticky bottom-0 z-30 border-t border-surface-line bg-white/95 px-5 pt-4 backdrop-blur;
+    padding-bottom: calc(1rem + var(--safe-bottom));
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .print-break {
+    break-after: page;
+  }
+}

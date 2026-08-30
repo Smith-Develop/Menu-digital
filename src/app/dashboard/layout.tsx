@@ -1,0 +1,35 @@
+import { requireStaffContext, daysUntil, subscriptionIsLive } from '@/lib/auth';
+import { getI18n } from '@/i18n';
+import { DashboardShell } from '@/components/dashboard/shell';
+
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const { profile, restaurant, staffRole, subscription } = await requireStaffContext();
+  const { t } = await getI18n();
+
+  const remaining = subscription ? daysUntil(subscription.current_period_end) : null;
+  const live = subscriptionIsLive(subscription);
+
+  return (
+    <DashboardShell
+      restaurant={{
+        id: restaurant.id,
+        name: restaurant.name,
+        slug: restaurant.slug,
+        logoUrl: restaurant.logo_url,
+        isOpen: restaurant.is_open,
+      }}
+      user={{ name: profile.full_name ?? profile.email ?? '', avatar: profile.avatar_url }}
+      staffRole={staffRole}
+      isSuperadmin={profile.role === 'superadmin'}
+      subscriptionBanner={
+        !live
+          ? { tone: 'danger', message: t.subscription.expiredWarning }
+          : remaining !== null && remaining <= 7
+            ? { tone: 'warning', message: t.subscription.expiringWarning }
+            : null
+      }
+    >
+      {children}
+    </DashboardShell>
+  );
+}

@@ -1,0 +1,737 @@
+'use client';
+
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { Box, ImageIcon, Layers, Pencil, Plus, Star, Trash2 } from 'lucide-react';
+import { Sheet, ConfirmDialog } from '@/components/ui/sheet';
+import { Input, Select, Switch, Textarea } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Badge, EmptyState } from '@/components/ui/misc';
+import { useToast } from '@/components/ui/toast';
+import { FileUpload } from '@/components/dashboard/file-upload';
+import { OptionGroupsEditor } from '@/components/dashboard/option-groups-editor';
+import {
+  saveCategory,
+  deleteCategory,
+  saveProduct,
+  deleteProduct,
+  toggleProductAvailability,
+} from '@/app/dashboard/actions';
+import { formatAmount, parseAmount, formatMoney } from '@/lib/money';
+import { useT } from '@/i18n/provider';
+import { cn } from '@/lib/utils';
+
+export type ManagedCategory = {
+  id: string;
+  name: string;
+  description: string | null;
+  imageUrl: string | null;
+  position: number;
+  isActive: boolean;
+};
+
+export type ManagedOptionGroup = {
+  id: string;
+  name: string;
+  minSelect: number;
+  maxSelect: number;
+  isRequired: boolean;
+  options: {
+    id: string;
+    name: string;
+    priceDeltaCents: number;
+    isDefault: boolean;
+    isAvailable: boolean;
+  }[];
+};
+
+export type ManagedProduct = {
+  id: string;
+  categoryId: string | null;
+  name: string;
+  description: string | null;
+  priceCents: number;
+  imageUrl: string | null;
+  model3dUrl: string | null;
+  modelArUrl: string | null;
+  modelScale: number;
+  prepMinutes: number;
+  calories: number | null;
+  ingredients: string[];
+  allergens: string[];
+  tags: string[];
+  isAvailable: boolean;
+  isFeatured: boolean;
+  position: number;
+  optionGroups: ManagedOptionGroup[];
+};
+
+type Draft = Omit<ManagedProduct, 'id' | 'optionGroups'> & { id?: string };
+
+function emptyDraft(categoryId: string | null): Draft {
+  return {
+    categoryId,
+    name: '',
+    description: '',
+    priceCents: 0,
+    imageUrl: null,
+    model3dUrl: null,
+    modelArUrl: null,
+    modelScale: 1,
+    prepMinutes: 15,
+    calories: null,
+    ingredients: [],
+    allergens: [],
+    tags: [],
+    isAvailable: true,
+    isFeatured: false,
+    position: 0,
+  };
+}
+
+export function MenuManager({
+  restaurantId,
+  currency,
+  currencyDecimals,
+  allows3d,
+  categories,
+  products,
+}: {
+  restaurantId: string;
+  currency: string;
+  currencyDecimals: number;
+  allows3d: boolean;
+  categories: ManagedCategory[];
+  products: ManagedProduct[];
+}) {
+  const t = useT();
+  const toast = useToast();
+  const router = useRouter();
+
+  const [tab, setTab] = useState<'products' | 'categories'>('products');
+  const [filter, setFilter] = useState<string | null>(null);
+
+  const [productDraft, setProductDraft] = useState<Draft | null>(null);
+  const [categoryDraft, setCategoryDraft] = useState<Partial<ManagedCategory> | null>(null);
+  const [optionsFor, setOptionsFor] = useState<ManagedProduct | null>(null);
+  const [confirm, setConfirm] = useState<{ kind: 'product' | 'category'; id: string } | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const visible = filter ? products.filter((p) => p.categoryId === filter) : products;
+
+  async function submitProduct() {
+    if (!productDraft) return;
+    setSaving(true);
+
+    const result = await saveProduct({
+      id: productDraft.id,
+      category_id: productDraft.categoryId,
+      name: productDraft.name,
+      description: productDraft.description || null,
+      price_cents: productDraft.priceCents,
+      image_url: productDraft.imageUrl,
+      model_3d_url: productDraft.model3dUrl,
+      model_ar_url: productDraft.modelArUrl,
+      model_scale: productDraft.modelScale,
+      prep_minutes: productDraft.prepMinutes,
+      calories: productDraft.calories,
+      ingredients: productDraft.ingredients,
+      allergens: productDraft.allergens,
+      tags: productDraft.tags,
+      is_available: productDraft.isAvailable,
+      is_featured: productDraft.isFeatured,
+      position: productDraft.position,
+    });
+
+    setSaving(false);
+
+    if (!result.ok) {
+      toast(
+        result.error === 'PLAN_LIMIT_PRODUCTS'
+          ? t.dashboard.limitReached
+          : result.error === 'PLAN_NO_3D'
+            ? t.dashboard.limitReached
+            : t.common.error,
+        'error',
+      );
+      return;
+    }
+
+    toast(t.common.save, 'success');
+    setProductDraft(null);
+    router.refresh();
+  }
+
+  async function submitCategory() {
+    if (!categoryDraft?.name) return;
+    setSaving(true);
+
+    const result = await saveCategory({
+      id: categoryDraft.id,
+      name: categoryDraft.name,
+      description: categoryDraft.description || null,
+      image_url: categoryDraft.imageUrl || null,
+      position: categoryDraft.position ?? 0,
+      is_active: categoryDraft.isActive ?? true,
+    });
+
+    setSaving(false);
+    if (!result.ok) {
+      toast(t.common.error, 'error');
+      return;
+    }
+    toast(t.common.save, 'success');
+    setCategoryDraft(null);
+    router.refresh();
+  }
+
+  async function runDelete() {
+    if (!confirm) return;
+    setSaving(true);
+    const result =
+      confirm.kind === 'product'
+        ? await deleteProduct(confirm.id)
+        : await deleteCategory(confirm.id);
+    setSaving(false);
+
+    if (!result.ok) {
+      toast(t.common.error, 'error');
+      return;
+    }
+    setConfirm(null);
+    router.refresh();
+  }
+
+  async function toggleAvailability(product: ManagedProduct) {
+    const result = await toggleProductAvailability(product.id, !product.isAvailable);
+    if (!result.ok) {
+      toast(t.common.error, 'error');
+      return;
+    }
+    router.refresh();
+  }
+
+  return (
+    <>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex gap-1 rounded-xl bg-surface-field p-1">
+          {(['products', 'categories'] as const).map((key) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setTab(key)}
+              className={cn(
+                'rounded-lg px-4 py-2 text-sm font-bold transition-colors',
+                tab === key ? 'bg-white text-ink shadow-sm' : 'text-ink-400',
+              )}
+            >
+              {key === 'products' ? t.dashboard.products : t.dashboard.categories}
+            </button>
+          ))}
+        </div>
+
+        <Button
+          onClick={() =>
+            tab === 'products'
+              ? setProductDraft(emptyDraft(filter))
+              : setCategoryDraft({ name: '', isActive: true, position: categories.length })
+          }
+        >
+          <Plus className="h-4 w-4" />
+          {tab === 'products' ? t.dashboard.newProduct : t.dashboard.newCategory}
+        </Button>
+      </div>
+
+      {tab === 'products' ? (
+        <>
+          {categories.length > 0 && (
+            <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
+              <FilterPill label={t.common.all} active={filter === null} onClick={() => setFilter(null)} />
+              {categories.map((category) => (
+                <FilterPill
+                  key={category.id}
+                  label={category.name}
+                  active={filter === category.id}
+                  onClick={() => setFilter(category.id)}
+                />
+              ))}
+            </div>
+          )}
+
+          {visible.length === 0 ? (
+            <EmptyState
+              icon={<ImageIcon className="h-7 w-7" />}
+              title={t.common.empty}
+              className="rounded-2xl bg-white shadow-chip"
+              action={
+                <Button onClick={() => setProductDraft(emptyDraft(filter))}>
+                  <Plus className="h-4 w-4" />
+                  {t.dashboard.newProduct}
+                </Button>
+              }
+            />
+          ) : (
+            <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {visible.map((product) => (
+                <li key={product.id} className="flex gap-4 rounded-2xl bg-white p-4 shadow-chip">
+                  <span className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-surface-muted">
+                    {product.imageUrl ? (
+                      <Image src={product.imageUrl} alt={product.name} fill sizes="80px" className="object-cover" />
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center text-ink-200">
+                        <ImageIcon className="h-6 w-6" />
+                      </span>
+                    )}
+                  </span>
+
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="min-w-0 truncate text-sm font-bold text-ink-700">{product.name}</p>
+                      <div className="flex shrink-0 gap-1">
+                        {product.isFeatured && <Star className="h-3.5 w-3.5 fill-accent-dark text-accent-dark" />}
+                        {product.model3dUrl && <Box className="h-3.5 w-3.5 text-brand" />}
+                      </div>
+                    </div>
+
+                    <p className="mt-0.5 text-sm font-bold text-ink">
+                      {formatMoney(product.priceCents, currency, currencyDecimals)}
+                    </p>
+
+                    {product.optionGroups.length > 0 && (
+                      <p className="mt-1 text-xs text-ink-300">
+                        {product.optionGroups.length} {t.product.chooseOptions.toLowerCase()}
+                      </p>
+                    )}
+
+                    <div className="mt-auto flex items-center justify-between gap-2 pt-3">
+                      <button
+                        type="button"
+                        onClick={() => toggleAvailability(product)}
+                        className={cn(
+                          'rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide transition-colors',
+                          product.isAvailable
+                            ? 'bg-emerald-50 text-emerald-700'
+                            : 'bg-surface-muted text-ink-300',
+                        )}
+                      >
+                        {product.isAvailable ? t.common.active : t.product.unavailable}
+                      </button>
+
+                      <div className="flex gap-1">
+                        <IconAction
+                          label={t.product.chooseOptions}
+                          onClick={() => setOptionsFor(product)}
+                        >
+                          <Layers className="h-3.5 w-3.5" />
+                        </IconAction>
+                        <IconAction
+                          label={t.common.edit}
+                          onClick={() =>
+                            setProductDraft({
+                              id: product.id,
+                              categoryId: product.categoryId,
+                              name: product.name,
+                              description: product.description,
+                              priceCents: product.priceCents,
+                              imageUrl: product.imageUrl,
+                              model3dUrl: product.model3dUrl,
+                              modelArUrl: product.modelArUrl,
+                              modelScale: product.modelScale,
+                              prepMinutes: product.prepMinutes,
+                              calories: product.calories,
+                              ingredients: product.ingredients,
+                              allergens: product.allergens,
+                              tags: product.tags,
+                              isAvailable: product.isAvailable,
+                              isFeatured: product.isFeatured,
+                              position: product.position,
+                            })
+                          }
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </IconAction>
+                        <IconAction
+                          label={t.common.delete}
+                          danger
+                          onClick={() => setConfirm({ kind: 'product', id: product.id })}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </IconAction>
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      ) : categories.length === 0 ? (
+        <EmptyState
+          icon={<Layers className="h-7 w-7" />}
+          title={t.common.empty}
+          className="rounded-2xl bg-white shadow-chip"
+        />
+      ) : (
+        <ul className="space-y-3">
+          {categories.map((category) => (
+            <li
+              key={category.id}
+              className="flex items-center gap-4 rounded-2xl bg-white p-4 shadow-chip"
+            >
+              <span className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-surface-muted">
+                {category.imageUrl && (
+                  <Image src={category.imageUrl} alt={category.name} fill sizes="56px" className="object-cover" />
+                )}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-bold text-ink-700">{category.name}</p>
+                <p className="truncate text-xs text-ink-300">
+                  {products.filter((p) => p.categoryId === category.id).length}{' '}
+                  {t.dashboard.products.toLowerCase()}
+                </p>
+              </div>
+              {!category.isActive && <Badge tone="neutral">{t.common.inactive}</Badge>}
+              <div className="flex gap-1">
+                <IconAction label={t.common.edit} onClick={() => setCategoryDraft(category)}>
+                  <Pencil className="h-3.5 w-3.5" />
+                </IconAction>
+                <IconAction
+                  label={t.common.delete}
+                  danger
+                  onClick={() => setConfirm({ kind: 'category', id: category.id })}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </IconAction>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* ---------- Editor de plato ---------- */}
+      <Sheet
+        open={productDraft !== null}
+        onClose={() => setProductDraft(null)}
+        title={productDraft?.id ? t.common.edit : t.dashboard.newProduct}
+        size="lg"
+        footer={
+          <Button size="block" loading={saving} onClick={submitProduct}>
+            {t.common.save}
+          </Button>
+        }
+      >
+        {productDraft && (
+          <div className="space-y-5">
+            <Input
+              value={productDraft.name}
+              onChange={(e) => setProductDraft({ ...productDraft, name: e.target.value })}
+              label={t.common.name}
+              placeholder="Pizza Margherita"
+              required
+            />
+            <Textarea
+              value={productDraft.description ?? ''}
+              onChange={(e) => setProductDraft({ ...productDraft, description: e.target.value })}
+              label={t.common.description}
+              rows={3}
+            />
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input
+                defaultValue={formatAmount(productDraft.priceCents, currencyDecimals)}
+                onBlur={(e) =>
+                  setProductDraft({
+                    ...productDraft,
+                    priceCents: parseAmount(e.target.value, currencyDecimals),
+                  })
+                }
+                label={`${t.common.price} (${currency})`}
+                inputMode="decimal"
+                placeholder="9,50"
+              />
+              <Select
+                value={productDraft.categoryId ?? ''}
+                onChange={(e) =>
+                  setProductDraft({ ...productDraft, categoryId: e.target.value || null })
+                }
+                label={t.common.category}
+              >
+                <option value="">{t.common.none}</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input
+                type="number"
+                value={productDraft.prepMinutes}
+                onChange={(e) =>
+                  setProductDraft({ ...productDraft, prepMinutes: Number(e.target.value) })
+                }
+                label={`${t.storefront.prepTime} (${t.common.min})`}
+                min={0}
+              />
+              <Input
+                type="number"
+                value={productDraft.calories ?? ''}
+                onChange={(e) =>
+                  setProductDraft({
+                    ...productDraft,
+                    calories: e.target.value ? Number(e.target.value) : null,
+                  })
+                }
+                label="kcal"
+                min={0}
+              />
+            </div>
+
+            <FileUpload
+              bucket="products"
+              restaurantId={restaurantId}
+              value={productDraft.imageUrl}
+              onChange={(url) => setProductDraft({ ...productDraft, imageUrl: url })}
+              label={t.common.image}
+            />
+
+            <div className={cn(!allows3d && 'opacity-50')}>
+              <FileUpload
+                bucket="models"
+                restaurantId={restaurantId}
+                value={productDraft.model3dUrl}
+                onChange={(url) => setProductDraft({ ...productDraft, model3dUrl: url })}
+                label={`${t.dashboard.model3d} (.glb)`}
+                hint={allows3d ? t.dashboard.model3dHint : t.dashboard.limitReached}
+                preview="file"
+              />
+            </div>
+
+            {productDraft.model3dUrl && (
+              <FileUpload
+                bucket="models"
+                restaurantId={restaurantId}
+                value={productDraft.modelArUrl}
+                onChange={(url) => setProductDraft({ ...productDraft, modelArUrl: url })}
+                label="Modelo iOS (.usdz)"
+                hint="Opcional: iOS usa Quick Look, que necesita este formato para la realidad aumentada."
+                preview="file"
+              />
+            )}
+
+            <TagInput
+              label={t.product.ingredients}
+              values={productDraft.ingredients}
+              onChange={(values) => setProductDraft({ ...productDraft, ingredients: values })}
+            />
+            <TagInput
+              label={t.product.allergens}
+              values={productDraft.allergens}
+              onChange={(values) => setProductDraft({ ...productDraft, allergens: values })}
+            />
+
+            <div className="space-y-3 rounded-xl bg-surface-field p-4">
+              <Switch
+                checked={productDraft.isAvailable}
+                onChange={(v) => setProductDraft({ ...productDraft, isAvailable: v })}
+                label={t.common.active}
+              />
+              <Switch
+                checked={productDraft.isFeatured}
+                onChange={(v) => setProductDraft({ ...productDraft, isFeatured: v })}
+                label={t.storefront.featured}
+              />
+            </div>
+          </div>
+        )}
+      </Sheet>
+
+      {/* ---------- Editor de categoría ---------- */}
+      <Sheet
+        open={categoryDraft !== null}
+        onClose={() => setCategoryDraft(null)}
+        title={categoryDraft?.id ? t.common.edit : t.dashboard.newCategory}
+        footer={
+          <Button size="block" loading={saving} onClick={submitCategory}>
+            {t.common.save}
+          </Button>
+        }
+      >
+        {categoryDraft && (
+          <div className="space-y-5">
+            <Input
+              value={categoryDraft.name ?? ''}
+              onChange={(e) => setCategoryDraft({ ...categoryDraft, name: e.target.value })}
+              label={t.common.name}
+              placeholder="Pizzas"
+              required
+            />
+            <Textarea
+              value={categoryDraft.description ?? ''}
+              onChange={(e) => setCategoryDraft({ ...categoryDraft, description: e.target.value })}
+              label={t.common.description}
+              rows={2}
+            />
+            <FileUpload
+              bucket="products"
+              restaurantId={restaurantId}
+              value={categoryDraft.imageUrl ?? null}
+              onChange={(url) => setCategoryDraft({ ...categoryDraft, imageUrl: url })}
+              label={t.common.image}
+            />
+            <Switch
+              checked={categoryDraft.isActive ?? true}
+              onChange={(v) => setCategoryDraft({ ...categoryDraft, isActive: v })}
+              label={t.common.active}
+            />
+          </div>
+        )}
+      </Sheet>
+
+      {/* ---------- Opciones del plato ---------- */}
+      <Sheet
+        open={optionsFor !== null}
+        onClose={() => setOptionsFor(null)}
+        title={`${t.product.chooseOptions} · ${optionsFor?.name ?? ''}`}
+        size="lg"
+      >
+        {optionsFor && (
+          <OptionGroupsEditor
+            productId={optionsFor.id}
+            currency={currency}
+            currencyDecimals={currencyDecimals}
+            groups={optionsFor.optionGroups}
+            onSaved={() => {
+              setOptionsFor(null);
+              router.refresh();
+            }}
+          />
+        )}
+      </Sheet>
+
+      <ConfirmDialog
+        open={confirm !== null}
+        onClose={() => setConfirm(null)}
+        onConfirm={runDelete}
+        title={t.common.delete}
+        message={t.common.confirm}
+        confirmLabel={t.common.delete}
+        cancelLabel={t.common.cancel}
+        loading={saving}
+      />
+    </>
+  );
+}
+
+function FilterPill({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'shrink-0 rounded-full px-4 py-2 text-xs font-bold transition-colors',
+        active ? 'bg-ink text-white' : 'bg-white text-ink-500 shadow-chip hover:text-ink',
+      )}
+    >
+      {label}
+    </button>
+  );
+}
+
+function IconAction({
+  children,
+  label,
+  onClick,
+  danger,
+}: {
+  children: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className={cn(
+        'flex h-8 w-8 items-center justify-center rounded-lg transition-colors',
+        danger
+          ? 'text-ink-300 hover:bg-red-50 hover:text-state-danger'
+          : 'text-ink-300 hover:bg-surface-field hover:text-ink',
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** Lista de etiquetas editable: Enter añade, clic elimina. */
+function TagInput({
+  label,
+  values,
+  onChange,
+}: {
+  label: string;
+  values: string[];
+  onChange: (values: string[]) => void;
+}) {
+  const [draft, setDraft] = useState('');
+
+  function add() {
+    const value = draft.trim();
+    if (!value || values.includes(value)) return;
+    onChange([...values, value]);
+    setDraft('');
+  }
+
+  return (
+    <div>
+      <span className="label">{label}</span>
+      <div className="flex gap-2">
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              add();
+            }
+          }}
+          className="field flex-1"
+          placeholder="Tomate"
+        />
+        <button type="button" onClick={add} className="btn-ghost px-4">
+          <Plus className="h-4 w-4" />
+        </button>
+      </div>
+      {values.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {values.map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => onChange(values.filter((v) => v !== value))}
+              className="inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-3 py-1.5 text-xs font-semibold text-ink-600 hover:bg-red-50 hover:text-state-danger"
+            >
+              {value}
+              <Trash2 className="h-3 w-3" />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
