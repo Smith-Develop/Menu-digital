@@ -31,9 +31,12 @@ export const mailEnv = {
   host: process.env.SMTP_HOST ?? '',
   port: Number(process.env.SMTP_PORT ?? 465),
   user: process.env.SMTP_USER ?? '',
-  password: process.env.SMTP_PASSWORD ?? '',
-  from: process.env.SMTP_FROM ?? process.env.SMTP_USER ?? '',
-  fromName: process.env.SMTP_FROM_NAME ?? 'Yumi',
+  // GoTrue llama a esto SMTP_PASS y otras herramientas SMTP_PASSWORD. Como en
+  // un mismo despliegue conviven ambos servicios, se aceptan los dos nombres:
+  // equivocarse aquí deja el correo mudo sin dar ningún error.
+  password: process.env.SMTP_PASSWORD ?? process.env.SMTP_PASS ?? '',
+  from: process.env.SMTP_FROM ?? process.env.SMTP_ADMIN_EMAIL ?? process.env.SMTP_USER ?? '',
+  fromName: process.env.SMTP_FROM_NAME ?? process.env.SMTP_SENDER_NAME ?? 'Yumi',
   get isConfigured() {
     return Boolean(this.host && this.user && this.password);
   },

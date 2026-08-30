@@ -26,6 +26,11 @@ SMTP_FROM=noreply@tu-dominio.com
 SMTP_FROM_NAME=Yumi
 ```
 
+También valen los nombres de GoTrue —`SMTP_PASS`, `SMTP_ADMIN_EMAIL`,
+`SMTP_SENDER_NAME`—, porque en el mismo despliegue conviven los dos servicios y
+es fácil cruzarlos. Equivocarse de nombre no da ningún error: simplemente el
+correo deja de salir.
+
 Si faltan, la invitación se crea igual y el panel enseña el enlace para pasarlo
 a mano: un fallo del servidor de correo no debe impedir dar de alta a nadie.
 
