@@ -12,6 +12,7 @@ import {
   Receipt,
   Printer,
   Smartphone,
+  Truck,
   Store,
   UtensilsCrossed,
   XCircle,
@@ -25,6 +26,7 @@ import { useI18n, interpolate } from '@/i18n/provider';
 import { usePrint } from '@/components/dashboard/print/print-provider';
 import type { TicketOrder } from '@/components/dashboard/print/ticket';
 import { mapOrderRow } from '@/lib/queries/orders';
+import { CourierPicker } from '@/components/dashboard/courier-picker';
 import type { Enums } from '@/types/database';
 
 export type OrderRow = {
@@ -46,6 +48,8 @@ export type OrderRow = {
   address: string | null;
   addressNotes: string | null;
   tableName: string | null;
+  courierId: string | null;
+  courierName: string | null;
   notes: string | null;
   createdAt: string;
   items: {
@@ -167,6 +171,7 @@ export function LiveOrdersPanel({
   const [orders, setOrders] = useState(initialOrders);
   const [calls, setCalls] = useState(initialCalls);
   const [busy, setBusy] = useState<string | null>(null);
+  const [assignFor, setAssignFor] = useState<OrderRow | null>(null);
 
   useEffect(() => setOrders(initialOrders), [initialOrders]);
   useEffect(() => setCalls(initialCalls), [initialCalls]);
@@ -185,7 +190,24 @@ export function LiveOrdersPanel({
         tableName = table?.name ?? null;
       }
 
-      const row = mapOrderRow(order, items ?? [], tableName);
+      let courierName: string | null = null;
+      if (order.courier_id) {
+        const { data: courier } = await supabase
+          .from('couriers')
+          .select('user_id')
+          .eq('id', order.courier_id)
+          .maybeSingle();
+        if (courier) {
+          const { data: person } = await supabase
+            .from('profiles')
+            .select('full_name, email')
+            .eq('id', courier.user_id)
+            .maybeSingle();
+          courierName = person?.full_name ?? person?.email ?? null;
+        }
+      }
+
+      const row = mapOrderRow(order, items ?? [], tableName, courierName);
 
       setOrders((current) => {
         const open = ['pending', 'confirmed', 'preparing', 'ready', 'delivering'];
@@ -350,6 +372,18 @@ export function LiveOrdersPanel({
         </section>
       )}
 
+      <CourierPicker
+        open={assignFor !== null}
+        onClose={() => setAssignFor(null)}
+        restaurantId={restaurantId}
+        orderId={assignFor?.id ?? null}
+        orderCode={assignFor?.code ?? null}
+        onAssigned={() => {
+          if (assignFor) void refetchOrder(assignFor.id);
+          router.refresh();
+        }}
+      />
+
       {orders.length === 0 ? (
         <EmptyState
           icon={<Receipt className="h-7 w-7" />}
@@ -398,6 +432,18 @@ export function LiveOrdersPanel({
                   ))}
                 </ul>
 
+                {order.courierName && (
+                  <button
+                    type="button"
+                    onClick={() => setAssignFor(order)}
+                    className="mt-3 flex w-full items-center gap-2 rounded-lg bg-brand-50 px-3 py-2 text-left text-xs text-brand-700 transition-colors hover:bg-brand-100"
+                  >
+                    <Truck className="h-3.5 w-3.5 shrink-0" />
+                    <span className="min-w-0 flex-1 truncate font-semibold">{order.courierName}</span>
+                    <span className="shrink-0 opacity-70">{t.courier.changeCourier}</span>
+                  </button>
+                )}
+
                 {order.notes && (
                   <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs italic text-amber-700">
                     {order.notes}
@@ -420,18 +466,31 @@ export function LiveOrdersPanel({
 
                 <div className="mt-4 space-y-2">
                   <div className="flex gap-2">
-                    {target && (
+                    {target === 'delivering' ? (
+                      // Salir a reparto exige decidir quién lo lleva.
                       <button
                         type="button"
-                        onClick={() => advance(order)}
+                        onClick={() => setAssignFor(order)}
                         disabled={busy === order.id}
-                        className={cn(
-                          'btn flex-1 text-white',
-                          order.status === 'pending' ? 'bg-state-success' : 'bg-brand',
-                        )}
+                        className="btn flex-1 bg-brand text-brand-contrast"
                       >
-                        {ACTION_LABEL[target] ?? t.common.confirm}
+                        <Truck className="h-4 w-4" />
+                        {t.courier.sendCourier}
                       </button>
+                    ) : (
+                      target && (
+                        <button
+                          type="button"
+                          onClick={() => advance(order)}
+                          disabled={busy === order.id}
+                          className={cn(
+                            'btn flex-1 text-white',
+                            order.status === 'pending' ? 'bg-state-success' : 'bg-brand',
+                          )}
+                        >
+                          {ACTION_LABEL[target] ?? t.common.confirm}
+                        </button>
+                      )
                     )}
 
                     <button

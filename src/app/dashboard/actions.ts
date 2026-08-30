@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { isoDateTime } from '@/lib/validation';
 import { createServerSupabase, createPublicSupabase } from '@/lib/supabase/server';
 import { requireStaffContext } from '@/lib/auth';
 import { canManageMenu, canManageStaff } from '@/lib/auth-permissions';
@@ -466,8 +467,8 @@ const bannerSchema = z.object({
   link_url: z.string().max(400).nullable().optional(),
   position: z.coerce.number().int().min(0).default(0),
   is_active: z.boolean().default(true),
-  starts_at: z.string().datetime().nullable().optional(),
-  ends_at: z.string().datetime().nullable().optional(),
+  starts_at: isoDateTime().nullable().optional(),
+  ends_at: isoDateTime().nullable().optional(),
 });
 
 export async function saveBanner(input: unknown): Promise<Result> {

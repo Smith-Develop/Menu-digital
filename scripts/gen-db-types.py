@@ -170,6 +170,22 @@ export type Database = {
     out.append("      accept_staff_invitation: { Args: { p_token: string }; Returns: Json };")
     out.append("      invitation_preview: { Args: { p_token: string }; Returns: Json };")
     out.append("      home_categories: { Args: { p_city_slug?: string | null; p_limit?: number }; Returns: { id: string; name: string; slug: string; image_url: string | null; products: number }[] };")
+    out.append("""      restaurant_couriers_available: {
+        Args: { p_restaurant_id: string };
+        Returns: {
+          courier_id: string;
+          name: string;
+          avatar_url: string | null;
+          phone: string | null;
+          vehicle: string;
+          status: Enums<'courier_status'>;
+          active_here: number;
+          active_total: number;
+          deliveries: number;
+          rating: number;
+        }[];
+      };""")
+    out.append("      assign_order_courier: { Args: { p_order_id: string; p_courier_id: string }; Returns: Json };")
     out.append("      is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };")
     out.append("      is_staff_of: { Args: { rid: string }; Returns: boolean };")
     out.append("    };")

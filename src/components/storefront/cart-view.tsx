@@ -97,7 +97,9 @@ export function CartView({
      * página entera desplazándose, en móvil el botón quedaba fuera de pantalla.
      */
     <div className="flex h-full flex-1 flex-col overflow-hidden">
-      <ScreenHeader title={t.cart.title} backHref={`/r/${slug}`} className="shrink-0" />
+      <h1 className="shrink-0 px-5 pb-2 pt-4 font-display text-lg font-bold text-ink-700">
+        {t.cart.title}
+      </h1>
 
       <ul className="min-h-0 flex-1 divide-y divide-surface-line overflow-y-auto px-5">
         {lines.map((line) => (

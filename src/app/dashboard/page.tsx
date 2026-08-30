@@ -59,6 +59,24 @@ export default async function DashboardOverview() {
     ? await supabase.from('order_items').select('*').in('order_id', orderIds)
     : { data: [] };
 
+  // Nombre del repartidor asignado, para enseñarlo en la tarjeta del pedido.
+  const courierIds = [...new Set((orders ?? []).map((o) => o.courier_id).filter(Boolean))] as string[];
+  const { data: couriers } = courierIds.length
+    ? await supabase.from('couriers').select('id, user_id').in('id', courierIds)
+    : { data: [] };
+  const { data: courierProfiles } = (couriers ?? []).length
+    ? await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', (couriers ?? []).map((c) => c.user_id))
+    : { data: [] };
+  const courierNames = new Map(
+    (couriers ?? []).map((c) => {
+      const person = (courierProfiles ?? []).find((p) => p.id === c.user_id);
+      return [c.id, person?.full_name ?? person?.email ?? null];
+    }),
+  );
+
   const tableIds = [...new Set((orders ?? []).map((o) => o.table_id).filter(Boolean))] as string[];
   const { data: tables } = tableIds.length
     ? await supabase.from('tables').select('id, name').in('id', tableIds)
@@ -66,7 +84,12 @@ export default async function DashboardOverview() {
   const tableNames = new Map((tables ?? []).map((tb) => [tb.id, tb.name]));
 
   const rows: OrderRow[] = (orders ?? []).map((order) =>
-    mapOrderRow(order, items ?? [], order.table_id ? (tableNames.get(order.table_id) ?? null) : null),
+    mapOrderRow(
+      order,
+      items ?? [],
+      order.table_id ? (tableNames.get(order.table_id) ?? null) : null,
+      order.courier_id ? (courierNames.get(order.courier_id) ?? null) : null,
+    ),
   );
 
   return (

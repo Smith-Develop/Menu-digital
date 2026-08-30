@@ -20,6 +20,18 @@ export type Database = {
           text_color: string;
           updated_by: string | null;
           updated_at: string;
+          splash_enabled: boolean;
+          onboarding_enabled: boolean;
+          login_title: string;
+          login_subtitle: string;
+          login_image_url: string | null;
+          register_title: string;
+          register_subtitle: string;
+          register_image_url: string | null;
+          social_google: boolean;
+          social_facebook: boolean;
+          terms_url: string | null;
+          privacy_url: string | null;
         };
         Insert: {
           id?: boolean;
@@ -33,6 +45,18 @@ export type Database = {
           text_color?: string;
           updated_by?: string | null;
           updated_at?: string;
+          splash_enabled?: boolean;
+          onboarding_enabled?: boolean;
+          login_title?: string;
+          login_subtitle?: string;
+          login_image_url?: string | null;
+          register_title?: string;
+          register_subtitle?: string;
+          register_image_url?: string | null;
+          social_google?: boolean;
+          social_facebook?: boolean;
+          terms_url?: string | null;
+          privacy_url?: string | null;
         };
         Update: {
           id?: boolean;
@@ -46,6 +70,18 @@ export type Database = {
           text_color?: string;
           updated_by?: string | null;
           updated_at?: string;
+          splash_enabled?: boolean;
+          onboarding_enabled?: boolean;
+          login_title?: string;
+          login_subtitle?: string;
+          login_image_url?: string | null;
+          register_title?: string;
+          register_subtitle?: string;
+          register_image_url?: string | null;
+          social_google?: boolean;
+          social_facebook?: boolean;
+          terms_url?: string | null;
+          privacy_url?: string | null;
         };
         Relationships: [];
       };
@@ -416,6 +452,39 @@ export type Database = {
           ends_at?: string | null;
           is_active?: boolean;
           created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      onboarding_slides: {
+        Row: {
+          id: string;
+          title: string;
+          subtitle: string | null;
+          image_url: string | null;
+          position: number;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          subtitle?: string | null;
+          image_url?: string | null;
+          position?: number;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          title?: string;
+          subtitle?: string | null;
+          image_url?: string | null;
+          position?: number;
+          is_active?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -1343,6 +1412,22 @@ export type Database = {
       accept_staff_invitation: { Args: { p_token: string }; Returns: Json };
       invitation_preview: { Args: { p_token: string }; Returns: Json };
       home_categories: { Args: { p_city_slug?: string | null; p_limit?: number }; Returns: { id: string; name: string; slug: string; image_url: string | null; products: number }[] };
+      restaurant_couriers_available: {
+        Args: { p_restaurant_id: string };
+        Returns: {
+          courier_id: string;
+          name: string;
+          avatar_url: string | null;
+          phone: string | null;
+          vehicle: string;
+          status: Enums<'courier_status'>;
+          active_here: number;
+          active_total: number;
+          deliveries: number;
+          rating: number;
+        }[];
+      };
+      assign_order_courier: { Args: { p_order_id: string; p_courier_id: string }; Returns: Json };
       is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };
       is_staff_of: { Args: { rid: string }; Returns: boolean };
     };

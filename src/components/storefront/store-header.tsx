@@ -1,8 +1,8 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowLeft, ShoppingBag, UtensilsCrossed } from 'lucide-react';
+import { Home, ShoppingBag, UtensilsCrossed } from 'lucide-react';
+import Image from 'next/image';
 import { useCartCount } from '@/lib/cart';
 import { useActiveCart } from '@/components/storefront/cart-provider';
 import { useT } from '@/i18n/provider';
@@ -11,10 +11,10 @@ import type { BrowseMode } from '@/lib/store-context';
 /**
  * Cabecera de la tienda de un restaurante.
  *
- * Solo ofrece volver al escaparate a quien llegó navegando por Yumi. Quien
- * abrió el enlace del restaurante —o escaneó el QR de una mesa— se queda dentro
- * de esa tienda: para él la aplicación es ese restaurante y sacarlo a ver la
- * competencia no tendría sentido.
+ * Quien llegó navegando por Yumi tiene a la izquierda el acceso al escaparate;
+ * quien abrió el enlace del restaurante —o escaneó el QR de una mesa— ve el
+ * logotipo del local, porque para él la aplicación es ese restaurante y sacarlo
+ * a la competencia no tendría sentido.
  */
 export function StoreHeader({
   slug,
@@ -31,18 +31,21 @@ export function StoreHeader({
 }) {
   const t = useT();
   const count = useCartCount(useActiveCart());
-  const canGoBack = browseMode === 'marketplace' && !inTable;
+  const canGoHome = browseMode === 'marketplace' && !inTable;
 
   return (
     <header className="sticky top-0 z-40 border-b border-surface-line bg-white/95 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-[480px] items-center gap-3 px-4 py-3 lg:max-w-3xl">
-        {canGoBack ? (
+      <div className="mx-auto flex w-full max-w-[480px] items-center gap-3 px-4 py-3 lg:max-w-6xl lg:px-8">
+        {canGoHome ? (
           <Link
             href="/"
-            className="icon-btn h-10 w-10 shrink-0 transition-transform active:scale-95"
+            className="flex h-10 shrink-0 items-center gap-2 rounded-full bg-surface-field px-4 text-ink transition-colors hover:bg-surface-muted"
             aria-label={t.storefront.backToMarketplace}
           >
-            <ArrowLeft className="h-[18px] w-[18px]" />
+            <Home className="h-[18px] w-[18px]" />
+            <span className="hidden text-sm font-bold sm:inline">
+              {t.storefront.backToMarketplace}
+            </span>
           </Link>
         ) : (
           <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-surface-muted">
@@ -56,14 +59,7 @@ export function StoreHeader({
           </span>
         )}
 
-        <Link href={`/r/${slug}`} className="min-w-0 flex-1">
-          <span className="block truncate font-display text-base font-bold text-ink">{name}</span>
-          {canGoBack && (
-            <span className="block truncate text-[11px] text-ink-300">
-              {t.storefront.backToMarketplace}
-            </span>
-          )}
-        </Link>
+        <span className="min-w-0 flex-1" />
 
         <Link
           href={`/r/${slug}/cart`}

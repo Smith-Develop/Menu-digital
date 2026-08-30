@@ -143,10 +143,6 @@ begin
     if v_subtotal < v_coupon.min_order_cents then
       raise exception 'COUPON_MIN_ORDER:%', v_coupon.min_order_cents using errcode = 'P0001';
     end if;
-    if p_type = 'dine_in' and auth.uid() is null then
-      raise exception 'LOGIN_REQUIRED' using errcode = 'P0001';
-    end if;
-
     -- El contador se bloquea aquí: dos pedidos simultáneos con el último cupón
     -- disponible se serializan y solo uno pasa.
     select * into v_coupon from public.coupons where id = v_coupon.id for update;

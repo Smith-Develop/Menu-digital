@@ -11,7 +11,7 @@ import {
   ShoppingBag,
   UtensilsCrossed,
 } from 'lucide-react';
-import { ScreenHeader, Badge, EmptyState } from '@/components/ui/misc';
+import { Badge, EmptyState } from '@/components/ui/misc';
 import { useToast } from '@/components/ui/toast';
 import { createClient } from '@/lib/supabase/client';
 import { formatMoney } from '@/lib/money';
@@ -121,7 +121,9 @@ export function TablePanel({
      * pedir la cuenta no se vaya nunca por debajo del borde de la pantalla.
      */
     <div className="flex h-full flex-1 flex-col overflow-hidden">
-      <ScreenHeader title={t.table.calls} backHref={`/r/${slug}`} className="shrink-0" />
+      <h1 className="shrink-0 px-5 pb-2 pt-4 font-display text-lg font-bold text-ink-700">
+        {t.table.calls}
+      </h1>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-6">
         <div className="rounded-2xl bg-ink px-5 py-6 text-white animate-fade-up">

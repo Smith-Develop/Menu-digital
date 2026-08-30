@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { isoDateTime } from '@/lib/validation';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { getSessionProfile } from '@/lib/auth';
 import { periodEnd } from '@/lib/stripe';
@@ -250,8 +251,8 @@ const notificationSchema = z.object({
   link_label: z.string().max(40).nullable().optional(),
   audience: z.enum(['all', 'cities']),
   cities: z.array(z.string()).default([]),
-  starts_at: z.string().datetime().optional(),
-  ends_at: z.string().datetime().nullable().optional(),
+  starts_at: isoDateTime().optional(),
+  ends_at: isoDateTime().nullable().optional(),
   is_active: z.boolean().default(true),
 });
 

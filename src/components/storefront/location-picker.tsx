@@ -79,10 +79,13 @@ export function LocationPicker({
     );
   }
 
-  const label = current?.city ?? t.location.chooseCity;
-  // La dirección guardada es lo que de verdad confirma al cliente que pedirá
-  // donde quiere, así que se muestra debajo de la ciudad cuando la hay.
-  const detail = current?.address ?? (current ? null : t.location.chooseCityHint);
+  /*
+   * Manda la dirección, no la ciudad: es el dato que de verdad le dice al
+   * cliente dónde va a recibir el pedido, y repetir "Calle X, Madrid · Madrid"
+   * saturaba una cabecera que ya va justa de espacio.
+   */
+  const label = current?.address ?? current?.city ?? t.location.chooseCity;
+  const detail = current ? null : t.location.chooseCityHint;
 
   return (
     <>

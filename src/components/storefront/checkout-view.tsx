@@ -85,6 +85,14 @@ export function CheckoutView({
   const [name, setName] = useState(customer.name);
   const [phone, setPhone] = useState(customer.phone);
   const [email, setEmail] = useState(customer.email);
+  /*
+   * En mesa no se pide cuenta: el comensal ya está sentado en el local, su
+   * comanda vive en la cuenta de la mesa y el camarero la tiene delante.
+   * Obligarle a registrarse ahí solo añade fricción a alguien que ya está
+   * dentro. Fuera del local sí hace falta, porque sin cuenta pierde el
+   * seguimiento en cuanto cierra la pestaña.
+   */
+  const requiresAccount = !inTable;
   const [signedIn, setSignedIn] = useState(isSignedIn);
 
   /*
@@ -138,6 +146,7 @@ export function CheckoutView({
   const [editingAddress, setEditingAddress] = useState(!savedFull);
   // Con sesión los datos personales llegan del perfil: solo se editan a petición.
   const [editingData, setEditingData] = useState(!isSignedIn);
+
   const [addressNotes, setAddressNotes] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -210,7 +219,7 @@ export function CheckoutView({
       <ScreenHeader title={t.checkout.title} backHref={`/r/${slug}/cart`} />
 
       <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-6">
-        {!signedIn && (
+        {requiresAccount && !signedIn && (
           <div className="mb-7">
             <CheckoutIdentity
               defaultName={name}
@@ -221,7 +230,7 @@ export function CheckoutView({
           </div>
         )}
 
-        <section className={cn(!signedIn && 'pointer-events-none opacity-40')}>
+        <section className={cn(requiresAccount && !signedIn && 'pointer-events-none opacity-40')}>
           <p className="label">{t.checkout.paymentMethod}</p>
           <div className="grid grid-cols-3 gap-3">
             {methods.map(({ id, icon: Icon, label }) => {
@@ -250,7 +259,9 @@ export function CheckoutView({
           </p>
         </section>
 
-        <section className={cn('mt-7 space-y-4', !signedIn && 'pointer-events-none opacity-40')}>
+        <section
+          className={cn('mt-7 space-y-4', requiresAccount && !signedIn && 'pointer-events-none opacity-40')}
+        >
           <div className="flex items-center justify-between gap-3">
             <p className="label mb-0">{t.checkout.yourData}</p>
             {signedIn && !editingData && (
@@ -348,7 +359,9 @@ export function CheckoutView({
           />
         </section>
 
-        <section className={cn('mt-7 rounded-2xl bg-surface-field p-5', !signedIn && 'opacity-40')}>
+        <section
+          className={cn('mt-7 rounded-2xl bg-surface-field p-5', requiresAccount && !signedIn && 'opacity-40')}
+        >
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between">
               <dt className="text-ink-400">{t.common.subtotal}</dt>
@@ -400,7 +413,7 @@ export function CheckoutView({
         <button
           type="button"
           onClick={submit}
-          disabled={submitting || lines.length === 0 || !signedIn}
+          disabled={submitting || lines.length === 0 || (requiresAccount && !signedIn)}
           className="btn-primary w-full py-4 text-[15px] uppercase tracking-wide"
         >
           {submitting

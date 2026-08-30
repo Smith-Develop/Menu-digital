@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { isoDateTime } from '@/lib/validation';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { requireStaffContext, getSessionProfile } from '@/lib/auth';
 import { canManageMenu } from '@/lib/auth-permissions';
@@ -17,8 +18,8 @@ const couponSchema = z.object({
   max_discount_cents: z.coerce.number().int().min(1).nullable().optional(),
   target: z.enum(['order', 'products', 'categories']),
   min_order_cents: z.coerce.number().int().min(0).default(0),
-  starts_at: z.string().datetime().optional(),
-  ends_at: z.string().datetime().nullable().optional(),
+  starts_at: isoDateTime().optional(),
+  ends_at: isoDateTime().nullable().optional(),
   max_redemptions: z.coerce.number().int().min(1).nullable().optional(),
   max_per_customer: z.coerce.number().int().min(1).default(1),
   is_active: z.boolean().default(true),

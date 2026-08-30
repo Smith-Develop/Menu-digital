@@ -12,6 +12,7 @@ export function mapOrderRow(
   order: Tables<'orders'>,
   items: Tables<'order_items'>[],
   tableName: string | null,
+  courierName: string | null = null,
 ): OrderRow {
   return {
     id: order.id,
@@ -32,6 +33,8 @@ export function mapOrderRow(
     address: order.address,
     addressNotes: order.address_notes,
     tableName,
+    courierId: order.courier_id,
+    courierName,
     notes: order.notes,
     createdAt: order.created_at,
     items: items
