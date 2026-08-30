@@ -363,6 +363,11 @@ const es = {
     forBusinesses: 'Para negocios',
   },
   team: {
+    editMember: 'Editar empleado',
+    sendReset: 'Enviar enlace de contraseña',
+    resetSent: 'Le hemos enviado un enlace para cambiar la contraseña',
+    memberSaved: 'Datos del empleado actualizados',
+    emailChangeHint: 'Si cambias el correo avisaremos a la dirección anterior y a la nueva.',
     invitedAs: 'Te han invitado como',
     joinCta: 'Unirme al equipo',
     joined: 'Ya formas parte del equipo',
@@ -387,6 +392,8 @@ const es = {
     invitationNoEmail: 'Invitación creada. Copia el enlace y pásaselo tú',
   },
   courier: {
+    editCourier: 'Editar repartidor',
+    courierSaved: 'Repartidor actualizado',
     title: 'Repartos',
     becomeCourier: 'Trabaja repartiendo',
     dashboard: 'Panel del repartidor',
@@ -641,6 +648,22 @@ const es = {
     paymentSuccess: 'Pago completado. ¡Suscripción renovada!',
     paymentCancelled: 'Has cancelado el pago',
     invoices: 'Facturas',
+  },
+  push: {
+    enable: 'Avisarme en el móvil',
+    enabled: 'Avisos activados',
+    blocked: 'Has bloqueado los avisos en este navegador',
+    hint: 'Te avisamos cuando tu pedido cambie de estado',
+    preparingTitle: 'Manos a la obra',
+    preparingBody: '{restaurant} ya está preparando tu pedido',
+    readyTitle: 'Tu pedido está listo',
+    readyBody: 'Pedido {code} · listo para recoger o salir',
+    deliveringTitle: 'Va de camino',
+    deliveringBody: 'Tu pedido ha salido y llega enseguida',
+    completedTitle: '¡Que aproveche!',
+    completedBody: 'Tu pedido se ha entregado',
+    cancelledTitle: 'Pedido cancelado',
+    cancelledBody: 'Tu pedido se ha cancelado',
   },
 } as const;
 

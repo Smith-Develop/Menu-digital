@@ -8,6 +8,7 @@ import { getBrand } from '@/lib/brand';
 import { sendMail } from '@/lib/mailer';
 import { emailChangedNotice } from '@/lib/emails/account-notices';
 import { sendPasswordResetFor } from '@/lib/password-reset';
+import { sendBroadcastPush } from '@/lib/push';
 import { getSessionProfile } from '@/lib/auth';
 import { periodEnd } from '@/lib/stripe';
 
@@ -279,6 +280,20 @@ export async function saveNotification(input: unknown): Promise<Result> {
 
   if (error) return { ok: false, error: error.message };
 
+  // El push sale sólo al crear un aviso activo, nunca al editarlo: corregir una
+  // errata no debe volver a sonar en el móvil de todo el mundo.
+  if (!id && values.is_active) {
+    void sendBroadcastPush(
+      {
+        title: values.title,
+        body: values.body ?? '',
+        url: values.link_url ?? '/',
+        tag: 'yumi-aviso',
+      },
+      values.audience === 'cities' ? values.cities : null,
+    ).catch(() => undefined);
+  }
+
   revalidatePath('/admin/notifications');
   revalidatePath('/');
   return { ok: true };
@@ -446,4 +461,90 @@ export async function sendPasswordReset(email: string): Promise<Result> {
   const admin = await requireAdmin();
   if (!admin) return { ok: false, error: 'FORBIDDEN' };
   return sendPasswordResetFor(email);
+}
+
+/**
+ * Edita la ficha de un repartidor. Sólo el superadmin llega aquí: los
+ * repartidores trabajan para varios restaurantes, así que ninguno de ellos
+ * debe poder tocarles la cuenta. Para cambiar su propia contraseña tienen
+ * "He olvidado mi contraseña" en la pantalla de acceso.
+ *
+ * Igual que con los dueños, al cambiar el correo se avisa a la dirección
+ * anterior y a la nueva.
+ */
+export async function updateCourier(
+  userId: string,
+  input: {
+    fullName: string;
+    email: string;
+    phone?: string | null;
+    vehicle?: string | null;
+    isActive?: boolean;
+  },
+): Promise<Result> {
+  const admin = await requireAdmin();
+  if (!admin) return { ok: false, error: 'FORBIDDEN' };
+
+  const fullName = input.fullName.trim();
+  const email = input.email.trim().toLowerCase();
+  if (!fullName) return { ok: false, error: 'NAME_REQUIRED' };
+  if (!email.includes('@')) return { ok: false, error: 'INVALID_EMAIL' };
+
+  let service: ReturnType<typeof createAdminSupabase>;
+  try {
+    service = createAdminSupabase();
+  } catch {
+    return { ok: false, error: 'SERVICE_ROLE_MISSING' };
+  }
+
+  const { data: current } = await service
+    .from('profiles')
+    .select('email')
+    .eq('id', userId)
+    .maybeSingle();
+
+  const previousEmail = current?.email ?? null;
+  const emailChanged = previousEmail !== email;
+
+  if (emailChanged) {
+    const { error } = await service.auth.admin.updateUserById(userId, {
+      email,
+      email_confirm: true,
+    });
+    if (error) {
+      return { ok: false, error: /exists|registered/i.test(error.message) ? 'EMAIL_TAKEN' : error.message };
+    }
+  }
+
+  const { error: profileError } = await service
+    .from('profiles')
+    .update({ full_name: fullName, email })
+    .eq('id', userId);
+  if (profileError) return { ok: false, error: profileError.message };
+
+  const courierPatch: Record<string, unknown> = {};
+  if (input.phone !== undefined) courierPatch.phone = input.phone?.trim() || null;
+  if (input.vehicle !== undefined) courierPatch.vehicle = input.vehicle || null;
+  if (input.isActive !== undefined) courierPatch.is_active = input.isActive;
+
+  if (Object.keys(courierPatch).length) {
+    const { error } = await service.from('couriers').update(courierPatch).eq('user_id', userId);
+    if (error) return { ok: false, error: error.message };
+  }
+
+  if (emailChanged) {
+    const brand = await getBrand();
+    const notice = emailChangedNotice({
+      appName: brand.appName,
+      brandColor: brand.primaryColor,
+      fullName,
+      previousEmail,
+      newEmail: email,
+    });
+    if (previousEmail) void sendMail({ to: previousEmail, ...notice.toPrevious });
+    void sendMail({ to: email, ...notice.toNew });
+  }
+
+  revalidatePath('/admin/couriers');
+  return { ok: true };
 }

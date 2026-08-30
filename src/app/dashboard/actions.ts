@@ -3,16 +3,20 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { isoDateTime } from '@/lib/validation';
-import { createServerSupabase, createPublicSupabase } from '@/lib/supabase/server';
+import { createServerSupabase, createPublicSupabase, createAdminSupabase } from '@/lib/supabase/server';
 import { requireStaffContext } from '@/lib/auth';
 import { canManageMenu, canManageStaff } from '@/lib/auth-permissions';
 import { tableCode as makeTableCode } from '@/lib/utils';
 import { getCurrency } from '@/lib/money';
 import { sendMail } from '@/lib/mailer';
 import { staffInvitationEmail } from '@/lib/emails/staff-invitation';
+import { emailChangedNotice } from '@/lib/emails/account-notices';
+import { sendPasswordResetFor } from '@/lib/password-reset';
 import { getPublicOrigin } from '@/lib/request-url';
 import { getBrand } from '@/lib/brand';
 import { getI18n } from '@/i18n';
+import { sendOrderPush } from '@/lib/push';
+import { orderPushMessage } from '@/lib/push-messages';
 
 export type Result<T = undefined> =
   | ({ ok: true } & (T extends undefined ? { data?: never } : { data: T }))
@@ -420,10 +424,16 @@ export async function removeStaff(staffId: string): Promise<Result> {
 
 // ================================ Pedidos ===============================
 
-export async function updateOrderStatus(
-  orderId: string,
-  status: 'confirmed' | 'preparing' | 'ready' | 'delivering' | 'completed' | 'cancelled',
-): Promise<Result> {
+type OrderStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'preparing'
+  | 'ready'
+  | 'delivering'
+  | 'completed'
+  | 'cancelled';
+
+export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<Result> {
   const context = await requireStaffContext();
   const supabase = await createServerSupabase();
 
@@ -434,9 +444,42 @@ export async function updateOrderStatus(
     .eq('restaurant_id', context.restaurant.id);
 
   if (dbError) return fail(dbError.message);
+
+  // Aviso al móvil del cliente. Se espera —tarda unos cientos de milisegundos—
+  // en vez de dejarlo suelto: una promesa lanzada sin await puede quedarse a
+  // medias cuando la petición termina. El error se traga, eso sí: que un push
+  // no salga no puede impedir que la cocina avance el pedido.
+  await notifyOrderStatus(orderId, status, context.restaurant.name);
+
   revalidatePath('/dashboard');
   revalidatePath('/dashboard/orders');
   return { ok: true };
+}
+
+async function notifyOrderStatus(orderId: string, status: OrderStatus, restaurantName: string) {
+  try {
+    // Cliente de servicio, no el de la sesión: éste no depende de las cookies
+    // de la petición, que ya podrían no estar disponibles al enviar el aviso.
+    const { data: order } = await createAdminSupabase()
+      .from('orders')
+      .select('code, public_token')
+      .eq('id', orderId)
+      .maybeSingle();
+
+    const { t } = await getI18n();
+    const message = orderPushMessage(status, t, restaurantName, order?.code ?? '');
+    if (!message) return;
+
+    await sendOrderPush(orderId, {
+      ...message,
+      url: order?.public_token ? `/order/${order.public_token}` : '/orders',
+      tag: `order-${orderId}`,
+    });
+  } catch (error) {
+    // El aviso es accesorio y nunca corta el flujo, pero se deja rastro: si los
+    // clientes dejan de recibir avisos, sin esto no hay forma de saber por qué.
+    console.error('[push] no se pudo avisar del cambio de estado', error);
+  }
 }
 
 export async function updateOrderPaymentStatus(
@@ -795,5 +838,119 @@ export async function updateSoundSettings(value: unknown): Promise<Result> {
 
   revalidatePath('/dashboard/settings');
   revalidatePath('/kitchen');
+  return { ok: true };
+}
+
+/**
+ * Comprueba que la persona indicada trabaja en el restaurante de quien llama.
+ * Sin esto, quien gestiona un equipo podría tocar la cuenta de cualquier
+ * usuario de la plataforma pasando otro id.
+ */
+async function staffMemberOf(restaurantId: string, userId: string) {
+  const supabase = await createServerSupabase();
+  const { data } = await supabase
+    .from('restaurant_staff')
+    .select('id')
+    .eq('restaurant_id', restaurantId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  return Boolean(data);
+}
+
+/** Envía al empleado un enlace para que se ponga una contraseña nueva. */
+export async function sendStaffPasswordReset(userId: string): Promise<Result> {
+  const { context, error } = await guard('staff');
+  if (!context) return fail(error);
+  if (!(await staffMemberOf(context.restaurant.id, userId))) return fail('NOT_FOUND');
+
+  const supabase = await createServerSupabase();
+  const { data: person } = await supabase
+    .from('profiles')
+    .select('email')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (!person?.email) return fail('NOT_FOUND');
+  const result = await sendPasswordResetFor(person.email);
+  return result.ok ? { ok: true } : fail(result.error ?? 'MAIL_FAILED');
+}
+
+/**
+ * Actualiza los datos de un empleado. Si cambia el correo, se avisa a las dos
+ * direcciones: a la anterior, porque es la única forma de que su titular se
+ * entere de que le han movido el acceso, y a la nueva, para que sepa con qué
+ * cuenta entra a partir de ahora.
+ */
+export async function updateStaffMember(
+  userId: string,
+  input: { fullName: string; email: string; phone?: string | null },
+): Promise<Result> {
+  const { context, error } = await guard('staff');
+  if (!context) return fail(error);
+  if (!(await staffMemberOf(context.restaurant.id, userId))) return fail('NOT_FOUND');
+
+  const fullName = input.fullName.trim();
+  const email = input.email.trim().toLowerCase();
+  if (!fullName) return fail('NAME_REQUIRED');
+  if (!email.includes('@')) return fail('INVALID_EMAIL');
+
+  const supabase = await createServerSupabase();
+  const { data: current } = await supabase
+    .from('profiles')
+    .select('email, full_name')
+    .eq('id', userId)
+    .maybeSingle();
+
+  const previousEmail = current?.email ?? null;
+  const emailChanged = previousEmail !== email;
+
+  // El perfil se escribe con el cliente de servicio: la política de `profiles`
+  // sólo deja a cada cual editar su propia fila, y un UPDATE que RLS descarta
+  // no devuelve error, simplemente no toca nada. Con el cliente del dueño el
+  // correo cambiaría en auth y no en el perfil, dejando la cuenta descuadrada.
+  let service: ReturnType<typeof createAdminSupabase>;
+  try {
+    service = createAdminSupabase();
+  } catch {
+    return fail('SERVICE_ROLE_MISSING');
+  }
+
+  if (emailChanged) {
+    const { error: authError } = await service.auth.admin.updateUserById(userId, {
+      email,
+      email_confirm: true,
+    });
+    if (authError) {
+      return fail(/exists|registered/i.test(authError.message) ? 'EMAIL_TAKEN' : authError.message);
+    }
+  }
+
+  const { data: updated, error: profileError } = await service
+    .from('profiles')
+    .update({
+      full_name: fullName,
+      email,
+      ...(input.phone !== undefined ? { phone: input.phone?.trim() || null } : {}),
+    })
+    .eq('id', userId)
+    .select('id');
+
+  if (profileError) return fail(profileError.message);
+  if (!updated?.length) return fail('NOT_FOUND');
+
+  if (emailChanged) {
+    const brand = await getBrand();
+    const notice = emailChangedNotice({
+      appName: brand.appName,
+      brandColor: brand.primaryColor,
+      fullName,
+      previousEmail,
+      newEmail: email,
+    });
+    if (previousEmail) void sendMail({ to: previousEmail, ...notice.toPrevious });
+    void sendMail({ to: email, ...notice.toNew });
+  }
+
+  revalidatePath('/dashboard/staff');
   return { ok: true };
 }

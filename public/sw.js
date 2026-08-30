@@ -76,3 +76,51 @@ self.addEventListener('fetch', (event) => {
     ),
   );
 });
+
+/**
+ * Avisos push: cambios de estado del pedido y comunicados de la plataforma.
+ *
+ * El payload llega como JSON desde el servidor. Si viniera vacío o ilegible se
+ * muestra un aviso genérico en vez de no mostrar nada: en algunos navegadores,
+ * recibir un push y no mostrar notificación acaba revocando el permiso.
+ */
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = {};
+  }
+
+  const title = data.title || 'Yumi';
+  const options = {
+    body: data.body || '',
+    icon: data.icon || '/icon-192.png',
+    badge: '/icon-192.png',
+    tag: data.tag || undefined,
+    data: { url: data.url || '/' },
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = (event.notification.data && event.notification.data.url) || '/';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // Si ya hay una pestaña de la aplicación abierta, se reutiliza en vez de
+      // abrir otra: el cliente que sigue su pedido no quiere diez pestañas.
+      for (const client of clientList) {
+        if (client.url.includes(new URL(target, self.location.origin).pathname) && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clientList.length > 0 && 'navigate' in clientList[0]) {
+        return clientList[0].navigate(target).then((client) => client && client.focus());
+      }
+      return self.clients.openWindow(target);
+    }),
+  );
+});

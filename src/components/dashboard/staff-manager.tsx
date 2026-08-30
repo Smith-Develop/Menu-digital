@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Check, Copy, Link2, MailPlus, Trash2, UserPlus, UserRound } from 'lucide-react';
+import { Check, Copy, KeyRound, Link2, MailPlus, Pencil, Trash2, UserPlus, UserRound } from 'lucide-react';
 import { Input, Select, Switch } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Sheet } from '@/components/ui/sheet';
@@ -16,6 +16,8 @@ import {
   inviteStaff,
   revokeInvitation,
   createStaffAccount,
+  sendStaffPasswordReset,
+  updateStaffMember,
 } from '@/app/dashboard/actions';
 import { useT } from '@/i18n/provider';
 import { STAFF_ROLES, staffRoleLabel } from '@/lib/staff-roles';
@@ -58,6 +60,39 @@ export function StaffManager({
   const t = useT();
   const toast = useToast();
   const router = useRouter();
+
+  const [editing, setEditing] = useState<Member | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [resetting, setResetting] = useState<string | null>(null);
+
+  function openEditor(member: Member) {
+    setEditing(member);
+    setEditName(member.name);
+    setEditEmail(member.email ?? '');
+  }
+
+  async function saveMember() {
+    if (!editing) return;
+    setSavingEdit(true);
+    const result = await updateStaffMember(editing.userId, { fullName: editName, email: editEmail });
+    setSavingEdit(false);
+    if (result.ok) {
+      toast(t.team.memberSaved, 'success');
+      setEditing(null);
+      router.refresh();
+    } else {
+      toast(result.error ?? t.common.error, 'error');
+    }
+  }
+
+  async function resetPassword(member: Member) {
+    setResetting(member.userId);
+    const result = await sendStaffPasswordReset(member.userId);
+    setResetting(null);
+    toast(result.ok ? t.team.resetSent : result.error ?? t.common.error, result.ok ? 'success' : 'error');
+  }
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [inviting, setInviting] = useState(false);
@@ -321,6 +356,28 @@ export function StaffManager({
                   ))}
                 </Select>
 
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => openEditor(member)}
+                    aria-label={t.common.edit}
+                    title={t.common.edit}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg text-ink-300 transition-colors hover:bg-surface-field hover:text-ink"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => resetPassword(member)}
+                    disabled={resetting === member.userId || !member.email}
+                    aria-label={t.team.sendReset}
+                    title={t.team.sendReset}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg text-ink-300 transition-colors hover:bg-surface-field hover:text-ink disabled:opacity-40"
+                  >
+                    <KeyRound className="h-4 w-4" />
+                  </button>
+                </div>
+
                 {!isOwner && (
                   <div className="flex gap-1">
                     <button
@@ -455,6 +512,41 @@ export function StaffManager({
             onChange={setInviteCourier}
             label={t.team.alsoCourier}
           />
+        </div>
+      </Sheet>
+
+      <Sheet
+        open={editing !== null}
+        onClose={() => setEditing(null)}
+        title={t.team.editMember}
+        footer={
+          <Button size="block" loading={savingEdit} onClick={saveMember} disabled={!editName.trim()}>
+            {t.common.save}
+          </Button>
+        }
+      >
+        <div className="space-y-4">
+          <Input
+            label={t.common.name}
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+          />
+          <Input
+            label={t.auth.email}
+            type="email"
+            value={editEmail}
+            onChange={(e) => setEditEmail(e.target.value)}
+            hint={t.team.emailChangeHint}
+          />
+          <button
+            type="button"
+            onClick={() => editing && resetPassword(editing)}
+            disabled={resetting !== null || !editEmail.trim()}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-line py-3 text-sm font-bold text-ink-700 transition-colors hover:bg-surface-field disabled:opacity-40"
+          >
+            <KeyRound className="h-4 w-4" />
+            {t.team.sendReset}
+          </button>
         </div>
       </Sheet>
 

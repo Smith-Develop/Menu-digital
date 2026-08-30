@@ -628,6 +628,24 @@ export type Database = {
         };
         Relationships: [];
       };
+      order_push_targets: {
+        Row: {
+          order_id: string;
+          subscription_id: string;
+          created_at: string;
+        };
+        Insert: {
+          order_id: string;
+          subscription_id: string;
+          created_at?: string;
+        };
+        Update: {
+          order_id?: string;
+          subscription_id?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       orders: {
         Row: {
           id: string;
@@ -976,6 +994,42 @@ export type Database = {
           locale?: string;
           created_at?: string;
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      push_subscriptions: {
+        Row: {
+          id: string;
+          user_id: string | null;
+          endpoint: string;
+          p256dh: string;
+          auth: string;
+          city_slug: string | null;
+          locale: string | null;
+          created_at: string;
+          last_seen_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string | null;
+          endpoint: string;
+          p256dh: string;
+          auth: string;
+          city_slug?: string | null;
+          locale?: string | null;
+          created_at?: string;
+          last_seen_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string | null;
+          endpoint?: string;
+          p256dh?: string;
+          auth?: string;
+          city_slug?: string | null;
+          locale?: string | null;
+          created_at?: string;
+          last_seen_at?: string;
         };
         Relationships: [];
       };

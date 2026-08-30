@@ -14,6 +14,7 @@ import {
   VolumeX,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { updateOrderStatus } from '@/app/dashboard/actions';
 import { minutesSince, formatTime, cn } from '@/lib/utils';
 import { playSound, unlockAudio, type SoundSettings } from '@/lib/sounds';
 import { useI18n, interpolate } from '@/i18n/provider';
@@ -176,8 +177,10 @@ export function KitchenDisplay({
           ? 'ready'
           : 'completed';
 
-    const supabase = createClient();
-    await supabase.from('orders').update({ status: next }).eq('id', ticket.id);
+    // Por la acción de servidor, no escribiendo la tabla desde aquí: es la que
+    // avisa al móvil del cliente del cambio de estado. Actualizar en directo se
+    // saltaría ese aviso sin que nada fallara a la vista.
+    await updateOrderStatus(ticket.id, next);
     if (next === 'ready') notify('orderReady');
     await refetch(ticket.id);
   }

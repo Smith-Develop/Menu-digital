@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   Bell,
+  Bike,
   LayoutDashboard,
   LayoutGrid,
   LogOut,
@@ -27,6 +28,7 @@ export function AdminNav({ userName }: { userName: string }) {
     { href: '/admin/restaurants', icon: Store, label: t.admin.restaurants },
     { href: '/admin/plans', icon: Package, label: t.admin.plans },
     { href: '/admin/categories', icon: LayoutGrid, label: t.catalog.title },
+    { href: '/admin/couriers', icon: Bike, label: t.courier.couriers },
     { href: '/admin/coupons', icon: Ticket, label: t.coupon.coupons },
     { href: '/admin/branding', icon: Palette, label: t.admin.branding },
     { href: '/admin/notifications', icon: Bell, label: t.admin.notifications },

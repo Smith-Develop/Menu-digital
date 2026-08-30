@@ -20,6 +20,7 @@ import {
 import { Badge, EmptyState } from '@/components/ui/misc';
 import { useToast } from '@/components/ui/toast';
 import { createClient } from '@/lib/supabase/client';
+import { updateOrderStatus } from '@/app/dashboard/actions';
 import { formatMoney } from '@/lib/money';
 import { minutesSince, formatTime, cn } from '@/lib/utils';
 import { useI18n, interpolate } from '@/i18n/provider';
@@ -263,11 +264,11 @@ export function LiveOrdersPanel({
     if (!target) return;
 
     setBusy(order.id);
-    const supabase = createClient();
-    const { error } = await supabase.from('orders').update({ status: target }).eq('id', order.id);
+    // Vía acción de servidor: es la que dispara el aviso al móvil del cliente.
+    const result = await updateOrderStatus(order.id, target);
     setBusy(null);
 
-    if (error) {
+    if (!result.ok) {
       toast(t.common.error, 'error');
       return;
     }
@@ -306,10 +307,9 @@ export function LiveOrdersPanel({
 
   async function cancel(order: OrderRow) {
     setBusy(order.id);
-    const supabase = createClient();
-    const { error } = await supabase.from('orders').update({ status: 'cancelled' }).eq('id', order.id);
+    const result = await updateOrderStatus(order.id, 'cancelled');
     setBusy(null);
-    if (error) {
+    if (!result.ok) {
       toast(t.common.error, 'error');
       return;
     }

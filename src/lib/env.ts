@@ -13,6 +13,22 @@ export const env = {
   supabaseUrl: required('NEXT_PUBLIC_SUPABASE_URL', process.env.NEXT_PUBLIC_SUPABASE_URL),
   supabaseAnonKey: required('NEXT_PUBLIC_SUPABASE_ANON_KEY', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000',
+  // La clave pública VAPID viaja al navegador: es pública por diseño, es lo que
+  // identifica al servidor ante el servicio de push del fabricante.
+  vapidPublicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '',
+};
+
+/**
+ * Claves de las notificaciones push. Si faltan, la aplicación funciona igual:
+ * simplemente no se ofrece activar los avisos, en vez de romperse.
+ */
+export const pushEnv = {
+  publicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '',
+  privateKey: process.env.VAPID_PRIVATE_KEY ?? '',
+  subject: process.env.VAPID_SUBJECT ?? 'mailto:noreply@nexo-app.tech',
+  get isConfigured() {
+    return Boolean(this.publicKey && this.privateKey);
+  },
 };
 
 /** Sólo servidor: nunca debe importarse desde un componente cliente. */

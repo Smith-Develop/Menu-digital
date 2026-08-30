@@ -65,7 +65,6 @@ type Props = {
   plans: { id: string; name: string; interval: Enums<'plan_interval'>; priceCents: number; currency: string }[];
   counts: { products: number; tables: number; orders: number; staff: number };
   payments: { id: string; amountCents: number; currency: string; status: Enums<'payment_status'>; createdAt: string }[];
-  title: string;
 };
 
 /**
@@ -79,7 +78,6 @@ export function RestaurantSheet({
   plans,
   counts,
   payments,
-  title,
 }: Props) {
   const { t, locale } = useI18n();
   const toast = useToast();

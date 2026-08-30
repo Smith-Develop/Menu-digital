@@ -365,6 +365,11 @@ const en: Dictionary = {
     forBusinesses: 'For businesses',
   },
   team: {
+    editMember: 'Edit team member',
+    sendReset: 'Send password link',
+    resetSent: 'We sent them a link to set a new password',
+    memberSaved: 'Team member updated',
+    emailChangeHint: 'If you change the email we will notify both the old and the new address.',
     invitedAs: 'You were invited as',
     joinCta: 'Join the team',
     joined: "You're part of the team now",
@@ -389,6 +394,8 @@ const en: Dictionary = {
     invitationNoEmail: 'Invitation created. Copy the link and share it yourself',
   },
   courier: {
+    editCourier: 'Edit courier',
+    courierSaved: 'Courier updated',
     title: 'Deliveries',
     becomeCourier: 'Work as a courier',
     dashboard: 'Courier dashboard',
@@ -643,6 +650,22 @@ const en: Dictionary = {
     paymentSuccess: 'Payment complete. Subscription renewed!',
     paymentCancelled: 'You cancelled the payment',
     invoices: 'Invoices',
+  },
+  push: {
+    enable: 'Notify me on my phone',
+    enabled: 'Notifications on',
+    blocked: 'You blocked notifications in this browser',
+    hint: 'We will let you know when your order changes',
+    preparingTitle: 'Cooking has started',
+    preparingBody: '{restaurant} is preparing your order',
+    readyTitle: 'Your order is ready',
+    readyBody: 'Order {code} · ready to collect or leave',
+    deliveringTitle: 'On its way',
+    deliveringBody: 'Your order has left and arrives shortly',
+    completedTitle: 'Enjoy your meal!',
+    completedBody: 'Your order has been delivered',
+    cancelledTitle: 'Order cancelled',
+    cancelledBody: 'Your order has been cancelled',
   },
 };
 

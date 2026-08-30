@@ -1,5 +1,4 @@
 import { notFound } from 'next/navigation';
-import { getI18n } from '@/i18n';
 import { requireSuperadmin, daysUntil, subscriptionIsLive } from '@/lib/auth';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { RestaurantSheet } from '@/components/admin/restaurant-sheet';
@@ -13,7 +12,6 @@ export default async function AdminRestaurantPage({
 }) {
   await requireSuperadmin();
   const { id } = await params;
-  const { t } = await getI18n();
   const supabase = await createServerSupabase();
 
   const { data: restaurant } = await supabase.from('restaurants').select('*').eq('id', id).maybeSingle();
@@ -113,7 +111,6 @@ export default async function AdminRestaurantPage({
           status: p.status,
           createdAt: p.paid_at ?? p.created_at,
         }))}
-        title={t.admin.restaurantSheet}
       />
     </div>
   );

@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { PushPrompt } from '@/components/pwa/push-prompt';
 import { useEffect, useState } from 'react';
 import {
   Bike,
@@ -312,7 +313,9 @@ export function OrderTracker({ order: initial, token }: { order: TrackedOrder; t
           </p>
         </section>
 
-        <Link href={`/r/${order.restaurant.slug}`} className="btn-ghost mt-6 w-full">
+        <PushPrompt orderId={order.id} className="mt-6" />
+
+        <Link href={`/r/${order.restaurant.slug}`} className="btn-ghost mt-3 w-full">
           {t.storefront.viewMenu}
         </Link>
       </div>

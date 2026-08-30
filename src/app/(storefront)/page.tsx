@@ -10,6 +10,7 @@ import {
   listHomeBanners,
 } from '@/lib/queries/public';
 import { createPublicSupabase } from '@/lib/supabase/server';
+import { PushPrompt } from '@/components/pwa/push-prompt';
 import { TopBar } from '@/components/storefront/top-bar';
 import { SectionHeader, EmptyState } from '@/components/ui/misc';
 import { CategoryChip, PopularCard, RestaurantCard } from '@/components/storefront/cards';
@@ -167,6 +168,12 @@ export default async function MarketplacePage() {
           </div>
         </section>
       )}
+
+      {/* Aquí el aviso se registra con la ciudad, que es lo que permite al
+          superadmin dirigir un comunicado sólo a determinadas ciudades. */}
+      <div className="px-5 pb-2 lg:px-0">
+        <PushPrompt citySlug={citySlug} />
+      </div>
 
       {cityName && (
         <p className="px-5 pb-6 text-center text-xs text-ink-300 lg:px-0">
