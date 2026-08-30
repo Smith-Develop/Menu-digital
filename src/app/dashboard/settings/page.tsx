@@ -2,6 +2,9 @@ import { getI18n } from '@/i18n';
 import { requireStaffContext } from '@/lib/auth';
 import { SettingsForm } from '@/components/dashboard/settings-form';
 import { PrintSettingsForm } from '@/components/dashboard/print-settings-form';
+import { RestaurantSoundSettings } from '@/components/dashboard/restaurant-sound-settings';
+import { createServerSupabase } from '@/lib/supabase/server';
+import { resolveSounds, type SoundSettings } from '@/lib/sounds';
 import {
   DEFAULT_PRINT_SETTINGS,
   type PrintSettings,
@@ -13,6 +16,16 @@ export const metadata = { title: 'Ajustes' };
 export default async function SettingsPage() {
   const { restaurant } = await requireStaffContext();
   const { t } = await getI18n();
+
+  const supabase = await createServerSupabase();
+  const { data: platform } = await supabase
+    .from('app_settings')
+    .select('sound_settings')
+    .eq('id', true)
+    .maybeSingle();
+
+  const ownSounds = restaurant.sound_settings as Partial<SoundSettings> | null;
+  const sounds = resolveSounds(platform?.sound_settings as Partial<SoundSettings> | null, ownSounds);
 
   const printSettings: PrintSettings = {
     ...DEFAULT_PRINT_SETTINGS,
@@ -55,6 +68,8 @@ export default async function SettingsPage() {
       />
 
       <PrintSettingsForm initial={printSettings} />
+
+      <RestaurantSoundSettings initial={sounds} inherited={ownSounds === null} />
     </div>
   );
 }

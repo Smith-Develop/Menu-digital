@@ -9,7 +9,7 @@ import { Input, Switch } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge, EmptyState } from '@/components/ui/misc';
 import { useToast } from '@/components/ui/toast';
-import { FileUpload } from '@/components/dashboard/file-upload';
+import { ImagePicker } from '@/components/ui/image-picker';
 import { saveBanner, deleteBanner } from '@/app/dashboard/actions';
 import { useT } from '@/i18n/provider';
 import { cn } from '@/lib/utils';
@@ -216,9 +216,9 @@ export function BannersManager({
       >
         {draft && (
           <div className="space-y-5">
-            <FileUpload
+            <ImagePicker
               bucket="restaurants"
-              restaurantId={restaurantId}
+              folder={restaurantId}
               value={draft.imageUrl}
               onChange={(url) => setDraft({ ...draft, imageUrl: url })}
               label={t.common.image}

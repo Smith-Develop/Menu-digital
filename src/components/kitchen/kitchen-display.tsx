@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ArrowLeft,
   Bike,
@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { minutesSince, formatTime, cn } from '@/lib/utils';
+import { playSound, unlockAudio, type SoundSettings } from '@/lib/sounds';
 import { useI18n, interpolate } from '@/i18n/provider';
 import type { Enums } from '@/types/database';
 
@@ -57,16 +58,18 @@ export function KitchenDisplay({
   restaurantId,
   restaurantName,
   initialTickets,
+  sounds,
 }: {
   restaurantId: string;
   restaurantName: string;
   initialTickets: KitchenTicket[];
+  sounds: SoundSettings;
 }) {
   const { t, locale } = useI18n();
   const [tickets, setTickets] = useState(initialTickets);
   const [sound, setSound] = useState(true);
   const [, forceTick] = useState(0);
-  const audioRef = useRef<AudioContext | null>(null);
+
 
   // Repinta cada 30 s para que los contadores de minutos avancen solos.
   useEffect(() => {
@@ -74,24 +77,34 @@ export function KitchenDisplay({
     return () => clearInterval(id);
   }, []);
 
-  const beep = useCallback(() => {
+  /*
+   * Los navegadores no dejan sonar nada hasta que alguien toca la pantalla.
+   * En una cocina eso significa que la primera comanda entraría muda, así que
+   * se avisa hasta que el personal desbloquea el audio con un toque.
+   */
+  const [audioReady, setAudioReady] = useState(false);
+
+  useEffect(() => {
     if (!sound) return;
-    try {
-      audioRef.current ??= new AudioContext();
-      const ctx = audioRef.current;
-      const oscillator = ctx.createOscillator();
-      const gain = ctx.createGain();
-      oscillator.connect(gain);
-      gain.connect(ctx.destination);
-      oscillator.frequency.value = 880;
-      gain.gain.setValueAtTime(0.12, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
-      oscillator.start();
-      oscillator.stop(ctx.currentTime + 0.35);
-    } catch {
-      /* algunos navegadores exigen un gesto previo del usuario */
-    }
+    const enable = () => {
+      unlockAudio();
+      setAudioReady(true);
+    };
+    window.addEventListener('pointerdown', enable, { once: true });
+    window.addEventListener('keydown', enable, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', enable);
+      window.removeEventListener('keydown', enable);
+    };
   }, [sound]);
+
+  const notify = useCallback(
+    (kind: 'newOrder' | 'orderReady') => {
+      if (!sound || !sounds.enabled) return;
+      playSound(sounds[kind], sounds.volume);
+    },
+    [sound, sounds],
+  );
 
   const refetch = useCallback(async (orderId: string) => {
     const supabase = createClient();
@@ -143,7 +156,8 @@ export function KitchenDisplay({
         (payload) => {
           const id = (payload.new as { id?: string })?.id ?? (payload.old as { id?: string })?.id;
           if (!id) return;
-          if (payload.eventType === 'INSERT') beep();
+          if (payload.eventType === 'INSERT') notify('newOrder');
+          else if ((payload.new as { status?: string })?.status === 'ready') notify('orderReady');
           void refetch(id);
         },
       )
@@ -152,7 +166,7 @@ export function KitchenDisplay({
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [restaurantId, refetch, beep]);
+  }, [restaurantId, refetch, notify]);
 
   async function advance(ticket: KitchenTicket) {
     const next: Enums<'order_status'> =
@@ -164,6 +178,7 @@ export function KitchenDisplay({
 
     const supabase = createClient();
     await supabase.from('orders').update({ status: next }).eq('id', ticket.id);
+    if (next === 'ready') notify('orderReady');
     await refetch(ticket.id);
   }
 
@@ -212,6 +227,21 @@ export function KitchenDisplay({
           <Maximize className="h-5 w-5" />
         </button>
       </header>
+
+      {sound && sounds.enabled && !audioReady && (
+        <button
+          type="button"
+          onClick={() => {
+            unlockAudio();
+            setAudioReady(true);
+            playSound(sounds.newOrder, sounds.volume);
+          }}
+          className="flex w-full items-center justify-center gap-2 bg-amber-400 px-4 py-2.5 text-sm font-bold text-ink"
+        >
+          <Volume2 className="h-4 w-4" />
+          {t.kitchen.enableSound}
+        </button>
+      )}
 
       <div className="grid gap-4 p-4 lg:grid-cols-3">
         {COLUMNS.map((column) => {

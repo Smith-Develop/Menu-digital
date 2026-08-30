@@ -3,6 +3,7 @@ import { requireProfile, getStaffContext } from '@/lib/auth';
 import { canWorkKitchen } from '@/lib/auth-permissions';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { KitchenDisplay, type KitchenTicket } from '@/components/kitchen/kitchen-display';
+import { resolveSounds, type SoundSettings } from '@/lib/sounds';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Cocina' };
@@ -14,6 +15,13 @@ export default async function KitchenPage() {
   if (!canWorkKitchen(context.staffRole)) redirect('/dashboard');
 
   const supabase = await createServerSupabase();
+
+  // El restaurante puede tener sus propios tonos; si no, manda la plataforma.
+  const { data: platform } = await supabase.from('app_settings').select('sound_settings').eq('id', true).maybeSingle();
+  const sounds: SoundSettings = resolveSounds(
+    platform?.sound_settings as Partial<SoundSettings> | null,
+    context.restaurant.sound_settings as Partial<SoundSettings> | null,
+  );
 
   const { data: orders } = await supabase
     .from('orders')
@@ -59,6 +67,7 @@ export default async function KitchenPage() {
       restaurantId={context.restaurant.id}
       restaurantName={context.restaurant.name}
       initialTickets={tickets}
+      sounds={sounds}
     />
   );
 }

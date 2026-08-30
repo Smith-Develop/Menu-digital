@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { Lock, Mail } from 'lucide-react';
@@ -61,6 +62,12 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
         required
         error={error}
       />
+
+      <div className="flex justify-end">
+        <Link href="/forgot-password" className="text-xs font-bold text-brand">
+          {t.auth.forgotPassword}
+        </Link>
+      </div>
 
       <Button type="submit" size="block" loading={loading} className="mt-6">
         {t.auth.signIn}

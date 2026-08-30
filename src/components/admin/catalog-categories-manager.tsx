@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge, EmptyState } from '@/components/ui/misc';
 import { useToast } from '@/components/ui/toast';
 import { saveCatalogCategory, deleteCatalogCategory } from '@/app/admin/actions';
+import { ImagePicker } from '@/components/ui/image-picker';
 import { slugify } from '@/lib/utils';
 import { useT } from '@/i18n/provider';
 import { cn } from '@/lib/utils';
@@ -259,11 +260,13 @@ export function CatalogCategoriesManager({ categories }: { categories: CatalogCa
               rows={2}
               maxLength={200}
             />
-            <Input
-              value={draft.imageUrl ?? ''}
-              onChange={(e) => setDraft({ ...draft, imageUrl: e.target.value })}
-              label={`${t.common.image} (URL)`}
-              placeholder="https://…"
+            <ImagePicker
+              bucket="restaurants"
+              folder="catalog"
+              value={draft.imageUrl}
+              onChange={(url) => setDraft({ ...draft, imageUrl: url })}
+              label={t.common.image}
+              hint="Cuadrada. Es la que sale en los chips de la portada."
             />
             <Switch
               checked={draft.isActive}

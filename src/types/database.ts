@@ -32,6 +32,7 @@ export type Database = {
           social_facebook: boolean;
           terms_url: string | null;
           privacy_url: string | null;
+          sound_settings: Json;
         };
         Insert: {
           id?: boolean;
@@ -57,6 +58,7 @@ export type Database = {
           social_facebook?: boolean;
           terms_url?: string | null;
           privacy_url?: string | null;
+          sound_settings?: Json;
         };
         Update: {
           id?: boolean;
@@ -82,6 +84,7 @@ export type Database = {
           social_facebook?: boolean;
           terms_url?: string | null;
           privacy_url?: string | null;
+          sound_settings?: Json;
         };
         Relationships: [];
       };
@@ -1076,6 +1079,7 @@ export type Database = {
           accent_color: string;
           text_color: string;
           print_settings: Json;
+          sound_settings: Json | null;
         };
         Insert: {
           id?: string;
@@ -1119,6 +1123,7 @@ export type Database = {
           accent_color?: string;
           text_color?: string;
           print_settings?: Json;
+          sound_settings?: Json | null;
         };
         Update: {
           id?: string;
@@ -1162,6 +1167,7 @@ export type Database = {
           accent_color?: string;
           text_color?: string;
           print_settings?: Json;
+          sound_settings?: Json | null;
         };
         Relationships: [];
       };

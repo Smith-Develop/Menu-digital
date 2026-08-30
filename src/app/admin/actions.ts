@@ -3,7 +3,11 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { isoDateTime } from '@/lib/validation';
-import { createServerSupabase } from '@/lib/supabase/server';
+import { createServerSupabase, createAdminSupabase } from '@/lib/supabase/server';
+import { getBrand } from '@/lib/brand';
+import { sendMail } from '@/lib/mailer';
+import { emailChangedNotice } from '@/lib/emails/account-notices';
+import { sendPasswordResetFor } from '@/lib/password-reset';
 import { getSessionProfile } from '@/lib/auth';
 import { periodEnd } from '@/lib/stripe';
 
@@ -350,4 +354,96 @@ export async function deleteCatalogCategory(id: string): Promise<Result> {
   revalidatePath('/admin/categories');
   revalidatePath('/', 'layout');
   return { ok: true, ...(count ? { orphaned: count } : {}) } as Result;
+}
+
+/** Avisos sonoros por defecto de la plataforma. */
+export async function updatePlatformSounds(value: unknown): Promise<Result> {
+  const admin = await requireAdmin();
+  if (!admin) return { ok: false, error: 'FORBIDDEN' };
+
+  const schema = z.object({
+    newOrder: z.enum(['bell', 'chime', 'ding', 'alert', 'soft', 'none']),
+    orderReady: z.enum(['bell', 'chime', 'ding', 'alert', 'soft', 'none']),
+    volume: z.coerce.number().min(0).max(1),
+    enabled: z.boolean(),
+  });
+
+  const parsed = schema.safeParse(value);
+  if (!parsed.success) return { ok: false, error: 'INVALID_INPUT' };
+
+  const supabase = await createServerSupabase();
+  const { error } = await supabase
+    .from('app_settings')
+    .update({ sound_settings: parsed.data })
+    .eq('id', true);
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath('/admin/branding');
+  return { ok: true };
+}
+
+// ====================== Ficha del restaurante ===========================
+
+/**
+ * Cambia el correo del dueño de un restaurante.
+ *
+ * Se avisa a las dos direcciones: a la vieja, porque es la única forma de que
+ * el titular se entere si alguien le cambia el acceso; a la nueva, para que
+ * sepa con qué cuenta entra a partir de ahora.
+ */
+export async function changeOwnerEmail(userId: string, newEmail: string): Promise<Result> {
+  const admin = await requireAdmin();
+  if (!admin) return { ok: false, error: 'FORBIDDEN' };
+
+  const email = newEmail.trim().toLowerCase();
+  if (!email.includes('@')) return { ok: false, error: 'INVALID_EMAIL' };
+
+  let service: ReturnType<typeof createAdminSupabase>;
+  try {
+    service = createAdminSupabase();
+  } catch {
+    return { ok: false, error: 'SERVICE_ROLE_MISSING' };
+  }
+
+  const { data: current } = await service
+    .from('profiles')
+    .select('email, full_name')
+    .eq('id', userId)
+    .maybeSingle();
+
+  const previousEmail = current?.email ?? null;
+  if (previousEmail === email) return { ok: true };
+
+  const { error } = await service.auth.admin.updateUserById(userId, {
+    email,
+    email_confirm: true,
+  });
+  if (error) {
+    return { ok: false, error: /exists|registered/i.test(error.message) ? 'EMAIL_TAKEN' : error.message };
+  }
+
+  await service.from('profiles').update({ email }).eq('id', userId);
+
+  const brand = await getBrand();
+  const notice = emailChangedNotice({
+    appName: brand.appName,
+    brandColor: brand.primaryColor,
+    fullName: current?.full_name ?? email,
+    previousEmail,
+    newEmail: email,
+  });
+
+  if (previousEmail) void sendMail({ to: previousEmail, ...notice.toPrevious });
+  void sendMail({ to: email, ...notice.toNew });
+
+  revalidatePath('/admin/restaurants');
+  return { ok: true };
+}
+
+/** Envía un enlace de restablecimiento de contraseña. */
+export async function sendPasswordReset(email: string): Promise<Result> {
+  const admin = await requireAdmin();
+  if (!admin) return { ok: false, error: 'FORBIDDEN' };
+  return sendPasswordResetFor(email);
 }

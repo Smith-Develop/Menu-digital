@@ -767,3 +767,33 @@ export async function createStaffAccount(input: {
   revalidatePath('/dashboard/staff');
   return { ok: true, data: { needsConfirmation } };
 }
+
+/** Avisos sonoros del restaurante. `null` vuelve a los de la plataforma. */
+export async function updateSoundSettings(value: unknown): Promise<Result> {
+  const { context, error } = await guard();
+  if (!context) return fail(error);
+
+  const schema = z
+    .object({
+      newOrder: z.enum(['bell', 'chime', 'ding', 'alert', 'soft', 'none']),
+      orderReady: z.enum(['bell', 'chime', 'ding', 'alert', 'soft', 'none']),
+      volume: z.coerce.number().min(0).max(1),
+      enabled: z.boolean(),
+    })
+    .nullable();
+
+  const parsed = schema.safeParse(value);
+  if (!parsed.success) return fail('INVALID_INPUT');
+
+  const supabase = await createServerSupabase();
+  const { error: dbError } = await supabase
+    .from('restaurants')
+    .update({ sound_settings: parsed.data })
+    .eq('id', context.restaurant.id);
+
+  if (dbError) return fail(dbError.message);
+
+  revalidatePath('/dashboard/settings');
+  revalidatePath('/kitchen');
+  return { ok: true };
+}

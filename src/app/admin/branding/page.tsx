@@ -2,6 +2,9 @@ import { getI18n } from '@/i18n';
 import { requireSuperadmin } from '@/lib/auth';
 import { getBrand } from '@/lib/brand';
 import { BrandingForm } from '@/components/admin/branding-form';
+import { PlatformSoundSettings } from '@/components/admin/platform-sound-settings';
+import { createServerSupabase } from '@/lib/supabase/server';
+import { resolveSounds, type SoundSettings } from '@/lib/sounds';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Marca' };
@@ -9,6 +12,14 @@ export const metadata = { title: 'Marca' };
 export default async function BrandingPage() {
   await requireSuperadmin();
   const [{ t }, brand] = await Promise.all([getI18n(), getBrand()]);
+
+  const supabase = await createServerSupabase();
+  const { data: settings } = await supabase
+    .from('app_settings')
+    .select('sound_settings')
+    .eq('id', true)
+    .maybeSingle();
+  const sounds = resolveSounds(settings?.sound_settings as Partial<SoundSettings> | null, null);
 
   return (
     <div className="space-y-6">
@@ -18,6 +29,8 @@ export default async function BrandingPage() {
       </div>
 
       <BrandingForm initial={brand} />
+
+      <PlatformSoundSettings initial={sounds} />
     </div>
   );
 }

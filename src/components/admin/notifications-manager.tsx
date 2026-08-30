@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge, EmptyState } from '@/components/ui/misc';
 import { useToast } from '@/components/ui/toast';
 import { saveNotification, deleteNotification } from '@/app/admin/actions';
+import { ImagePicker } from '@/components/ui/image-picker';
 import { useI18n } from '@/i18n/provider';
 import { formatDateTime, cn } from '@/lib/utils';
 import type { Enums } from '@/types/database';
@@ -252,11 +253,13 @@ export function NotificationsManager({
               rows={3}
               maxLength={400}
             />
-            <Input
-              value={draft.imageUrl ?? ''}
-              onChange={(e) => setDraft({ ...draft, imageUrl: e.target.value })}
-              label={`${t.common.image} (URL)`}
-              placeholder="https://…"
+            <ImagePicker
+              bucket="restaurants"
+              folder="notifications"
+              value={draft.imageUrl}
+              onChange={(url) => setDraft({ ...draft, imageUrl: url })}
+              label={t.common.image}
+              hint="Apaisada. Se ve encima del mensaje."
             />
 
             <div className="grid gap-4 sm:grid-cols-2">
