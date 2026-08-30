@@ -31,6 +31,8 @@ export type CartState = {
   lines: CartLine[];
   /** Código de mesa cuando se ha entrado por QR. */
   tableCode: string | null;
+  /** Cupón validado contra el servidor, listo para enviarse con el pedido. */
+  coupon: AppliedCoupon | null;
 
   setRestaurant: (info: {
     slug: string;
@@ -42,7 +44,15 @@ export type CartState = {
   addLine: (line: Omit<CartLine, 'key'>) => void;
   updateQuantity: (key: string, quantity: number) => void;
   removeLine: (key: string) => void;
+  setCoupon: (coupon: AppliedCoupon | null) => void;
   clear: () => void;
+};
+
+export type AppliedCoupon = {
+  code: string;
+  kind: 'percentage' | 'fixed' | 'free_delivery';
+  discountCents: number;
+  description: string | null;
 };
 
 function lineKey(productId: string, options: CartOption[], notes?: string): string {
@@ -58,7 +68,16 @@ export function lineTotal(line: CartLine): number {
   return (line.unitPriceCents + optionsTotal) * line.quantity;
 }
 
-export const useCart = create<CartState>()(
+/**
+ * Fábrica del almacén de carrito.
+ *
+ * Se instancia dos veces con claves de almacenamiento distintas: pedir sentado
+ * en la mesa y pedir a domicilio son dos cestas que no deben mezclarse — un
+ * cliente puede tener una comanda abierta en el local y, a la vez, un pedido a
+ * casa a medio montar.
+ */
+function createCartStore(storageKey: string) {
+  return create<CartState>()(
   persist(
     (set, get) => ({
       restaurantSlug: null,
@@ -67,6 +86,7 @@ export const useCart = create<CartState>()(
       currencyDecimals: 2,
       lines: [],
       tableCode: null,
+      coupon: null,
 
       setRestaurant: ({ slug, name, currency, currencyDecimals }) => {
         const current = get().restaurantSlug;
@@ -78,6 +98,7 @@ export const useCart = create<CartState>()(
           // Al cambiar de restaurante el carrito anterior deja de tener sentido.
           lines: current && current !== slug ? [] : get().lines,
           tableCode: current && current !== slug ? null : get().tableCode,
+          coupon: current && current !== slug ? null : get().coupon,
         });
       },
 
@@ -85,6 +106,8 @@ export const useCart = create<CartState>()(
 
       addLine: (line) => {
         const key = lineKey(line.productId, line.options, line.notes);
+        // Cambiar la cesta invalida el descuento: hay que revalidarlo.
+        set({ coupon: null });
         const lines = [...get().lines];
         const existing = lines.findIndex((l) => l.key === key);
 
@@ -101,33 +124,46 @@ export const useCart = create<CartState>()(
 
       updateQuantity: (key, quantity) => {
         if (quantity <= 0) {
-          set({ lines: get().lines.filter((l) => l.key !== key) });
+          set({ lines: get().lines.filter((l) => l.key !== key), coupon: null });
           return;
         }
         set({
           lines: get().lines.map((l) => (l.key === key ? { ...l, quantity } : l)),
+          coupon: null,
         });
       },
 
-      removeLine: (key) => set({ lines: get().lines.filter((l) => l.key !== key) }),
+      removeLine: (key) =>
+        set({ lines: get().lines.filter((l) => l.key !== key), coupon: null }),
 
-      clear: () => set({ lines: [] }),
+      setCoupon: (coupon) => set({ coupon }),
+
+      clear: () => set({ lines: [], coupon: null }),
     }),
     {
-      name: 'menu-digital-cart',
+      name: storageKey,
       storage: createJSONStorage(() => localStorage),
-      version: 1,
+      version: 2,
     },
   ),
-);
-
-/** Selectores derivados: evitan recalcular en cada componente. */
-export function useCartCount(): number {
-  return useCart((s) => s.lines.reduce((n, l) => n + l.quantity, 0));
+  );
 }
 
-export function useCartSubtotal(): number {
-  return useCart((s) => s.lines.reduce((sum, l) => sum + lineTotal(l), 0));
+/** Cesta de los pedidos a domicilio y para recoger. */
+export const useDeliveryCart = createCartStore('yumi-cart-delivery');
+
+/** Cesta de la comanda que se pide desde la mesa. */
+export const useTableCart = createCartStore('yumi-cart-table');
+
+export type CartStore = typeof useDeliveryCart;
+
+/** Selectores derivados: evitan recalcular en cada componente. */
+export function useCartCount(store: CartStore = useDeliveryCart): number {
+  return store((s) => s.lines.reduce((n, l) => n + l.quantity, 0));
+}
+
+export function useCartSubtotal(store: CartStore = useDeliveryCart): number {
+  return store((s) => s.lines.reduce((sum, l) => sum + lineTotal(l), 0));
 }
 
 /** Payload que espera la función place_order de Postgres. */

@@ -4,15 +4,15 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ShoppingBag } from 'lucide-react';
-import { useCart } from '@/lib/cart';
+import { useDeliveryCart } from '@/lib/cart';
 import { EmptyState, Spinner, ScreenHeader } from '@/components/ui/misc';
 import { useT } from '@/i18n/provider';
 
 export function CartRedirect() {
   const t = useT();
   const router = useRouter();
-  const slug = useCart((s) => s.restaurantSlug);
-  const lines = useCart((s) => s.lines);
+  const slug = useDeliveryCart((s) => s.restaurantSlug);
+  const lines = useDeliveryCart((s) => s.lines);
   const [hydrated, setHydrated] = useState(false);
 
   // El carrito vive en localStorage: hasta que zustand rehidrata no sabemos

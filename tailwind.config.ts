@@ -88,11 +88,26 @@ const config: Config = {
           '0%': { transform: 'scale(0.85)', opacity: '1' },
           '100%': { transform: 'scale(1.6)', opacity: '0' },
         },
+        fadeIn: {
+          from: { opacity: '0' },
+          to: { opacity: '1' },
+        },
+        scaleIn: {
+          from: { opacity: '0', transform: 'scale(0.96)' },
+          to: { opacity: '1', transform: 'scale(1)' },
+        },
+        shimmer: {
+          from: { backgroundPosition: '200% 0' },
+          to: { backgroundPosition: '-200% 0' },
+        },
       },
       animation: {
         'fade-up': 'fade-up 0.35s ease-out both',
         'slide-up': 'slide-up 0.28s cubic-bezier(0.32, 0.72, 0, 1) both',
         'pulse-ring': 'pulseRing 1.6s ease-out infinite',
+        'fade-in': 'fadeIn 0.25s ease-out both',
+        'scale-in': 'scaleIn 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) both',
+        shimmer: 'shimmer 1.6s linear infinite',
       },
     },
   },

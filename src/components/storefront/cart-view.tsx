@@ -6,7 +6,9 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Bike, ShoppingBag, Store, UtensilsCrossed, X } from 'lucide-react';
 import { ScreenHeader, EmptyState, QuantityStepper } from '@/components/ui/misc';
-import { useCart, lineTotal } from '@/lib/cart';
+import { CouponField } from '@/components/storefront/coupon-field';
+import { useActiveCart, useCartContext } from '@/components/storefront/cart-provider';
+import { lineTotal } from '@/lib/cart';
 import { formatMoney } from '@/lib/money';
 import { useT, interpolate } from '@/i18n/provider';
 import { cn } from '@/lib/utils';
@@ -19,8 +21,8 @@ export function CartView({
   deliveryFeeCents,
   minOrderCents,
   taxRate,
-  inTable,
   allows,
+  isSignedIn,
 }: {
   slug: string;
   currency: string;
@@ -28,32 +30,39 @@ export function CartView({
   deliveryFeeCents: number;
   minOrderCents: number;
   taxRate: number;
-  inTable: boolean;
   allows: { dineIn: boolean; delivery: boolean; pickup: boolean };
+  isSignedIn: boolean;
 }) {
   const t = useT();
   const router = useRouter();
-  const lines = useCart((s) => s.lines);
-  const updateQuantity = useCart((s) => s.updateQuantity);
-  const removeLine = useCart((s) => s.removeLine);
+  const { inTable } = useCartContext();
+  const cart = useActiveCart();
 
-  // En mesa el tipo es fijo; fuera, el cliente elige entre lo que el local permita.
-  const available = (
-    [
-      inTable && allows.dineIn ? 'dine_in' : null,
-      allows.delivery ? 'delivery' : null,
-      allows.pickup ? 'pickup' : null,
-    ] as (Enums<'order_type'> | null)[]
-  ).filter(Boolean) as Enums<'order_type'>[];
+  const lines = cart((s) => s.lines);
+  const coupon = cart((s) => s.coupon);
+  const updateQuantity = cart((s) => s.updateQuantity);
+  const removeLine = cart((s) => s.removeLine);
 
-  const [orderType, setOrderType] = useState<Enums<'order_type'>>(
-    inTable && allows.dineIn ? 'dine_in' : (available[0] ?? 'delivery'),
-  );
+  /**
+   * Desde la mesa el único tipo posible es "en mesa": el cliente está sentado
+   * en el local. Domicilio y recogida se piden desde el carrito general, que es
+   * otra cesta distinta.
+   */
+  const available: Enums<'order_type'>[] = inTable
+    ? ['dine_in']
+    : ([allows.delivery ? 'delivery' : null, allows.pickup ? 'pickup' : null].filter(
+        Boolean,
+      ) as Enums<'order_type'>[]);
+
+  const [orderType, setOrderType] = useState<Enums<'order_type'>>(available[0] ?? 'delivery');
 
   const subtotal = lines.reduce((sum, line) => sum + lineTotal(line), 0);
-  const delivery = orderType === 'delivery' ? deliveryFeeCents : 0;
-  const tax = Math.round(subtotal * taxRate);
-  const total = subtotal + delivery + tax;
+  const rawDelivery = orderType === 'delivery' ? deliveryFeeCents : 0;
+  const freeDelivery = coupon?.kind === 'free_delivery';
+  const delivery = freeDelivery ? Math.max(rawDelivery - coupon.discountCents, 0) : rawDelivery;
+  const discount = coupon && !freeDelivery ? coupon.discountCents : 0;
+  const tax = Math.round(Math.max(subtotal - discount, 0) * taxRate);
+  const total = Math.max(subtotal - discount + delivery + tax, 0);
 
   const belowMinimum = orderType === 'delivery' && subtotal < minOrderCents;
 
@@ -87,7 +96,7 @@ export function CartView({
 
       <ul className="flex-1 divide-y divide-surface-line px-5">
         {lines.map((line) => (
-          <li key={line.key} className="flex gap-4 py-4">
+          <li key={line.key} className="flex gap-4 py-4 animate-fade-up">
             <span className="relative h-[90px] w-[90px] shrink-0 overflow-hidden rounded-xl bg-surface-muted">
               {line.image ? (
                 <Image src={line.image} alt={line.name} fill sizes="90px" className="object-cover" />
@@ -115,7 +124,7 @@ export function CartView({
                   type="button"
                   onClick={() => removeLine(line.key)}
                   aria-label={t.cart.remove}
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-state-danger text-white"
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-state-danger text-white transition-transform active:scale-90"
                 >
                   <X className="h-3.5 w-3.5" strokeWidth={3} />
                 </button>
@@ -138,10 +147,10 @@ export function CartView({
       </ul>
 
       <div className="mt-4 rounded-t-sheet bg-surface-field px-5 pb-5 pt-6">
-        {available.length > 1 && (
+        {available.length > 1 ? (
           <>
             <p className="label">{t.cart.orderType}</p>
-            <div className="mb-5 grid grid-cols-3 gap-2">
+            <div className="mb-5 grid grid-cols-2 gap-2">
               {available.map((type) => {
                 const { icon: Icon, label } = TYPE_META[type];
                 const active = orderType === type;
@@ -151,8 +160,10 @@ export function CartView({
                     type="button"
                     onClick={() => setOrderType(type)}
                     className={cn(
-                      'flex flex-col items-center gap-1.5 rounded-xl px-2 py-3 text-xs font-bold transition-colors',
-                      active ? 'bg-brand text-white' : 'bg-white text-ink-600 hover:bg-surface-muted',
+                      'flex flex-col items-center gap-1.5 rounded-xl px-2 py-3 text-xs font-bold transition-all duration-200 active:scale-[0.97]',
+                      active
+                        ? 'bg-brand text-brand-contrast shadow-[0_8px_18px_-10px_rgb(var(--brand-rgb))]'
+                        : 'bg-white text-ink-600 hover:bg-surface-muted',
                     )}
                   >
                     <Icon className="h-5 w-5" />
@@ -162,12 +173,48 @@ export function CartView({
               })}
             </div>
           </>
+        ) : (
+          <div className="mb-5 flex items-center gap-2.5 rounded-xl bg-white px-4 py-3">
+            {(() => {
+              const { icon: Icon, label } = TYPE_META[available[0] ?? 'delivery'];
+              return (
+                <>
+                  <Icon className="h-4 w-4 text-brand" />
+                  <span className="text-sm font-bold text-ink-600">{label}</span>
+                </>
+              );
+            })()}
+          </div>
         )}
+
+        <CouponField
+          slug={slug}
+          orderType={orderType}
+          currency={currency}
+          currencyDecimals={currencyDecimals}
+          isSignedIn={isSignedIn}
+          className="mb-5"
+        />
 
         <dl className="space-y-2 text-sm">
           <Row label={t.common.subtotal} value={formatMoney(subtotal, currency, currencyDecimals)} />
-          {delivery > 0 && (
-            <Row label={t.common.delivery} value={formatMoney(delivery, currency, currencyDecimals)} />
+          {discount > 0 && (
+            <Row
+              label={`${t.common.discount} · ${coupon?.code ?? ''}`}
+              value={`−${formatMoney(discount, currency, currencyDecimals)}`}
+              tone="discount"
+            />
+          )}
+          {rawDelivery > 0 && (
+            <Row
+              label={t.common.delivery}
+              value={
+                freeDelivery
+                  ? t.common.free
+                  : formatMoney(delivery, currency, currencyDecimals)
+              }
+              tone={freeDelivery ? 'discount' : undefined}
+            />
           )}
           {tax > 0 && <Row label={t.common.taxes} value={formatMoney(tax, currency, currencyDecimals)} />}
         </dl>
@@ -202,11 +249,26 @@ export function CartView({
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: 'discount';
+}) {
   return (
     <div className="flex items-center justify-between">
-      <dt className="text-ink-400">{label}</dt>
-      <dd className="font-semibold text-ink-600">{value}</dd>
+      <dt className={cn('text-ink-400', tone === 'discount' && 'text-emerald-700')}>{label}</dt>
+      <dd
+        className={cn(
+          'font-semibold text-ink-600',
+          tone === 'discount' && 'text-emerald-700',
+        )}
+      >
+        {value}
+      </dd>
     </div>
   );
 }

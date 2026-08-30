@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { BookOpen, ConciergeBell, Receipt, ShoppingBag } from 'lucide-react';
 import { useCartCount } from '@/lib/cart';
+import { useActiveCart } from '@/components/storefront/cart-provider';
 import { useT } from '@/i18n/provider';
 import { cn } from '@/lib/utils';
 
@@ -11,7 +12,7 @@ import { cn } from '@/lib/utils';
 export function RestaurantNav({ slug, inTable }: { slug: string; inTable: boolean }) {
   const pathname = usePathname();
   const t = useT();
-  const count = useCartCount();
+  const count = useCartCount(useActiveCart());
 
   const items = [
     { href: `/r/${slug}`, icon: BookOpen, label: t.nav.menu, exact: true },

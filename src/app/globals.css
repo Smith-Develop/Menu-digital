@@ -22,6 +22,43 @@
     scroll-behavior: smooth;
   }
 
+  /*
+   * Transiciones de base.
+   *
+   * Se aplican a los elementos interactivos y no a `*`, porque una transición
+   * universal alcanza también a cosas que deben cambiar al instante (barras de
+   * progreso, alturas calculadas) y produce arrastres raros.
+   */
+  a,
+  button,
+  [role='button'],
+  input,
+  select,
+  textarea,
+  summary {
+    transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+    transition-duration: 180ms;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  a:active,
+  button:not(:disabled):active,
+  [role='button']:active {
+    transform: scale(0.97);
+  }
+
+  /* Respeta a quien pide menos movimiento en su sistema. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
   body {
     @apply bg-surface-soft text-ink font-sans antialiased;
     text-rendering: optimizeLegibility;
@@ -111,11 +148,42 @@
   }
 }
 
+@layer components {
+  /* Entrada escalonada de listas: cada hijo arranca un poco después. */
+  .stagger > * {
+    animation: fade-up 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+  }
+  .stagger > *:nth-child(1) { animation-delay: 0ms; }
+  .stagger > *:nth-child(2) { animation-delay: 40ms; }
+  .stagger > *:nth-child(3) { animation-delay: 80ms; }
+  .stagger > *:nth-child(4) { animation-delay: 120ms; }
+  .stagger > *:nth-child(5) { animation-delay: 160ms; }
+  .stagger > *:nth-child(6) { animation-delay: 200ms; }
+  .stagger > *:nth-child(n + 7) { animation-delay: 240ms; }
+
+  /* Realce al pasar por encima de una tarjeta pulsable. */
+  .lift {
+    @apply transition-all duration-200;
+  }
+  .lift:hover {
+    @apply -translate-y-0.5 shadow-card;
+  }
+}
+
 @media print {
   .no-print {
     display: none !important;
   }
   .print-break {
     break-after: page;
+  }
+
+  /* El ticket manda sobre el resto de la página al imprimir. */
+  body.printing-ticket > *:not(#ticket-root) {
+    display: none !important;
+  }
+  body.printing-ticket #ticket-root {
+    display: block !important;
+    position: static !important;
   }
 }

@@ -20,9 +20,42 @@ del cliente**. Es instalable como PWA.
 | Cliente en la mesa | `/m/<código>` (QR) | Pide desde la mesa, llama al camarero y sigue su comanda |
 | Cualquiera con un pedido | `/order/<token>` | Sigue el estado sin necesidad de cuenta |
 | Repartidor | `/courier` | Acepta repartos de todos los restaurantes para los que trabaja |
-| Restaurante | `/dashboard` | Pedidos en directo, carta, mesas y QR, banners, equipo, repartidores, ajustes, suscripción |
+| Restaurante | `/dashboard` | Pedidos en directo, carta, mesas y QR, banners, cupones, equipo, repartidores, ajustes, suscripción |
 | Cocina | `/kitchen` | Tablero de comandas con aviso sonoro y contador de minutos |
-| Superadministrador | `/admin` | Restaurantes, planes, marca de la app y notificaciones por ciudad |
+| Superadministrador | `/admin` | Restaurantes, planes, cupones de plataforma, marca y notificaciones por ciudad |
+
+### Dos cestas, no una
+
+Pedir sentado y pedir a domicilio son carritos separados, con su propia clave en
+`localStorage`. Un cliente puede tener la comanda abierta en el local y, a la
+vez, un pedido a casa a medio montar sin que se mezclen. Desde la mesa el único
+tipo posible es "en mesa"; domicilio y recogida solo aparecen en el carrito de
+fuera del local.
+
+La comanda de mesa **no desaparece al servirse**: sigue en la cuenta del
+comensal hasta que el restaurante la marca como cobrada, que es cuando la mesa
+queda libre.
+
+### Tienda o escaparate
+
+Quien llega a `/r/<slug>` navegando por Yumi puede volver al escaparate y buscar
+otros locales. Quien abre el enlace directamente —lo compartieron por WhatsApp o
+escaneó un QR— se queda dentro de esa tienda: para él la aplicación *es* ese
+restaurante. Se decide con el `Referer` y se recuerda en cookie mientras dure la
+visita (`lib/store-context.ts`).
+
+### Cupones
+
+Un restaurante crea cupones para su local; el superadministrador, cupones de
+plataforma válidos en cualquiera. Si coinciden en código, gana el del
+restaurante. Pueden ser porcentaje, importe fijo o envío gratis, y acotarse a
+platos o categorías concretas.
+
+El descuento **lo calcula siempre el servidor** (`validate_coupon` y
+`place_order` comparten `compute_coupon_discount`), así que el importe que ve el
+cliente y el que se cobra salen del mismo sitio. Canjear desde la mesa exige
+iniciar sesión: es lo único que impide que el mismo comensal gaste el cupón una
+y otra vez desde el mismo QR.
 
 ### El QR de mesa
 
@@ -71,6 +104,28 @@ cambiar un color repinta toda la interfaz sin recompilar.
 Avisos emergentes que el superadministrador dirige a todas las ciudades o solo a
 las que elija. Los ya vistos se recuerdan en `localStorage`: son mensajes de
 campaña, no información crítica, y no merecen una tabla ni una cuenta.
+
+### Impresión de tickets
+
+El ticket se maqueta en milímetros para impresora térmica (58 mm, 80 mm o A4) y
+se puede lanzar al aceptar el pedido. **Los navegadores no permiten elegir
+impresora ni saltarse el diálogo** —es una restricción de seguridad—, así que
+para imprimir en silencio hay que abrir el panel en el equipo de caja con Chrome
+en modo quiosco:
+
+```bash
+chrome --kiosk-printing --app=https://tu-dominio/dashboard/orders
+```
+
+Con la impresora de tickets como predeterminada del sistema, a partir de ahí las
+comandas salen directas.
+
+### Altas del equipo por invitación
+
+El restaurante no crea cuentas ajenas: genera un enlace `/join/<token>` que la
+persona abre para registrarse con su propia contraseña. Así no hace falta la
+clave de administración de Supabase en el servidor y nadie maneja credenciales
+de otro. La invitación va atada a un correo concreto y se consume al usarse.
 
 ### Suscripciones
 
@@ -122,6 +177,11 @@ Las migraciones de `supabase/migrations/` se aplican **en orden**:
 | `0007_yumi_rls.sql` | RLS de las tablas nuevas y acceso del repartidor a pedidos |
 | `0008_yumi_functions.sql` | `list_cities`, `nearest_city`, `home_banners`, flujo de reparto |
 | `0009_storage_app.sql` | El superadministrador sube el logotipo de la aplicación |
+| `0010_coupons.sql` | Cupones, invitaciones de equipo y ajustes de impresión |
+| `0011_coupon_functions.sql` | Cálculo y validación de descuentos |
+| `0012_order_coupon.sql` | `place_order` con cupón, cuenta de mesa e invitaciones |
+| `0013_coupons_rls.sql` | RLS de cupones e invitaciones |
+| `0014_profiles_team_read.sql` | El restaurante ve los datos de su propio equipo |
 
 `supabase/seed-demo.sql` crea un restaurante de ejemplo con carta, mesas y
 cuentas. Las contraseñas llegan por entorno para que el archivo pueda vivir en
@@ -200,6 +260,10 @@ mandaba los QR de mesa a `localhost`. El origen público se saca de las cabecera
 `x-forwarded-*` en `lib/request-url.ts`, y solo si faltan se recurre a
 `NEXT_PUBLIC_SITE_URL`.
 
+**El impuesto se calcula sobre la base ya descontada**, y el descuento nunca
+puede superar el subtotal. Los importes se recalculan en `place_order` a partir
+de la base de datos: lo que manda el navegador se ignora.
+
 **El service worker es deliberadamente conservador.** La carta, los precios y el
 estado de los pedidos cambian a cada momento, así que no se cachea nada de eso:
 solo el armazón estático y una página de respaldo sin conexión.
@@ -209,6 +273,14 @@ solo el armazón estático y una página de respaldo sin conexión.
 falta la CLI de Supabase ni abrir el puerto 5432.
 
 ---
+
+## Antes de abrir al público
+
+**Confirmación de correo.** La instancia de Supabase viene con
+`mailer_autoconfirm = false`, así que nadie puede registrarse hasta que se
+confirme su correo. Configura SMTP en el panel de Supabase, o desactiva la
+confirmación si prefieres altas inmediatas. Sin una de las dos cosas, `/register`
+y `/join/<token>` dejan al usuario esperando un correo que no llega.
 
 ## Comandos
 

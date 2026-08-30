@@ -1,6 +1,11 @@
 import { getI18n } from '@/i18n';
 import { requireStaffContext } from '@/lib/auth';
 import { SettingsForm } from '@/components/dashboard/settings-form';
+import { PrintSettingsForm } from '@/components/dashboard/print-settings-form';
+import {
+  DEFAULT_PRINT_SETTINGS,
+  type PrintSettings,
+} from '@/components/dashboard/print/ticket';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Ajustes' };
@@ -8,6 +13,11 @@ export const metadata = { title: 'Ajustes' };
 export default async function SettingsPage() {
   const { restaurant } = await requireStaffContext();
   const { t } = await getI18n();
+
+  const printSettings: PrintSettings = {
+    ...DEFAULT_PRINT_SETTINGS,
+    ...((restaurant.print_settings as Partial<PrintSettings> | null) ?? {}),
+  };
 
   return (
     <div className="space-y-6">
@@ -43,6 +53,8 @@ export default async function SettingsPage() {
           textColor: restaurant.text_color,
         }}
       />
+
+      <PrintSettingsForm initial={printSettings} />
     </div>
   );
 }

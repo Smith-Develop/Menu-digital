@@ -584,3 +584,104 @@ export async function updateRestaurantTheme(input: {
   revalidatePath(`/r/${context.restaurant.slug}`);
   return { ok: true };
 }
+
+// ========================= Invitaciones de equipo =======================
+
+/**
+ * Invita a alguien al equipo.
+ *
+ * No se le crea la cuenta: se genera un enlace que la persona abre para
+ * registrarse o iniciar sesión con su propio correo. Así el restaurante nunca
+ * maneja contraseñas ajenas y no hace falta la clave de administración de
+ * Supabase en el servidor de la aplicación.
+ */
+export async function inviteStaff(input: {
+  email: string;
+  role: 'admin' | 'manager' | 'waiter' | 'kitchen' | 'cashier';
+  asCourier?: boolean;
+}): Promise<Result<{ token: string }>> {
+  const { context, error } = await guard('staff');
+  if (!context) return fail(error);
+
+  const email = input.email.trim().toLowerCase();
+  if (!email.includes('@')) return fail('INVALID_EMAIL');
+
+  const supabase = await createServerSupabase();
+
+  const max = context.subscription?.plan?.max_staff ?? null;
+  if (max !== null) {
+    const { count } = await supabase
+      .from('restaurant_staff')
+      .select('id', { count: 'exact', head: true })
+      .eq('restaurant_id', context.restaurant.id)
+      .eq('is_active', true);
+    if ((count ?? 0) >= max) return fail('PLAN_LIMIT_STAFF');
+  }
+
+  // Un token largo y aleatorio: el enlace es la credencial de la invitación.
+  const token = `${crypto.randomUUID()}${crypto.randomUUID()}`.replace(/-/g, '');
+
+  const { error: dbError } = await supabase.from('staff_invitations').insert({
+    restaurant_id: context.restaurant.id,
+    email,
+    role: input.role,
+    as_courier: input.asCourier ?? false,
+    token,
+    invited_by: context.profile.id,
+  });
+
+  if (dbError) return fail(dbError.message);
+
+  revalidatePath('/dashboard/staff');
+  return { ok: true, data: { token } };
+}
+
+export async function revokeInvitation(id: string): Promise<Result> {
+  const { context, error } = await guard('staff');
+  if (!context) return fail(error);
+
+  const supabase = await createServerSupabase();
+  const { error: dbError } = await supabase
+    .from('staff_invitations')
+    .delete()
+    .eq('id', id)
+    .eq('restaurant_id', context.restaurant.id)
+    .is('accepted_at', null);
+
+  if (dbError) return fail(dbError.message);
+
+  revalidatePath('/dashboard/staff');
+  return { ok: true };
+}
+
+// ========================= Ajustes de impresión =========================
+
+export async function updatePrintSettings(input: {
+  paper: '58mm' | '80mm' | 'a4';
+  autoPrint: boolean;
+  copies: number;
+  showLogo: boolean;
+  footerNote: string | null;
+}): Promise<Result> {
+  const { context, error } = await guard();
+  if (!context) return fail(error);
+
+  const supabase = await createServerSupabase();
+  const { error: dbError } = await supabase
+    .from('restaurants')
+    .update({
+      print_settings: {
+        paper: input.paper,
+        autoPrint: input.autoPrint,
+        copies: Math.min(Math.max(input.copies, 1), 5),
+        showLogo: input.showLogo,
+        footerNote: input.footerNote?.trim() || null,
+      },
+    })
+    .eq('id', context.restaurant.id);
+
+  if (dbError) return fail(dbError.message);
+
+  revalidatePath('/dashboard', 'layout');
+  return { ok: true };
+}

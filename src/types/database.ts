@@ -130,6 +130,132 @@ export type Database = {
         };
         Relationships: [];
       };
+      coupon_categories: {
+        Row: {
+          coupon_id: string;
+          category_id: string;
+        };
+        Insert: {
+          coupon_id: string;
+          category_id: string;
+        };
+        Update: {
+          coupon_id?: string;
+          category_id?: string;
+        };
+        Relationships: [];
+      };
+      coupon_products: {
+        Row: {
+          coupon_id: string;
+          product_id: string;
+        };
+        Insert: {
+          coupon_id: string;
+          product_id: string;
+        };
+        Update: {
+          coupon_id?: string;
+          product_id?: string;
+        };
+        Relationships: [];
+      };
+      coupon_redemptions: {
+        Row: {
+          id: string;
+          coupon_id: string;
+          order_id: string | null;
+          restaurant_id: string | null;
+          customer_id: string | null;
+          discount_cents: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          coupon_id: string;
+          order_id?: string | null;
+          restaurant_id?: string | null;
+          customer_id?: string | null;
+          discount_cents?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          coupon_id?: string;
+          order_id?: string | null;
+          restaurant_id?: string | null;
+          customer_id?: string | null;
+          discount_cents?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      coupons: {
+        Row: {
+          id: string;
+          code: string;
+          restaurant_id: string | null;
+          kind: Enums<"coupon_kind">;
+          percentage: number | null;
+          value_cents: number | null;
+          max_discount_cents: number | null;
+          target: Enums<"coupon_target">;
+          min_order_cents: number;
+          starts_at: string;
+          ends_at: string | null;
+          max_redemptions: number | null;
+          max_per_customer: number;
+          redemptions_count: number;
+          is_active: boolean;
+          description: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          code: string;
+          restaurant_id?: string | null;
+          kind: Enums<"coupon_kind">;
+          percentage?: number | null;
+          value_cents?: number | null;
+          max_discount_cents?: number | null;
+          target?: Enums<"coupon_target">;
+          min_order_cents?: number;
+          starts_at?: string;
+          ends_at?: string | null;
+          max_redemptions?: number | null;
+          max_per_customer?: number;
+          redemptions_count?: number;
+          is_active?: boolean;
+          description?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          code?: string;
+          restaurant_id?: string | null;
+          kind?: Enums<"coupon_kind">;
+          percentage?: number | null;
+          value_cents?: number | null;
+          max_discount_cents?: number | null;
+          target?: Enums<"coupon_target">;
+          min_order_cents?: number;
+          starts_at?: string;
+          ends_at?: string | null;
+          max_redemptions?: number | null;
+          max_per_customer?: number;
+          redemptions_count?: number;
+          is_active?: boolean;
+          description?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       couriers: {
         Row: {
           id: string;
@@ -429,6 +555,8 @@ export type Database = {
           updated_at: string;
           courier_id: string | null;
           picked_up_at: string | null;
+          coupon_id: string | null;
+          coupon_code: string | null;
         };
         Insert: {
           id?: string;
@@ -467,6 +595,8 @@ export type Database = {
           updated_at?: string;
           courier_id?: string | null;
           picked_up_at?: string | null;
+          coupon_id?: string | null;
+          coupon_code?: string | null;
         };
         Update: {
           id?: string;
@@ -505,6 +635,8 @@ export type Database = {
           updated_at?: string;
           courier_id?: string | null;
           picked_up_at?: string | null;
+          coupon_id?: string | null;
+          coupon_code?: string | null;
         };
         Relationships: [];
       };
@@ -835,6 +967,7 @@ export type Database = {
           city_slug: string | null;
           accent_color: string;
           text_color: string;
+          print_settings: Json;
         };
         Insert: {
           id?: string;
@@ -877,6 +1010,7 @@ export type Database = {
           city_slug?: string | null;
           accent_color?: string;
           text_color?: string;
+          print_settings?: Json;
         };
         Update: {
           id?: string;
@@ -919,6 +1053,7 @@ export type Database = {
           city_slug?: string | null;
           accent_color?: string;
           text_color?: string;
+          print_settings?: Json;
         };
         Relationships: [];
       };
@@ -954,6 +1089,48 @@ export type Database = {
           author_name?: string | null;
           rating?: number;
           comment?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      staff_invitations: {
+        Row: {
+          id: string;
+          restaurant_id: string;
+          email: string;
+          role: Enums<"staff_role">;
+          as_courier: boolean;
+          token: string;
+          invited_by: string | null;
+          accepted_at: string | null;
+          accepted_by: string | null;
+          expires_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          restaurant_id: string;
+          email: string;
+          role?: Enums<"staff_role">;
+          as_courier?: boolean;
+          token: string;
+          invited_by?: string | null;
+          accepted_at?: string | null;
+          accepted_by?: string | null;
+          expires_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          restaurant_id?: string;
+          email?: string;
+          role?: Enums<"staff_role">;
+          as_courier?: boolean;
+          token?: string;
+          invited_by?: string | null;
+          accepted_at?: string | null;
+          accepted_by?: string | null;
+          expires_at?: string;
           created_at?: string;
         };
         Relationships: [];
@@ -1098,6 +1275,7 @@ export type Database = {
           p_address_notes?: string | null;
           p_notes?: string | null;
           p_tip_cents?: number;
+          p_coupon_code?: string | null;
         };
         Returns: Json;
       };
@@ -1112,6 +1290,19 @@ export type Database = {
       courier_complete_order: { Args: { p_order_id: string }; Returns: Json };
       courier_stats: { Args: { [_ in never]: never }; Returns: Json };
       my_courier_id: { Args: { [_ in never]: never }; Returns: string | null };
+      validate_coupon: {
+        Args: {
+          p_code: string;
+          p_restaurant_slug: string;
+          p_items: Json;
+          p_type: Enums<'order_type'>;
+          p_tip_cents?: number;
+        };
+        Returns: Json;
+      };
+      table_bill: { Args: { p_table_code: string }; Returns: Json };
+      accept_staff_invitation: { Args: { p_token: string }; Returns: Json };
+      invitation_preview: { Args: { p_token: string }; Returns: Json };
       is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };
       is_staff_of: { Args: { rid: string }; Returns: boolean };
     };
@@ -1119,6 +1310,8 @@ export type Database = {
       app_role: "superadmin" | "restaurant" | "customer" | "courier";
       call_status: "pending" | "attended" | "cancelled";
       call_type: "waiter" | "bill" | "water" | "help";
+      coupon_kind: "percentage" | "fixed" | "free_delivery";
+      coupon_target: "order" | "products" | "categories";
       courier_status: "offline" | "available" | "busy";
       notification_audience: "all" | "cities";
       order_item_status: "queued" | "preparing" | "ready" | "served";

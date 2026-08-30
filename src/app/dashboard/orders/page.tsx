@@ -3,6 +3,7 @@ import { requireStaffContext } from '@/lib/auth';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { OrdersBoard } from '@/components/dashboard/orders-board';
 import type { OrderRow } from '@/components/dashboard/live-orders-panel';
+import { mapOrderRow } from '@/lib/queries/orders';
 import type { Enums } from '@/types/database';
 
 export const dynamic = 'force-dynamic';
@@ -51,31 +52,9 @@ export default async function OrdersPage({
     : { data: [] };
   const tableNames = new Map((tables ?? []).map((tb) => [tb.id, tb.name]));
 
-  const rows: OrderRow[] = (orders ?? []).map((order) => ({
-    id: order.id,
-    code: order.code,
-    type: order.type,
-    status: order.status,
-    paymentMethod: order.payment_method,
-    paymentStatus: order.payment_status,
-    totalCents: order.total_cents,
-    customerName: order.customer_name,
-    customerPhone: order.customer_phone,
-    address: order.address,
-    tableName: order.table_id ? (tableNames.get(order.table_id) ?? null) : null,
-    notes: order.notes,
-    createdAt: order.created_at,
-    items: (items ?? [])
-      .filter((i) => i.order_id === order.id)
-      .map((i) => ({
-        id: i.id,
-        name: i.name_snapshot,
-        quantity: i.quantity,
-        options: Array.isArray(i.options) ? (i.options as { name: string }[]).map((o) => o.name) : [],
-        notes: i.notes,
-        status: i.status,
-      })),
-  }));
+  const rows: OrderRow[] = (orders ?? []).map((order) =>
+    mapOrderRow(order, items ?? [], order.table_id ? (tableNames.get(order.table_id) ?? null) : null),
+  );
 
   return (
     <div className="space-y-6">

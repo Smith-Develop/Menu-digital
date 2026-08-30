@@ -6,7 +6,8 @@ import { Banknote, CreditCard, Smartphone } from 'lucide-react';
 import { ScreenHeader } from '@/components/ui/misc';
 import { Input, Textarea } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
-import { useCart, lineTotal, cartToOrderItems } from '@/lib/cart';
+import { lineTotal, cartToOrderItems } from '@/lib/cart';
+import { useActiveCart, useCartContext } from '@/components/storefront/cart-provider';
 import { createClient } from '@/lib/supabase/client';
 import { formatMoney } from '@/lib/money';
 import { useT } from '@/i18n/provider';
@@ -25,6 +26,14 @@ function errorMessage(raw: string, t: ReturnType<typeof useT>): string {
     TABLE_REQUIRED: t.table.scanAgain,
     ADDRESS_REQUIRED: t.cart.deliveryAddress,
     RESTAURANT_SUBSCRIPTION_INACTIVE: t.subscription.expiredWarning,
+    COUPON_NOT_FOUND: t.coupon.notFound,
+    COUPON_INACTIVE: t.coupon.inactive,
+    COUPON_EXPIRED: t.coupon.expired,
+    COUPON_EXHAUSTED: t.coupon.exhausted,
+    COUPON_ALREADY_USED: t.coupon.alreadyUsed,
+    COUPON_NOT_APPLICABLE: t.coupon.notApplicable,
+    COUPON_MIN_ORDER: t.coupon.minOrder,
+    LOGIN_REQUIRED: t.coupon.loginRequired,
   };
   return map[code] ?? t.common.error;
 }
@@ -53,8 +62,11 @@ export function CheckoutView({
   const t = useT();
   const toast = useToast();
   const router = useRouter();
-  const lines = useCart((s) => s.lines);
-  const clear = useCart((s) => s.clear);
+  const { inTable } = useCartContext();
+  const cart = useActiveCart();
+  const lines = cart((s) => s.lines);
+  const coupon = cart((s) => s.coupon);
+  const clear = cart((s) => s.clear);
 
   const ALL_METHODS = [
     { id: 'cash', icon: Banknote, label: t.checkout.cash, hint: t.checkout.cashHint },
@@ -74,9 +86,12 @@ export function CheckoutView({
   const [submitting, setSubmitting] = useState(false);
 
   const subtotal = lines.reduce((sum, line) => sum + lineTotal(line), 0);
-  const delivery = orderType === 'delivery' ? deliveryFeeCents : 0;
-  const tax = Math.round(subtotal * taxRate);
-  const total = subtotal + delivery + tax;
+  const rawDelivery = orderType === 'delivery' ? deliveryFeeCents : 0;
+  const freeDelivery = coupon?.kind === 'free_delivery';
+  const delivery = freeDelivery ? Math.max(rawDelivery - coupon.discountCents, 0) : rawDelivery;
+  const discount = coupon && !freeDelivery ? coupon.discountCents : 0;
+  const tax = Math.round(Math.max(subtotal - discount, 0) * taxRate);
+  const total = Math.max(subtotal - discount + delivery + tax, 0);
 
   async function submit() {
     if (lines.length === 0) {
@@ -107,6 +122,7 @@ export function CheckoutView({
         p_address: orderType === 'delivery' ? address.trim() : null,
         p_address_notes: addressNotes.trim() || null,
         p_notes: notes.trim() || null,
+        p_coupon_code: coupon?.code ?? null,
       });
 
       if (error) {
@@ -120,9 +136,11 @@ export function CheckoutView({
         return;
       }
 
+      // La cesta de la mesa se conserva a propósito: el comensal sigue viendo
+      // su cuenta abierta hasta que el restaurante la marca como cobrada.
       clear();
       toast(t.checkout.success, 'success');
-      router.push(`/order/${result.token}`);
+      router.push(inTable ? `/r/${slug}/table` : `/order/${result.token}`);
     } catch {
       toast(t.common.error, 'error');
     } finally {
@@ -225,11 +243,23 @@ export function CheckoutView({
                 {formatMoney(subtotal, currency, currencyDecimals)}
               </dd>
             </div>
-            {delivery > 0 && (
+            {discount > 0 && (
+              <div className="flex justify-between text-emerald-700">
+                <dt>
+                  {t.common.discount} · {coupon?.code}
+                </dt>
+                <dd className="font-semibold">
+                  −{formatMoney(discount, currency, currencyDecimals)}
+                </dd>
+              </div>
+            )}
+            {rawDelivery > 0 && (
               <div className="flex justify-between">
-                <dt className="text-ink-400">{t.common.delivery}</dt>
-                <dd className="font-semibold text-ink-600">
-                  {formatMoney(delivery, currency, currencyDecimals)}
+                <dt className={freeDelivery ? 'text-emerald-700' : 'text-ink-400'}>
+                  {t.common.delivery}
+                </dt>
+                <dd className={freeDelivery ? 'font-semibold text-emerald-700' : 'font-semibold text-ink-600'}>
+                  {freeDelivery ? t.common.free : formatMoney(delivery, currency, currencyDecimals)}
                 </dd>
               </div>
             )}

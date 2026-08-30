@@ -141,6 +141,7 @@ export type Database = {
           p_address_notes?: string | null;
           p_notes?: string | null;
           p_tip_cents?: number;
+          p_coupon_code?: string | null;
         };
         Returns: Json;
       };""")
@@ -155,6 +156,19 @@ export type Database = {
     out.append("      courier_complete_order: { Args: { p_order_id: string }; Returns: Json };")
     out.append("      courier_stats: { Args: { [_ in never]: never }; Returns: Json };")
     out.append("      my_courier_id: { Args: { [_ in never]: never }; Returns: string | null };")
+    out.append("""      validate_coupon: {
+        Args: {
+          p_code: string;
+          p_restaurant_slug: string;
+          p_items: Json;
+          p_type: Enums<'order_type'>;
+          p_tip_cents?: number;
+        };
+        Returns: Json;
+      };""")
+    out.append("      table_bill: { Args: { p_table_code: string }; Returns: Json };")
+    out.append("      accept_staff_invitation: { Args: { p_token: string }; Returns: Json };")
+    out.append("      invitation_preview: { Args: { p_token: string }; Returns: Json };")
     out.append("      is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };")
     out.append("      is_staff_of: { Args: { rid: string }; Returns: boolean };")
     out.append("    };")

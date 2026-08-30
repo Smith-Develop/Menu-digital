@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { Box, Plus, Search } from 'lucide-react';
 import { formatMoney } from '@/lib/money';
-import { useCart } from '@/lib/cart';
+import { useActiveCart } from '@/components/storefront/cart-provider';
 import { useToast } from '@/components/ui/toast';
 import { useT } from '@/i18n/provider';
 import { cn } from '@/lib/utils';
@@ -43,7 +43,8 @@ export function MenuBrowser({
 }) {
   const t = useT();
   const toast = useToast();
-  const addLine = useCart((s) => s.addLine);
+  const cart = useActiveCart();
+  const addLine = cart((s) => s.addLine);
 
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [term, setTerm] = useState('');

@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import { getRestaurantBySlug, getTableByCode } from '@/lib/queries/public';
 import { getTableCodeFor } from '@/lib/table-session';
 import { createPublicSupabase } from '@/lib/supabase/server';
-import { TablePanel } from '@/components/storefront/table-panel';
+import { TablePanel, type TableBill } from '@/components/storefront/table-panel';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,15 +18,9 @@ export default async function TablePage({ params }: { params: Promise<{ slug: st
   const found = await getTableByCode(code);
   if (!found || found.restaurant.id !== restaurant.id) redirect(`/r/${slug}`);
 
-  // Pedidos abiertos de esta mesa: el cliente ve su estado sin salir de la carta.
+  // La cuenta incluye todo lo pedido en la mesa que aún no se ha cobrado.
   const supabase = createPublicSupabase();
-  const { data: orders } = await supabase
-    .from('orders')
-    .select('public_token, code, status, total_cents, created_at')
-    .eq('table_id', found.table.id)
-    .in('status', ['pending', 'confirmed', 'preparing', 'ready'])
-    .order('created_at', { ascending: false })
-    .limit(5);
+  const { data: bill } = await supabase.rpc('table_bill', { p_table_code: code });
 
   return (
     <TablePanel
@@ -36,13 +30,7 @@ export default async function TablePage({ params }: { params: Promise<{ slug: st
       restaurantName={restaurant.name}
       currency={restaurant.currency}
       currencyDecimals={restaurant.currency_decimals}
-      openOrders={(orders ?? []).map((o) => ({
-        token: o.public_token,
-        code: o.code,
-        status: o.status,
-        totalCents: o.total_cents,
-        createdAt: o.created_at,
-      }))}
+      bill={bill as unknown as TableBill | null}
     />
   );
 }

@@ -2,6 +2,7 @@ import { getI18n } from '@/i18n';
 import { requireStaffContext } from '@/lib/auth';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { StaffManager } from '@/components/dashboard/staff-manager';
+import { getPublicOrigin } from '@/lib/request-url';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Equipo' };
@@ -10,6 +11,15 @@ export default async function StaffPage() {
   const { restaurant, subscription, profile } = await requireStaffContext();
   const { t } = await getI18n();
   const supabase = await createServerSupabase();
+
+  const siteUrl = await getPublicOrigin();
+
+  const { data: invitations } = await supabase
+    .from('staff_invitations')
+    .select('*')
+    .eq('restaurant_id', restaurant.id)
+    .is('accepted_at', null)
+    .order('created_at', { ascending: false });
 
   const { data: staff } = await supabase
     .from('restaurant_staff')
@@ -37,6 +47,15 @@ export default async function StaffPage() {
       <StaffManager
         currentUserId={profile.id}
         ownerId={restaurant.owner_id}
+        siteUrl={siteUrl}
+        invitations={(invitations ?? []).map((invitation) => ({
+          id: invitation.id,
+          email: invitation.email,
+          role: invitation.role,
+          asCourier: invitation.as_courier,
+          token: invitation.token,
+          expiresAt: invitation.expires_at,
+        }))}
         members={(staff ?? []).map((member) => {
           const person = byId.get(member.user_id);
           return {

@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import {
   Banknote,
@@ -9,9 +10,11 @@ import {
   Droplets,
   HelpCircle,
   Receipt,
+  Printer,
   Smartphone,
   Store,
   UtensilsCrossed,
+  XCircle,
 } from 'lucide-react';
 import { Badge, EmptyState } from '@/components/ui/misc';
 import { useToast } from '@/components/ui/toast';
@@ -19,6 +22,9 @@ import { createClient } from '@/lib/supabase/client';
 import { formatMoney } from '@/lib/money';
 import { minutesSince, formatTime, cn } from '@/lib/utils';
 import { useI18n, interpolate } from '@/i18n/provider';
+import { usePrint } from '@/components/dashboard/print/print-provider';
+import type { TicketOrder } from '@/components/dashboard/print/ticket';
+import { mapOrderRow } from '@/lib/queries/orders';
 import type { Enums } from '@/types/database';
 
 export type OrderRow = {
@@ -29,9 +35,16 @@ export type OrderRow = {
   paymentMethod: Enums<'payment_method'>;
   paymentStatus: Enums<'payment_status'>;
   totalCents: number;
+  subtotalCents: number;
+  discountCents: number;
+  couponCode: string | null;
+  deliveryFeeCents: number;
+  taxCents: number;
+  tipCents: number;
   customerName: string | null;
   customerPhone: string | null;
   address: string | null;
+  addressNotes: string | null;
   tableName: string | null;
   notes: string | null;
   createdAt: string;
@@ -39,6 +52,7 @@ export type OrderRow = {
     id: string;
     name: string;
     quantity: number;
+    lineTotalCents: number;
     options: string[];
     notes: string | null;
     status: Enums<'order_item_status'>;
@@ -52,6 +66,47 @@ export type CallRow = {
   tableName: string | null;
   createdAt: string;
 };
+
+/**
+ * Un pedido solo puede anularse mientras la cocina no lo haya empezado.
+ * A partir de "preparando" hay comida hecha y la cancelación deja de ser
+ * una decisión de pantalla.
+ */
+function canCancel(status: Enums<'order_status'>): boolean {
+  return status === 'pending' || status === 'confirmed';
+}
+
+/** Convierte la fila del panel en el ticket que se imprime. */
+function toTicket(order: OrderRow, currency: string, decimals: number): TicketOrder {
+  return {
+    code: order.code,
+    type: order.type,
+    createdAt: order.createdAt,
+    tableName: order.tableName,
+    customerName: order.customerName,
+    customerPhone: order.customerPhone,
+    address: [order.address, order.addressNotes].filter(Boolean).join(' · ') || null,
+    notes: order.notes,
+    paymentMethod: order.paymentMethod,
+    paymentStatus: order.paymentStatus,
+    currency,
+    currencyDecimals: decimals,
+    subtotalCents: order.subtotalCents,
+    discountCents: order.discountCents,
+    couponCode: order.couponCode,
+    deliveryFeeCents: order.deliveryFeeCents,
+    taxCents: order.taxCents,
+    tipCents: order.tipCents,
+    totalCents: order.totalCents,
+    items: order.items.map((item) => ({
+      name: item.name,
+      quantity: item.quantity,
+      lineTotalCents: item.lineTotalCents,
+      options: item.options,
+      notes: item.notes,
+    })),
+  };
+}
 
 /** Siguiente estado natural del pedido según su modalidad. */
 function nextStatus(order: OrderRow): Enums<'order_status'> | null {
@@ -107,6 +162,8 @@ export function LiveOrdersPanel({
 }) {
   const { t, locale } = useI18n();
   const toast = useToast();
+  const router = useRouter();
+  const { print, printIfAuto } = usePrint();
   const [orders, setOrders] = useState(initialOrders);
   const [calls, setCalls] = useState(initialCalls);
   const [busy, setBusy] = useState<string | null>(null);
@@ -128,29 +185,7 @@ export function LiveOrdersPanel({
         tableName = table?.name ?? null;
       }
 
-      const row: OrderRow = {
-        id: order.id,
-        code: order.code,
-        type: order.type,
-        status: order.status,
-        paymentMethod: order.payment_method,
-        paymentStatus: order.payment_status,
-        totalCents: order.total_cents,
-        customerName: order.customer_name,
-        customerPhone: order.customer_phone,
-        address: order.address,
-        tableName,
-        notes: order.notes,
-        createdAt: order.created_at,
-        items: (items ?? []).map((i) => ({
-          id: i.id,
-          name: i.name_snapshot,
-          quantity: i.quantity,
-          options: Array.isArray(i.options) ? (i.options as { name: string }[]).map((o) => o.name) : [],
-          notes: i.notes,
-          status: i.status,
-        })),
-      };
+      const row = mapOrderRow(order, items ?? [], tableName);
 
       setOrders((current) => {
         const open = ['pending', 'confirmed', 'preparing', 'ready', 'delivering'];
@@ -214,7 +249,37 @@ export function LiveOrdersPanel({
       toast(t.common.error, 'error');
       return;
     }
+
+    // Al aceptar sale la comanda para cocina, si la impresión automática
+    // está activada en los ajustes del restaurante.
+    if (target === 'confirmed') {
+      printIfAuto(toTicket(order, currency, currencyDecimals));
+    }
+
     await refetchOrder(order.id);
+
+    // Cerrar un pedido cambia ingresos y platos más vendidos: las métricas
+    // las calcula el servidor, así que hay que pedirle que las recalcule.
+    if (target === 'completed') router.refresh();
+  }
+
+  /** Cobrar deja la mesa libre: el pedido sale de la cuenta del comensal. */
+  async function markPaid(order: OrderRow) {
+    setBusy(order.id);
+    const supabase = createClient();
+    const { error } = await supabase
+      .from('orders')
+      .update({ payment_status: 'paid' })
+      .eq('id', order.id);
+    setBusy(null);
+
+    if (error) {
+      toast(t.common.error, 'error');
+      return;
+    }
+    toast(t.dashboard.markedPaid, 'success');
+    await refetchOrder(order.id);
+    router.refresh();
   }
 
   async function cancel(order: OrderRow) {
@@ -227,6 +292,7 @@ export function LiveOrdersPanel({
       return;
     }
     setOrders((current) => current.filter((o) => o.id !== order.id));
+    router.refresh();
   }
 
   async function attend(call: CallRow) {
@@ -352,29 +418,62 @@ export function LiveOrdersPanel({
                   </span>
                 </div>
 
-                <div className="mt-4 flex gap-2">
-                  {target && (
+                <div className="mt-4 space-y-2">
+                  <div className="flex gap-2">
+                    {target && (
+                      <button
+                        type="button"
+                        onClick={() => advance(order)}
+                        disabled={busy === order.id}
+                        className={cn(
+                          'btn flex-1 text-white',
+                          order.status === 'pending' ? 'bg-state-success' : 'bg-brand',
+                        )}
+                      >
+                        {ACTION_LABEL[target] ?? t.common.confirm}
+                      </button>
+                    )}
+
                     <button
                       type="button"
-                      onClick={() => advance(order)}
-                      disabled={busy === order.id}
-                      className={cn(
-                        'btn flex-1 text-white',
-                        order.status === 'pending' ? 'bg-state-success' : 'bg-brand',
-                      )}
+                      onClick={() => print(toTicket(order, currency, currencyDecimals))}
+                      title={t.dashboard.printTicket}
+                      aria-label={t.dashboard.printTicket}
+                      className="btn border border-surface-line text-ink-500 hover:bg-surface-field"
                     >
-                      {ACTION_LABEL[target] ?? t.common.confirm}
+                      <Printer className="h-4 w-4" />
                     </button>
-                  )}
-                  {order.status === 'pending' && (
-                    <button
-                      type="button"
-                      onClick={() => cancel(order)}
-                      disabled={busy === order.id}
-                      className="btn border border-state-danger/40 text-state-danger"
-                    >
-                      {t.dashboard.rejectOrder}
-                    </button>
+                  </div>
+
+                  <div className="flex gap-2">
+                    {order.type === 'dine_in' && order.paymentStatus !== 'paid' && (
+                      <button
+                        type="button"
+                        onClick={() => markPaid(order)}
+                        disabled={busy === order.id}
+                        className="btn flex-1 border border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                      >
+                        {t.dashboard.markPaid}
+                      </button>
+                    )}
+
+                    {canCancel(order.status) && (
+                      <button
+                        type="button"
+                        onClick={() => cancel(order)}
+                        disabled={busy === order.id}
+                        className="btn flex-1 border border-state-danger/40 text-state-danger hover:bg-red-50"
+                      >
+                        <XCircle className="h-4 w-4" />
+                        {t.dashboard.cancelOrder}
+                      </button>
+                    )}
+                  </div>
+
+                  {!canCancel(order.status) && order.status !== 'completed' && (
+                    <p className="text-center text-[11px] text-ink-300">
+                      {t.dashboard.cannotCancelInKitchen}
+                    </p>
                   )}
                 </div>
               </li>

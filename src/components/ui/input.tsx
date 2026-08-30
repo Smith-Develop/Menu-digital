@@ -127,14 +127,19 @@ export function Switch({
         disabled={disabled}
         onClick={() => onChange(!checked)}
         className={cn(
-          'relative h-6 w-11 shrink-0 rounded-full transition-colors',
+          'relative h-6 w-11 shrink-0 overflow-hidden rounded-full p-0 transition-colors',
           checked ? 'bg-brand' : 'bg-surface-line',
         )}
       >
+        {/*
+          `left` explícito: sin él la posición estática de un absoluto dentro de
+          un <button> depende de cómo el navegador alinee su contenido, y la
+          bolita acababa saliéndose y tapando la etiqueta de al lado.
+        */}
         <span
           className={cn(
-            'absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform',
-            checked ? 'translate-x-[22px]' : 'translate-x-0.5',
+            'absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200',
+            checked ? 'translate-x-5' : 'translate-x-0',
           )}
         />
       </button>

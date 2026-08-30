@@ -1,6 +1,11 @@
 import { requireStaffContext, daysUntil, subscriptionIsLive } from '@/lib/auth';
 import { getI18n } from '@/i18n';
 import { DashboardShell } from '@/components/dashboard/shell';
+import { PrintProvider } from '@/components/dashboard/print/print-provider';
+import {
+  DEFAULT_PRINT_SETTINGS,
+  type PrintSettings,
+} from '@/components/dashboard/print/ticket';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { profile, restaurant, staffRole, subscription } = await requireStaffContext();
@@ -9,7 +14,23 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const remaining = subscription ? daysUntil(subscription.current_period_end) : null;
   const live = subscriptionIsLive(subscription);
 
+  // Los ajustes de impresión llegan como jsonb: se completan con los valores
+  // por defecto para que un campo añadido después no rompa paneles antiguos.
+  const printSettings: PrintSettings = {
+    ...DEFAULT_PRINT_SETTINGS,
+    ...((restaurant.print_settings as Partial<PrintSettings> | null) ?? {}),
+  };
+
   return (
+    <PrintProvider
+      restaurant={{
+        name: restaurant.name,
+        address: restaurant.address,
+        phone: restaurant.phone,
+        logoUrl: restaurant.logo_url,
+      }}
+      settings={printSettings}
+    >
     <DashboardShell
       restaurant={{
         id: restaurant.id,
@@ -31,5 +52,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
     >
       {children}
     </DashboardShell>
+    </PrintProvider>
   );
 }

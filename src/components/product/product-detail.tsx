@@ -8,7 +8,8 @@ import { DishViewer3D } from '@/components/product/dish-viewer-3d';
 import { QuantityStepper, Rating, Badge } from '@/components/ui/misc';
 import { Sheet } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
-import { useCart, type CartOption } from '@/lib/cart';
+import { type CartOption } from '@/lib/cart';
+import { useActiveCart } from '@/components/storefront/cart-provider';
 import { formatMoney } from '@/lib/money';
 import { useT, interpolate } from '@/i18n/provider';
 import { cn } from '@/lib/utils';
@@ -61,7 +62,8 @@ export function ProductDetail({
   const t = useT();
   const toast = useToast();
   const router = useRouter();
-  const addLine = useCart((s) => s.addLine);
+  const cart = useActiveCart();
+  const addLine = cart((s) => s.addLine);
 
   const [quantity, setQuantity] = useState(1);
   const [notes, setNotes] = useState('');

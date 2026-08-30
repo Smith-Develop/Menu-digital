@@ -1,14 +1,16 @@
 import { notFound } from 'next/navigation';
 import { getRestaurantBySlug } from '@/lib/queries/public';
-import { getTableCodeFor } from '@/lib/table-session';
+import { getSessionProfile } from '@/lib/auth';
 import { CartView } from '@/components/storefront/cart-view';
+
+export const dynamic = 'force-dynamic';
 
 export default async function CartPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const restaurant = await getRestaurantBySlug(slug);
   if (!restaurant) notFound();
 
-  const tableCode = await getTableCodeFor(slug);
+  const profile = await getSessionProfile();
 
   return (
     <CartView
@@ -18,7 +20,7 @@ export default async function CartPage({ params }: { params: Promise<{ slug: str
       deliveryFeeCents={restaurant.delivery_fee_cents}
       minOrderCents={restaurant.min_order_cents}
       taxRate={Number(restaurant.tax_rate)}
-      inTable={Boolean(tableCode)}
+      isSignedIn={Boolean(profile)}
       allows={{
         dineIn: restaurant.dinein_enabled,
         delivery: restaurant.delivery_enabled,

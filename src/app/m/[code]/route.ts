@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getTableByCode } from '@/lib/queries/public';
 import { tableCookieName } from '@/lib/table-session';
+import { BROWSE_COOKIE } from '@/lib/store-context';
 import { originFromRequest } from '@/lib/request-url';
 
 /**
@@ -27,6 +28,14 @@ export async function GET(
 
   const { table, restaurant } = found;
   const response = NextResponse.redirect(new URL(`/r/${restaurant.slug}`, origin));
+
+  // Quien escanea el QR está sentado en el local: su Yumi es este restaurante,
+  // no el escaparate. Se limpia cualquier rastro de navegación previa.
+  response.cookies.set(BROWSE_COOKIE, 'store', {
+    path: '/',
+    maxAge: 60 * 60 * 6,
+    sameSite: 'lax',
+  });
 
   response.cookies.set(tableCookieName(restaurant.slug), table.code, {
     path: '/',
