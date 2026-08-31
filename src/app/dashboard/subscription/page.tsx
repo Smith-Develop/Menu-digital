@@ -12,7 +12,7 @@ export default async function SubscriptionPage({
 }: {
   searchParams: Promise<{ payment?: string }>;
 }) {
-  const { restaurant, subscription } = await requireSection('subscription');
+  const { restaurant, subscription, profile } = await requireSection('subscription');
   const { t } = await getI18n();
   const { payment } = await searchParams;
   const supabase = await createServerSupabase();
@@ -33,6 +33,7 @@ export default async function SubscriptionPage({
 
       <SubscriptionView
         stripeEnabled={stripeEnv.isConfigured}
+        isSuperadmin={profile.role === 'superadmin'}
         paymentResult={payment === 'success' ? 'success' : payment === 'cancelled' ? 'cancelled' : null}
         current={
           subscription

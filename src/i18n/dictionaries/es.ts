@@ -312,6 +312,8 @@ const es = {
     changeAddress: 'Cambiar',
   },
   order: {
+    deliveredBy: 'Entregado por',
+    atTheVenue: 'En el local',
     trackTitle: 'Seguimiento del pedido',
     orderCode: 'Pedido',
     myOrders: 'Mis pedidos',
@@ -412,6 +414,11 @@ const es = {
     invitationNoEmail: 'Invitación creada. Copia el enlace y pásaselo tú',
   },
   courier: {
+    deliveriesLabel: 'Entregas',
+    ratingLabel: 'Valoración',
+    courierCard: 'Ficha del repartidor',
+    deliveryHistory: 'Historial de entregas',
+    noDeliveries: 'Todavía no ha entregado ningún pedido',
     editCourier: 'Editar repartidor',
     courierSaved: 'Repartidor actualizado',
     title: 'Repartos',
@@ -730,6 +737,21 @@ const es = {
     changePhoto: 'Cambiar foto',
     deliveryAddress: 'Dirección de entrega',
     deliveryAddressHint: 'La usaremos como dirección por defecto en tus pedidos',
+  },
+  floor: {
+    busyOne: 'Ocupada',
+    freeOne: 'Libre',
+    callBody: 'La {table} te reclama',
+    title: 'Sala',
+    hint: 'Mesas ocupadas y libres, quién las atiende y lo que llevan pedido',
+    busy: 'Ocupadas',
+    free: 'Libres',
+    mine: 'Mías',
+    seats: 'plazas',
+    noTables: 'Todavía no hay mesas',
+    assignedWaiter: 'Camarero asignado',
+    noWaiter: 'Sin asignar',
+    orderForTable: 'Pedir para esta mesa',
   },
 } as const;
 

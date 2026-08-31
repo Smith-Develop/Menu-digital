@@ -4,7 +4,11 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Bike, Receipt, Store, UtensilsCrossed } from 'lucide-react';
 import { Badge, EmptyState } from '@/components/ui/misc';
-import { LiveOrdersPanel, type OrderRow } from '@/components/dashboard/live-orders-panel';
+import {
+  LiveOrdersPanel,
+  type OrderRow,
+  type CallRow,
+} from '@/components/dashboard/live-orders-panel';
 import { formatMoney } from '@/lib/money';
 import type { SoundSettings } from '@/lib/sounds';
 import { formatDateTime } from '@/lib/utils';
@@ -23,6 +27,7 @@ export function OrdersBoard({
   currency,
   currencyDecimals,
   sounds,
+  calls,
   orders,
   showHistory,
 }: {
@@ -30,6 +35,7 @@ export function OrdersBoard({
   currency: string;
   currencyDecimals: number;
   sounds: SoundSettings;
+  calls: CallRow[];
   orders: OrderRow[];
   showHistory: boolean;
   staffRole?: Enums<'staff_role'>;
@@ -51,7 +57,7 @@ export function OrdersBoard({
           currencyDecimals={currencyDecimals}
           sounds={sounds}
           initialOrders={orders}
-          initialCalls={[]}
+          initialCalls={calls}
         />
       ) : orders.length === 0 ? (
         <EmptyState
@@ -68,6 +74,7 @@ export function OrdersBoard({
                 <th className="px-5 py-3 font-bold">{t.common.date}</th>
                 <th className="px-5 py-3 font-bold">{t.cart.orderType}</th>
                 <th className="px-5 py-3 font-bold">{t.checkout.paymentMethod}</th>
+                <th className="px-5 py-3 font-bold">{t.order.deliveredBy}</th>
                 <th className="px-5 py-3 font-bold">{t.common.status}</th>
                 <th className="px-5 py-3 text-right font-bold">{t.common.total}</th>
               </tr>
@@ -101,6 +108,22 @@ export function OrdersBoard({
                             ? t.checkout.tpv
                             : t.checkout.card}
                       </td>
+                      <td className="px-5 py-3.5 text-ink-400">
+                        {order.courierName ? (
+                          <span className="block font-semibold text-ink-600">
+                            {order.courierName}
+                          </span>
+                        ) : order.type === 'delivery' ? (
+                          <span className="text-ink-300">—</span>
+                        ) : (
+                          <span className="text-ink-300">{t.order.atTheVenue}</span>
+                        )}
+                        {order.completedAt && (
+                          <span className="block text-xs">
+                            {formatDateTime(order.completedAt, locale)}
+                          </span>
+                        )}
+                      </td>
                       <td className="px-5 py-3.5">
                         <Badge tone={order.status === 'cancelled' ? 'danger' : 'success'}>
                           {t.order.status[order.status]}
@@ -112,7 +135,7 @@ export function OrdersBoard({
                     </tr>
                     {open && (
                       <tr key={`${order.id}-detail`} className="bg-surface-soft">
-                        <td colSpan={6} className="px-5 py-4">
+                        <td colSpan={7} className="px-5 py-4">
                           <ul className="space-y-1.5">
                             {order.items.map((item) => (
                               <li key={item.id} className="flex gap-2 text-sm">

@@ -1398,6 +1398,8 @@ export type Database = {
           is_active: boolean;
           created_at: string;
           updated_at: string;
+          assigned_waiter_id: string | null;
+          assigned_at: string | null;
         };
         Insert: {
           id?: string;
@@ -1409,6 +1411,8 @@ export type Database = {
           is_active?: boolean;
           created_at?: string;
           updated_at?: string;
+          assigned_waiter_id?: string | null;
+          assigned_at?: string | null;
         };
         Update: {
           id?: string;
@@ -1420,6 +1424,8 @@ export type Database = {
           is_active?: boolean;
           created_at?: string;
           updated_at?: string;
+          assigned_waiter_id?: string | null;
+          assigned_at?: string | null;
         };
         Relationships: [];
       };
@@ -1526,6 +1532,7 @@ export type Database = {
       assign_order_courier: { Args: { p_order_id: string; p_courier_id: string }; Returns: Json };
       platform_stats: { Args: { p_days?: number }; Returns: Json };
       restaurant_analytics: { Args: { p_restaurant_id: string; p_from: string; p_to: string }; Returns: Json };
+      floor_status: { Args: { p_restaurant_id: string }; Returns: Json };
       is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };
       is_staff_of: { Args: { rid: string }; Returns: boolean };
     };

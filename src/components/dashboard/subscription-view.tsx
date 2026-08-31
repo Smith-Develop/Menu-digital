@@ -46,12 +46,15 @@ type Payment = {
 
 export function SubscriptionView({
   stripeEnabled,
+  isSuperadmin = false,
   paymentResult,
   current,
   plans,
   payments,
 }: {
   stripeEnabled: boolean;
+  /** Sólo a la plataforma le toca configurar la pasarela de pago. */
+  isSuperadmin?: boolean;
   paymentResult: 'success' | 'cancelled' | null;
   current: Current | null;
   plans: Plan[];
@@ -149,7 +152,10 @@ export function SubscriptionView({
         )}
       </section>
 
-      {!stripeEnabled && (
+      {/* El aviso de configuración es para quien puede resolverlo. Un
+          restaurante no tiene acceso al entorno del servidor, así que sólo le
+          servía para preocuparse por algo que no está en su mano. */}
+      {!stripeEnabled && isSuperadmin && (
         <div className="flex items-start gap-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-800">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <p>

@@ -115,25 +115,27 @@ export function InstallPrompt({ appName }: { appName: string }) {
     <div className="fixed inset-x-0 bottom-0 z-[80] px-4 pb-[calc(1rem+var(--safe-bottom))] lg:left-auto lg:right-6 lg:w-96">
       <div className="flex items-center gap-3 rounded-2xl bg-ink px-4 py-3.5 text-white shadow-card">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand text-brand-contrast">
-          {showIosHint ? <Share className="h-5 w-5" /> : <Download className="h-5 w-5" />}
+          {deferred ? <Download className="h-5 w-5" /> : <Share className="h-5 w-5" />}
         </span>
 
         <div className="min-w-0 flex-1">
           <p className="text-sm font-bold">{t.pwa.installTitle.replace('{app}', appName)}</p>
           <p className="mt-0.5 text-xs text-white/65">
-            {showIosHint ? t.pwa.iosHint : t.pwa.installHint}
+            {deferred ? t.pwa.installHint : t.pwa.iosHint}
           </p>
         </div>
 
         {/* El botón está siempre. En iOS no existe forma de lanzar la
             instalación desde la página, así que allí abre los pasos a seguir:
             dejar sólo la frase suelta hacía que pareciera que faltaba algo. */}
+        {/* Si el navegador sabe instalar, manda su diálogo: los pasos manuales
+            son el recurso de iOS, donde esa API no existe. */}
         <button
           type="button"
-          onClick={showIosHint ? () => setShowSteps(true) : install}
+          onClick={deferred ? install : () => setShowSteps(true)}
           className="shrink-0 rounded-xl bg-brand px-4 py-2 text-xs font-bold text-brand-contrast"
         >
-          {showIosHint ? t.pwa.howTo : t.pwa.install}
+          {t.pwa.install}
         </button>
 
         <button

@@ -110,6 +110,19 @@ export async function sendOrderPush(orderId: string, payload: PushPayload): Prom
   return deliver([...found.values()], payload);
 }
 
+/** Avisa a los dispositivos de una persona concreta. */
+export async function sendUserPush(userId: string, payload: PushPayload): Promise<number> {
+  if (!pushEnv.isConfigured) return 0;
+  const service = createAdminSupabase();
+
+  const { data } = await service
+    .from('push_subscriptions')
+    .select('id, endpoint, p256dh, auth')
+    .eq('user_id', userId);
+
+  return deliver(data ?? [], payload);
+}
+
 /** Avisos del superadmin: a todo el mundo o sólo a determinadas ciudades. */
 export async function sendBroadcastPush(
   payload: PushPayload,

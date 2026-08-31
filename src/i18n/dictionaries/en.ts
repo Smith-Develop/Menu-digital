@@ -314,6 +314,8 @@ const en: Dictionary = {
     changeAddress: 'Change',
   },
   order: {
+    deliveredBy: 'Delivered by',
+    atTheVenue: 'At the venue',
     trackTitle: 'Track order',
     orderCode: 'Order',
     myOrders: 'My orders',
@@ -414,6 +416,11 @@ const en: Dictionary = {
     invitationNoEmail: 'Invitation created. Copy the link and share it yourself',
   },
   courier: {
+    deliveriesLabel: 'Deliveries',
+    ratingLabel: 'Rating',
+    courierCard: 'Courier card',
+    deliveryHistory: 'Delivery history',
+    noDeliveries: 'No deliveries yet',
     editCourier: 'Edit courier',
     courierSaved: 'Courier updated',
     title: 'Deliveries',
@@ -731,6 +738,21 @@ const en: Dictionary = {
     changePhoto: 'Change photo',
     deliveryAddress: 'Delivery address',
     deliveryAddressHint: 'We will use it as the default address for your orders',
+  },
+  floor: {
+    busyOne: 'Busy',
+    freeOne: 'Free',
+    callBody: '{table} is asking for you',
+    title: 'Floor',
+    hint: 'Busy and free tables, who is serving them and what they ordered',
+    busy: 'Busy',
+    free: 'Free',
+    mine: 'Mine',
+    seats: 'seats',
+    noTables: 'No tables yet',
+    assignedWaiter: 'Assigned waiter',
+    noWaiter: 'Unassigned',
+    orderForTable: 'Order for this table',
   },
 
 };

@@ -5,7 +5,12 @@ import { z } from 'zod';
 import { isoDateTime } from '@/lib/validation';
 import { createServerSupabase, createPublicSupabase, createAdminSupabase } from '@/lib/supabase/server';
 import { requireStaffContext } from '@/lib/auth';
-import { canManageMenu, canManageStaff, canManageSettings } from '@/lib/auth-permissions';
+import {
+  canManageMenu,
+  canManageStaff,
+  canManageSettings,
+  canAccessSection,
+} from '@/lib/auth-permissions';
 import { tableCode as makeTableCode } from '@/lib/utils';
 import { getCurrency } from '@/lib/money';
 import { sendMail } from '@/lib/mailer';
@@ -961,5 +966,67 @@ export async function updateStaffMember(
   }
 
   revalidatePath('/dashboard/staff');
+  return { ok: true };
+}
+
+// ================================= Sala ==================================
+
+/**
+ * Asigna —o retira— el camarero que atiende una mesa.
+ *
+ * A partir de ese momento los avisos de esa mesa le llegan también a su móvil,
+ * además de sonar en la comanda principal.
+ */
+export async function assignTableWaiter(
+  tableId: string,
+  waiterId: string | null,
+): Promise<Result> {
+  const context = await requireStaffContext();
+  if (!canAccessSection('floor', context.staffRole)) return fail('FORBIDDEN');
+
+  const supabase = await createServerSupabase();
+
+  // El camarero ha de ser del equipo: sin esta comprobación se podría apuntar
+  // a cualquier usuario de la plataforma como responsable de una mesa.
+  if (waiterId) {
+    const { data: miembro } = await supabase
+      .from('restaurant_staff')
+      .select('id')
+      .eq('restaurant_id', context.restaurant.id)
+      .eq('user_id', waiterId)
+      .maybeSingle();
+    if (!miembro) return fail('NOT_IN_TEAM');
+  }
+
+  const { error } = await supabase
+    .from('tables')
+    .update({
+      assigned_waiter_id: waiterId,
+      assigned_at: waiterId ? new Date().toISOString() : null,
+    })
+    .eq('id', tableId)
+    .eq('restaurant_id', context.restaurant.id);
+
+  if (error) return fail(error.message);
+
+  revalidatePath('/dashboard/floor');
+  return { ok: true };
+}
+
+/** Da por atendido un aviso de mesa. */
+export async function attendCall(callId: string): Promise<Result> {
+  const context = await requireStaffContext();
+  const supabase = await createServerSupabase();
+
+  const { error } = await supabase
+    .from('waiter_calls')
+    .update({ attended_at: new Date().toISOString(), status: 'attended' })
+    .eq('id', callId)
+    .eq('restaurant_id', context.restaurant.id);
+
+  if (error) return fail(error.message);
+
+  revalidatePath('/dashboard/floor');
+  revalidatePath('/dashboard');
   return { ok: true };
 }

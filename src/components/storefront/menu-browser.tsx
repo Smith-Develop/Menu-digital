@@ -77,7 +77,11 @@ export function MenuBrowser({
 
   return (
     <>
-      <div className="sticky top-[57px] z-20 bg-white/95 px-5 py-3 backdrop-blur lg:top-[65px] lg:rounded-t-sheet">
+      {/* `top-0`, no la altura de la cabecera: esta barra vive dentro del
+          contenedor que hace el desplazamiento, y ese contenedor ya empieza
+          debajo de la cabecera. Descontarla otra vez dejaba la barra flotando
+          con un hueco blanco encima. */}
+      <div className="sticky top-0 z-20 bg-white/95 px-5 py-3 backdrop-blur lg:rounded-t-sheet">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
           <input

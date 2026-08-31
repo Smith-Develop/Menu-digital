@@ -38,6 +38,8 @@ export default async function DashboardCouriersPage() {
       </div>
 
       <CouriersManager
+        currency={restaurant.currency}
+        currencyDecimals={restaurant.currency_decimals}
         members={(links ?? []).flatMap((link) => {
           const courier = courierById.get(link.courier_id);
           if (!courier) return [];

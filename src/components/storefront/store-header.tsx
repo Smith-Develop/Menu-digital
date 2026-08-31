@@ -49,8 +49,8 @@ export function StoreHeader({
   const backLabel = pathname.includes('/p/') ? t.product.details : null;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-surface-line bg-white/95 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-[480px] items-center gap-3 px-4 py-3 lg:max-w-6xl lg:px-8">
+    <header className="sticky top-0 z-40 h-16 border-b border-surface-line bg-white/95 backdrop-blur">
+      <div className="mx-auto flex h-full w-full max-w-[480px] items-center gap-3 px-4 lg:max-w-6xl lg:px-8">
         {showBack ? (
           <button
             type="button"

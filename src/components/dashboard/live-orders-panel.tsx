@@ -53,6 +53,7 @@ export type OrderRow = {
   tableName: string | null;
   courierId: string | null;
   courierName: string | null;
+  completedAt: string | null;
   notes: string | null;
   createdAt: string;
   items: {

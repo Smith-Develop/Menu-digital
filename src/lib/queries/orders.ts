@@ -37,6 +37,7 @@ export function mapOrderRow(
     courierName,
     notes: order.notes,
     createdAt: order.created_at,
+    completedAt: order.completed_at,
     items: items
       .filter((item) => item.order_id === order.id)
       .map((item) => ({

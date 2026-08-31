@@ -11,6 +11,7 @@ import { useToast } from '@/components/ui/toast';
 import { addCourierToRestaurant, removeCourierFromRestaurant } from '@/app/courier/actions';
 import { useT } from '@/i18n/provider';
 import { initials, cn } from '@/lib/utils';
+import { CourierSheet } from '@/components/dashboard/courier-sheet';
 import type { Enums } from '@/types/database';
 
 type Member = {
@@ -32,7 +33,15 @@ const VEHICLE_ICON: Record<string, typeof Bike> = {
   car: Car,
 };
 
-export function CouriersManager({ members }: { members: Member[] }) {
+export function CouriersManager({
+  members,
+  currency,
+  currencyDecimals,
+}: {
+  members: Member[];
+  currency: string;
+  currencyDecimals: number;
+}) {
   const t = useT();
   const toast = useToast();
   const router = useRouter();
@@ -41,6 +50,7 @@ export function CouriersManager({ members }: { members: Member[] }) {
   const [email, setEmail] = useState('');
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [ficha, setFicha] = useState<Member | null>(null);
 
   async function add() {
     if (!email.trim()) return;
@@ -123,9 +133,14 @@ export function CouriersManager({ members }: { members: Member[] }) {
                 key={member.linkId}
                 className="flex flex-wrap items-center gap-4 rounded-2xl bg-white p-4 shadow-chip"
               >
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-50 text-sm font-bold text-brand-700">
-                  {initials(member.name)}
-                </span>
+                <button
+                  type="button"
+                  onClick={() => setFicha(member)}
+                  className="flex min-w-0 flex-1 items-center gap-4 text-left"
+                >
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-50 text-sm font-bold text-brand-700">
+                    {initials(member.name)}
+                  </span>
 
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold text-ink-700">{member.name}</p>
@@ -134,6 +149,7 @@ export function CouriersManager({ members }: { members: Member[] }) {
                     {member.phone && ` · ${member.phone}`}
                   </p>
                 </div>
+                </button>
 
                 <span className="inline-flex items-center gap-1.5 text-xs text-ink-400">
                   <Icon className="h-4 w-4" />
@@ -211,6 +227,25 @@ export function CouriersManager({ members }: { members: Member[] }) {
         cancelLabel={t.common.cancel}
         loading={saving}
       />
+      <CourierSheet
+        courier={
+          ficha
+            ? {
+                courierId: ficha.courierId,
+                name: ficha.name,
+                email: ficha.email,
+                phone: ficha.phone,
+                vehicle: ficha.vehicle,
+                status: ficha.status,
+                deliveries: ficha.deliveries,
+              }
+            : null
+        }
+        onClose={() => setFicha(null)}
+        currency={currency}
+        currencyDecimals={currencyDecimals}
+      />
+
     </>
   );
 }

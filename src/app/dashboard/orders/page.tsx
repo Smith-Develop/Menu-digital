@@ -80,6 +80,22 @@ export default async function OrdersPage({
     ),
   );
 
+  // Los avisos de las mesas encabezan la pantalla: quien mira los pedidos en
+  // curso es quien tiene que atenderlos, y antes sólo aparecían en el resumen.
+  const { data: calls } = await supabase
+    .from('waiter_calls')
+    .select('*')
+    .eq('restaurant_id', restaurant.id)
+    .is('attended_at', null)
+    .order('created_at', { ascending: false })
+    .limit(10);
+
+  const callTableIds = [...new Set((calls ?? []).map((c) => c.table_id))];
+  const { data: callTables } = callTableIds.length
+    ? await supabase.from('tables').select('id, name').in('id', callTableIds)
+    : { data: [] };
+  const callTableNames = new Map((callTables ?? []).map((tb) => [tb.id, tb.name]));
+
   const { data: platform } = await supabase
     .from('app_settings')
     .select('sound_settings')
@@ -96,6 +112,13 @@ export default async function OrdersPage({
 
       <OrdersBoard
         sounds={sounds}
+        calls={(calls ?? []).map((c) => ({
+          id: c.id,
+          type: c.type,
+          tableId: c.table_id,
+          tableName: callTableNames.get(c.table_id) ?? null,
+          createdAt: c.created_at,
+        }))}
         restaurantId={restaurant.id}
         currency={restaurant.currency}
         currencyDecimals={restaurant.currency_decimals}

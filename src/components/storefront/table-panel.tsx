@@ -14,6 +14,7 @@ import {
 import { Badge, EmptyState } from '@/components/ui/misc';
 import { useToast } from '@/components/ui/toast';
 import { createClient } from '@/lib/supabase/client';
+import { callWaiter } from '@/app/actions/table';
 import { formatMoney } from '@/lib/money';
 import { formatTime, cn } from '@/lib/utils';
 import { useI18n } from '@/i18n/provider';
@@ -148,10 +149,8 @@ export function TablePanel({
     setPending(type);
     try {
       const supabase = createClient();
-      const { error } = await supabase.rpc('call_waiter', {
-        p_table_code: tableCode,
-        p_type: type,
-      });
+      const result = await callWaiter(tableCode, type);
+      const error = result.ok ? null : new Error(result.error);
 
       if (error) {
         const pendingCall = error.message.includes('CALL_ALREADY_PENDING');

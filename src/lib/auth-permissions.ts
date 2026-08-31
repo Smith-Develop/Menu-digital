@@ -38,6 +38,8 @@ const TODOS: Enums<'staff_role'>[] = ['owner', 'admin', 'manager', 'waiter', 'ki
 export const DASHBOARD_SECTIONS = {
   overview: TODOS,
   orders: TODOS,
+  // La sala es el sitio del camarero: mesas, quién las atiende y sus avisos.
+  floor: ['owner', 'admin', 'manager', 'waiter'],
   kitchen: ['owner', 'admin', 'manager', 'kitchen'],
   menu: ['owner', 'admin', 'manager'],
   tables: ['owner', 'admin', 'manager'],
