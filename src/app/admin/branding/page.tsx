@@ -45,9 +45,8 @@ export default async function BrandingPage() {
           position: slide.position,
           isActive: slide.is_active,
         }))}
+        soundsSlot={<PlatformSoundSettings initial={sounds} />}
       />
-
-      <PlatformSoundSettings initial={sounds} />
     </div>
   );
 }

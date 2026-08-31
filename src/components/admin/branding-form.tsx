@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useState, type FormEvent } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ShoppingBag } from 'lucide-react';
 import { Input, Textarea, Switch } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -15,15 +15,21 @@ import type { AuthScreens } from '@/lib/auth-screens';
 import { ImagePicker } from '@/components/ui/image-picker';
 import { OnboardingSlides, type Slide } from '@/components/admin/onboarding-slides';
 import { useT } from '@/i18n/provider';
+import { cn } from '@/lib/utils';
+
+type Pestana = 'identidad' | 'colores' | 'pantallas' | 'sonidos';
 
 export function BrandingForm({
   initial,
   initialScreens,
   slides,
+  soundsSlot,
 }: {
   initial: Brand;
   initialScreens: AuthScreens;
   slides: Slide[];
+  /** Ajustes de sonido de la plataforma, que se guardan por su cuenta. */
+  soundsSlot?: ReactNode;
 }) {
   const t = useT();
   const toast = useToast();
@@ -31,7 +37,8 @@ export function BrandingForm({
 
   const [values, setValues] = useState(initial);
   const [screens, setScreens] = useState(initialScreens);
-  const [saving, setSaving] = useState(false);
+  const [pestana, setPestana] = useState<Pestana>('identidad');
+  const [saving, setSaving] = useState<Pestana | null>(null);
 
   function set<K extends keyof Brand>(key: K, value: Brand[K]) {
     setValues((current) => ({ ...current, [key]: value }));
@@ -41,20 +48,44 @@ export function BrandingForm({
     setScreens((current) => ({ ...current, ...patch }));
   }
 
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault();
-    setSaving(true);
+  /**
+   * Guarda un bloque y sólo ese bloque.
+   *
+   * Cada pestaña manda sus propios campos: así se puede corregir un color sin
+   * arrastrar el resto de la configuración, y un fallo de validación en un
+   * sitio no impide guardar en otro.
+   */
+  async function guardar(bloque: Pestana, campos: Record<string, unknown>) {
+    setSaving(bloque);
+    const result = await updateBranding(campos);
+    setSaving(null);
 
-    const result = await updateBranding({
+    if (!result.ok) {
+      toast(t.common.error, 'error');
+      return;
+    }
+    toast(t.admin.blockSaved, 'success');
+    router.refresh();
+  }
+
+  const guardarIdentidad = () =>
+    guardar('identidad', {
       app_name: values.appName,
       tagline: values.tagline,
       description: values.description,
       logo_url: values.logoUrl,
       icon_url: values.iconUrl,
+    });
+
+  const guardarColores = () =>
+    guardar('colores', {
       primary_color: values.primaryColor,
       accent_color: values.accentColor,
       text_color: values.textColor,
+    });
 
+  const guardarPantallas = () =>
+    guardar('pantallas', {
       login_image_url: screens.loginImageUrl,
       login_title: screens.loginTitle || null,
       login_subtitle: screens.loginSubtitle || null,
@@ -65,20 +96,39 @@ export function BrandingForm({
       splash_title: screens.splashTitle || null,
       splash_subtitle: screens.splashSubtitle || null,
       splash_enabled: screens.splashEnabled,
+      splash_seconds: screens.splashSeconds,
     });
 
-    setSaving(false);
-    if (!result.ok) {
-      toast(t.common.error, 'error');
-      return;
-    }
-    toast(t.common.save, 'success');
-    router.refresh();
-  }
+  const PESTANAS: { id: Pestana; label: string }[] = [
+    { id: 'identidad', label: t.admin.tabIdentity },
+    { id: 'colores', label: t.admin.colors },
+    { id: 'pantallas', label: t.admin.authScreens },
+    ...(soundsSlot ? [{ id: 'sonidos' as const, label: t.kitchen.sounds }] : []),
+  ];
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-6 xl:grid-cols-[1fr_320px]">
+    <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
       <div className="space-y-6">
+        {/* Cada bloque se guarda por su cuenta: son ajustes que se tocan en
+            momentos distintos y mezclarlos en un único botón obligaba a
+            revisarlo todo para cambiar una sola cosa. */}
+        <div className="flex gap-1 overflow-x-auto rounded-xl bg-surface-field p-1">
+          {PESTANAS.map(({ id, label }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setPestana(id)}
+              className={cn(
+                'shrink-0 rounded-lg px-4 py-2 text-sm font-bold transition-colors',
+                pestana === id ? 'bg-white text-ink shadow-sm' : 'text-ink-400 hover:text-ink',
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {pestana === 'identidad' && (
         <section className="space-y-5 rounded-2xl bg-white p-6 shadow-chip">
           <h2 className="font-display text-base font-bold text-ink-700">{t.admin.appName}</h2>
 
@@ -126,8 +176,14 @@ export function BrandingForm({
               onChange={(url) => set('iconUrl', url)}
             />
           </div>
-        </section>
 
+          <Button size="lg" loading={saving === 'identidad'} onClick={guardarIdentidad}>
+            {t.common.save}
+          </Button>
+        </section>
+        )}
+
+        {pestana === 'colores' && (
         <section className="space-y-5 rounded-2xl bg-white p-6 shadow-chip">
           <h2 className="font-display text-base font-bold text-ink-700">{t.admin.colors}</h2>
           <div className="grid gap-5 sm:grid-cols-3">
@@ -150,8 +206,14 @@ export function BrandingForm({
               hint="Titulares"
             />
           </div>
-        </section>
 
+          <Button size="lg" loading={saving === 'colores'} onClick={guardarColores}>
+            {t.common.save}
+          </Button>
+        </section>
+        )}
+
+        {pestana === 'pantallas' && (
         <section className="space-y-6 rounded-2xl bg-white p-6 shadow-chip">
           <div>
             <h2 className="font-display text-base font-bold text-ink-700">
@@ -189,6 +251,20 @@ export function BrandingForm({
                 recommended={{ width: 1080, height: 1350 }}
               />
 
+              {clave === 'splash' && (
+                <div className="w-full max-w-[220px]">
+                  <Input
+                    type="number"
+                    min={1}
+                    max={15}
+                    label={t.admin.splashSeconds}
+                    value={screens.splashSeconds}
+                    onChange={(e) => setScreen({ splashSeconds: Number(e.target.value) })}
+                    hint={t.admin.splashSecondsHint}
+                  />
+                </div>
+              )}
+
               {clave === 'splash' && <OnboardingSlides slides={slides} />}
 
               <div className="grid gap-3 sm:grid-cols-2">
@@ -206,11 +282,14 @@ export function BrandingForm({
               </div>
             </div>
           ))}
-        </section>
 
-        <Button type="submit" size="lg" loading={saving}>
-          {t.common.save}
-        </Button>
+          <Button size="lg" loading={saving === 'pantallas'} onClick={guardarPantallas}>
+            {t.common.save}
+          </Button>
+        </section>
+        )}
+
+        {pestana === 'sonidos' && soundsSlot}
       </div>
 
       {/* Vista previa en vivo: usa las mismas variables CSS que la app real. */}
@@ -248,7 +327,7 @@ export function BrandingForm({
           </div>
         </div>
       </aside>
-    </form>
+    </div>
   );
 }
 

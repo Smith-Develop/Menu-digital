@@ -214,15 +214,23 @@ export async function addStaffByEmail(
 
 // ========================= Marca de la aplicación ========================
 
+/**
+ * Ajustes de marca.
+ *
+ * Todos los campos son opcionales porque el panel guarda por bloques: la
+ * pestaña de colores manda sólo colores y no debería tener que reenviar el
+ * nombre de la aplicación para que la validación la deje pasar. Sólo se
+ * escriben las claves que llegan.
+ */
 const brandingSchema = z.object({
-  app_name: z.string().min(1).max(40),
-  tagline: z.string().min(1).max(120),
-  description: z.string().min(1).max(400),
+  app_name: z.string().min(1).max(40).optional(),
+  tagline: z.string().min(1).max(120).optional(),
+  description: z.string().min(1).max(400).optional(),
   logo_url: z.string().url().nullable().optional(),
   icon_url: z.string().url().nullable().optional(),
-  primary_color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
-  accent_color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
-  text_color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+  primary_color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  accent_color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  text_color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
 
   // Portadas y textos de las pantallas por las que se entra a la aplicación.
   login_image_url: z.string().url().nullable().optional(),
@@ -235,6 +243,7 @@ const brandingSchema = z.object({
   splash_title: z.string().max(80).nullable().optional(),
   splash_subtitle: z.string().max(160).nullable().optional(),
   splash_enabled: z.boolean().optional(),
+  splash_seconds: z.coerce.number().int().min(1).max(15).optional(),
 });
 
 export async function updateBranding(input: unknown): Promise<Result> {
@@ -243,6 +252,9 @@ export async function updateBranding(input: unknown): Promise<Result> {
 
   const parsed = brandingSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'INVALID_INPUT' };
+
+  // Un envío vacío sería una escritura inútil que además tocaría `updated_by`.
+  if (Object.keys(parsed.data).length === 0) return { ok: true };
 
   const supabase = await createServerSupabase();
   const { error } = await supabase
