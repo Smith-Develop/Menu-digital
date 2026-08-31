@@ -67,6 +67,17 @@ export function FloorView({
     return () => clearInterval(temporizador);
   }, [router]);
 
+  async function pedirPara(mesa: FloorTable) {
+    // Sin dueño, o siendo otro quien va a tomar la comanda, la mesa cambia de
+    // manos antes de abrir la carta.
+    if (mesa.waiter_id !== currentUserId) {
+      setBusy(mesa.id);
+      await assignTableWaiter(mesa.id, currentUserId);
+      setBusy(null);
+    }
+    router.push(`/m/${mesa.code}`);
+  }
+
   async function asignar(tableId: string, waiterId: string) {
     setBusy(tableId);
     const result = await assignTableWaiter(tableId, waiterId || null);
@@ -169,11 +180,19 @@ export function FloorView({
                   </p>
                 )}
 
-                {/* Pedir por el cliente: se abre la carta ya situada en la mesa. */}
-                <Link href={`/m/${mesa.code}`} className="btn-ghost w-full text-xs">
+                {/* Pedir por el cliente: se abre la carta ya situada en la mesa.
+                    Quien lo hace se queda con la mesa, que es lo que ocurre en
+                    la práctica —quien toma la comanda la atiende— y así sus
+                    avisos le llegan sin tener que asignarse a mano. */}
+                <button
+                  type="button"
+                  onClick={() => pedirPara(mesa)}
+                  disabled={busy === mesa.id}
+                  className="btn-ghost w-full text-xs"
+                >
                   <Plus className="h-3.5 w-3.5" />
                   {t.floor.orderForTable}
-                </Link>
+                </button>
               </div>
             </li>
           );

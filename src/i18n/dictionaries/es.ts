@@ -602,6 +602,10 @@ const es = {
     apply: 'Ver',
   },
   admin: {
+    introSlides: 'Pantallas de presentación',
+    introSlidesHint: 'Las que explican la app al abrirla por primera vez. Quien ya tiene cuenta no las ve.',
+    noSlides: 'Sin pantallas de presentación',
+    position: 'Orden',
     homeBanners: 'Banners de la portada',
     homeBannersHint: 'Los tuyos conviven con los de los restaurantes. El que marques como primero abre la portada; si no eliges ciudades, manda en todas.',
     rotationSeconds: 'Segundos por banner',
@@ -740,6 +744,8 @@ const es = {
     deliveryAddressHint: 'La usaremos como dirección por defecto en tus pedidos',
   },
   floor: {
+    attend: 'Voy',
+    morePending: '{count} avisos más esperando',
     busyOne: 'Ocupada',
     freeOne: 'Libre',
     callBody: 'La {table} te reclama',

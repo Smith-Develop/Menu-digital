@@ -6,6 +6,8 @@ import { CartProvider, RestaurantSync } from '@/components/storefront/cart-provi
 import { RestaurantNav } from '@/components/storefront/restaurant-nav';
 import { StoreHeader } from '@/components/storefront/store-header';
 import { brandCssVariables } from '@/lib/brand';
+import { getStaffContext } from '@/lib/auth';
+import { canAccessSection } from '@/lib/auth-permissions';
 import type { Metadata } from 'next';
 
 export async function generateMetadata({
@@ -40,6 +42,12 @@ export default async function RestaurantLayout({
   if (!restaurant) notFound();
 
   const [tableCode, browseMode] = await Promise.all([getTableCodeFor(slug), getBrowseMode()]);
+  // Quien trabaja en la sala de este restaurante vuelve a su panel, no al
+  // escaparate: entra aquí a tomar comandas, no a mirar la competencia.
+  const staff = await getStaffContext();
+  const atiendeAqui =
+    staff?.restaurant.id === restaurant.id && canAccessSection('floor', staff.staffRole);
+
   const inTable = Boolean(tableCode);
 
   return (
@@ -76,6 +84,7 @@ export default async function RestaurantLayout({
           logoUrl={restaurant.logo_url}
           browseMode={browseMode}
           inTable={inTable}
+          staffHome={atiendeAqui ? '/dashboard/floor' : null}
         />
 
         {/*

@@ -21,11 +21,14 @@ export function Onboarding({
   brand,
   showSplash,
   splashSeconds = 3,
+  exitTo = '/',
   splash,
 }: {
   slides: OnboardingSlide[];
   brand: { appName: string; tagline: string; logoUrl: string | null; primaryColor: string };
   showSplash: boolean;
+  /** A dónde se sale al terminar: la portada, o su panel si ya tiene cuenta. */
+  exitTo?: string;
   /** Segundos que se queda la portada antes de dar paso a la presentación. */
   splashSeconds?: number;
   /** Portada de la pantalla de carga, configurable desde el panel. */
@@ -41,18 +44,21 @@ export function Onboarding({
   useEffect(() => {
     try {
       if (localStorage.getItem(SEEN_KEY)) {
-        router.replace('/login');
+        router.replace(exitTo);
         return;
       }
     } catch {
       /* almacenamiento bloqueado: se muestra igualmente */
     }
     setChecked(true);
-  }, [router]);
+  }, [router, exitTo]);
 
   useEffect(() => {
     if (phase !== 'splash' || !checked) return;
-    const timer = setTimeout(() => setPhase('slides'), Math.max(1, splashSeconds) * 1000);
+    const timer = setTimeout(
+      () => (slides.length === 0 ? finish() : setPhase('slides')),
+      Math.max(1, splashSeconds) * 1000,
+    );
     return () => clearTimeout(timer);
   }, [phase, checked, splashSeconds]);
 
@@ -62,7 +68,7 @@ export function Onboarding({
     } catch {
       /* sin persistencia volverá a aparecer, no es grave */
     }
-    router.replace('/login');
+    router.replace(exitTo);
   }
 
   function next() {
@@ -88,31 +94,50 @@ export function Onboarding({
               sizes="100vw"
               className="object-cover"
             />
-            {/* Velo oscuro: el logotipo y el lema tienen que leerse sea cual sea
-                la foto que se suba desde el panel. */}
-            <span className="absolute inset-0 bg-ink/45" />
+            {/* Velo sólo si hay texto encima: si la imagen va sola, oscurecerla
+                sería estropear justamente lo que se quiere enseñar. */}
+            {(splash?.title || splash?.subtitle) && (
+              <span className="absolute inset-0 bg-ink/45" />
+            )}
           </>
         )}
 
-        <div className="animate-scale-in relative text-center">
-          {brand.logoUrl ? (
-            <Image
-              src={brand.logoUrl}
-              alt={brand.appName}
-              width={96}
-              height={96}
-              className="mx-auto mb-6 rounded-3xl"
-            />
-          ) : (
-            <span className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-3xl bg-white/20 font-display text-4xl font-bold text-white backdrop-blur">
-              {brand.appName.charAt(0)}
-            </span>
-          )}
-          <h1 className="font-display text-4xl font-bold tracking-tight text-white">
-            {splash?.title || brand.appName}
-          </h1>
-          <p className="mt-2 text-sm text-white/80">{splash?.subtitle || brand.tagline}</p>
-        </div>
+        {!splash?.imageUrl && (
+          <div className="animate-scale-in relative text-center">
+            {brand.logoUrl ? (
+              <Image
+                src={brand.logoUrl}
+                alt={brand.appName}
+                width={96}
+                height={96}
+                className="mx-auto mb-6 rounded-3xl"
+              />
+            ) : (
+              <span className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-3xl bg-white/20 font-display text-4xl font-bold text-white backdrop-blur">
+                {brand.appName.charAt(0)}
+              </span>
+            )}
+            <h1 className="font-display text-4xl font-bold tracking-tight text-white">
+              {brand.appName}
+            </h1>
+            <p className="mt-2 text-sm text-white/80">{brand.tagline}</p>
+          </div>
+        )}
+
+        {/* Con imagen puesta manda ella sola: el título y el subtítulo se pintan
+            encima únicamente si se han escrito. */}
+        {splash?.imageUrl && (splash.title || splash.subtitle) && (
+          <div className="animate-scale-in relative text-center">
+            {splash.title && (
+              <h1 className="font-display text-4xl font-bold tracking-tight text-white drop-shadow">
+                {splash.title}
+              </h1>
+            )}
+            {splash.subtitle && (
+              <p className="mt-2 text-sm text-white/90 drop-shadow">{splash.subtitle}</p>
+            )}
+          </div>
+        )}
       </div>
     );
   }

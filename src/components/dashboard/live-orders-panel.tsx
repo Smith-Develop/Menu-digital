@@ -276,7 +276,6 @@ export function LiveOrdersPanel({
             ...current,
           ]);
           toast(`${t.table.calls}: ${table?.name ?? ''}`, 'info');
-          notify('waiterCall');
         },
       )
       .subscribe();
@@ -324,10 +323,9 @@ export function LiveOrdersPanel({
       // invocarlo más de una vez con el mismo valor, y el aviso sonaría
       // repetido. La lista de vistos vive en una referencia, que no provoca
       // re-render ni se reinicia entre ciclos.
-      const nuevos = frescos.filter((c) => !vistos.current.has(c.id));
+      // El sonido lo emite el aviso a pantalla completa del marco del panel;
+      // aquí sólo se refresca la lista para no avisar dos veces del mismo.
       vistos.current = new Set(frescos.map((c) => c.id));
-      if (nuevos.length > 0) notify('waiterCall');
-
       setCalls(frescos);
     }
 

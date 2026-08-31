@@ -9,21 +9,25 @@ export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Bienvenido' };
 
 export default async function WelcomePage() {
-  // Quien ya tiene sesión no necesita presentaciones.
-  const profile = await getSessionProfile();
-  if (profile) redirect(await resolveHomeForCurrentUser());
-
-  const [brand, screens, slides] = await Promise.all([
+  const [profile, brand, screens, slides] = await Promise.all([
+    getSessionProfile(),
     getBrand(),
     getAuthScreens(),
     getOnboardingSlides(),
   ]);
 
-  if (!screens.onboardingEnabled || slides.length === 0) redirect('/login');
+  // Quien ya tiene cuenta abierta ve la portada de bienvenida y entra: la
+  // presentación explica lo que es la aplicación y eso ya lo sabe.
+  const presentacion = profile ? [] : screens.onboardingEnabled ? slides : [];
+
+  // Sin portada que enseñar tampoco hay nada que esperar.
+  if (!screens.splashEnabled && presentacion.length === 0) {
+    redirect(profile ? await resolveHomeForCurrentUser() : '/');
+  }
 
   return (
     <Onboarding
-      slides={slides}
+      slides={presentacion}
       brand={{
         appName: brand.appName,
         tagline: brand.tagline,
@@ -31,6 +35,7 @@ export default async function WelcomePage() {
         primaryColor: brand.primaryColor,
       }}
       showSplash={screens.splashEnabled}
+      exitTo={profile ? await resolveHomeForCurrentUser() : '/'}
       splashSeconds={screens.splashSeconds}
       splash={{
         imageUrl: screens.splashImageUrl,

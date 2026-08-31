@@ -20,6 +20,11 @@ export default async function BrandingPage() {
     .select('sound_settings')
     .eq('id', true)
     .maybeSingle();
+  const { data: slidesRaw } = await supabase
+    .from('onboarding_slides')
+    .select('*')
+    .order('position');
+
   const sounds = resolveSounds(settings?.sound_settings as Partial<SoundSettings> | null, null);
 
   return (
@@ -29,7 +34,18 @@ export default async function BrandingPage() {
         <p className="mt-1 max-w-2xl text-sm text-ink-300">{t.admin.brandingHint}</p>
       </div>
 
-      <BrandingForm initialScreens={screens} initial={brand} />
+      <BrandingForm
+        initialScreens={screens}
+        initial={brand}
+        slides={(slidesRaw ?? []).map((slide) => ({
+          id: slide.id,
+          title: slide.title,
+          subtitle: slide.subtitle,
+          imageUrl: slide.image_url,
+          position: slide.position,
+          isActive: slide.is_active,
+        }))}
+      />
 
       <PlatformSoundSettings initial={sounds} />
     </div>

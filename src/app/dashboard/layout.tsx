@@ -1,6 +1,9 @@
 import { requireStaffContext, daysUntil, subscriptionIsLive } from '@/lib/auth';
 import { getI18n } from '@/i18n';
 import { DashboardShell } from '@/components/dashboard/shell';
+import { StaffAlerts } from '@/components/dashboard/staff-alerts';
+import { resolveSounds, type SoundSettings } from '@/lib/sounds';
+import { createServerSupabase } from '@/lib/supabase/server';
 import { PrintProvider } from '@/components/dashboard/print/print-provider';
 import {
   DEFAULT_PRINT_SETTINGS,
@@ -9,6 +12,17 @@ import {
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { profile, restaurant, staffRole, subscription } = await requireStaffContext();
+
+  const supabase = await createServerSupabase();
+  const { data: platform } = await supabase
+    .from('app_settings')
+    .select('sound_settings')
+    .eq('id', true)
+    .maybeSingle();
+  const sounds: SoundSettings = resolveSounds(
+    platform?.sound_settings as Partial<SoundSettings> | null,
+    restaurant.sound_settings as Partial<SoundSettings> | null,
+  );
   const { t } = await getI18n();
 
   const remaining = subscription ? daysUntil(subscription.current_period_end) : null;
@@ -50,6 +64,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
             : null
       }
     >
+      {/* Los avisos de mesa se ven en cualquier pantalla del panel, no sólo en
+          la comanda: quien esté editando la carta también tiene que enterarse. */}
+      <StaffAlerts
+        restaurantId={restaurant.id}
+        sounds={sounds}
+        onlyMyTables={staffRole === 'waiter'}
+        userId={profile.id}
+      />
+
       {children}
     </DashboardShell>
     </PrintProvider>

@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
-import { Bike, Box, ChevronLeft, Clock, Flame, Heart, ImageIcon } from 'lucide-react';
+import { Bike, Box, Clock, Flame, Heart, ImageIcon } from 'lucide-react';
 import { DishViewer3D } from '@/components/product/dish-viewer-3d';
 import { QuantityStepper, Rating, Badge } from '@/components/ui/misc';
 import { Sheet } from '@/components/ui/sheet';

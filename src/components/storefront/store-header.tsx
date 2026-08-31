@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ArrowLeft, Home, UtensilsCrossed } from 'lucide-react';
+import { ArrowLeft, Home, Users, UtensilsCrossed } from 'lucide-react';
 import Image from 'next/image';
 import { useT } from '@/i18n/provider';
 import type { BrowseMode } from '@/lib/store-context';
@@ -26,12 +26,18 @@ export function StoreHeader({
   logoUrl,
   browseMode,
   inTable,
+  staffHome,
 }: {
   slug: string;
   name: string;
   logoUrl: string | null;
   browseMode: BrowseMode;
   inTable: boolean;
+  /**
+   * Destino de quien trabaja aquí. Un camarero que entra a la carta para tomar
+   * una comanda vuelve a su sala, no al escaparate: ese no es su sitio.
+   */
+  staffHome?: string | null;
 }) {
   const t = useT();
   const router = useRouter();
@@ -76,13 +82,13 @@ export function StoreHeader({
         <span className="min-w-0 flex-1" />
 
         <Link
-          href={canGoHome ? '/' : `/r/${slug}`}
+          href={staffHome ?? (canGoHome ? '/' : `/r/${slug}`)}
           className="flex h-10 shrink-0 items-center gap-2 rounded-full bg-ink px-4 text-white transition-transform active:scale-95"
-          aria-label={canGoHome ? t.storefront.backToMarketplace : t.nav.home}
+          aria-label={staffHome ? t.floor.title : canGoHome ? t.storefront.backToMarketplace : t.nav.home}
         >
-          <Home className="h-[18px] w-[18px]" />
+          {staffHome ? <Users className="h-[18px] w-[18px]" /> : <Home className="h-[18px] w-[18px]" />}
           <span className="hidden text-sm font-bold sm:inline">
-            {canGoHome ? t.storefront.backToMarketplace : t.nav.home}
+            {staffHome ? t.floor.title : canGoHome ? t.storefront.backToMarketplace : t.nav.home}
           </span>
         </Link>
       </div>

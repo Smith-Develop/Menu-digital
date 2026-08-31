@@ -2,26 +2,28 @@
 
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useRef, useState, type FormEvent } from 'react';
-import { ImageIcon, Loader2, ShoppingBag, Trash2, Upload } from 'lucide-react';
+import { useState, type FormEvent } from 'react';
+import { ShoppingBag } from 'lucide-react';
 import { Input, Textarea, Switch } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ColorInput } from '@/components/ui/color-input';
 import { useToast } from '@/components/ui/toast';
-import { createClient } from '@/lib/supabase/client';
 import { updateBranding } from '@/app/admin/actions';
 import { brandCssVariables } from '@/lib/brand-theme';
 import type { Brand } from '@/lib/brand';
 import type { AuthScreens } from '@/lib/auth-screens';
 import { ImagePicker } from '@/components/ui/image-picker';
+import { OnboardingSlides, type Slide } from '@/components/admin/onboarding-slides';
 import { useT } from '@/i18n/provider';
 
 export function BrandingForm({
   initial,
   initialScreens,
+  slides,
 }: {
   initial: Brand;
   initialScreens: AuthScreens;
+  slides: Slide[];
 }) {
   const t = useT();
   const toast = useToast();
@@ -186,6 +188,8 @@ export function BrandingForm({
                 hint={t.admin.screenImageHint}
                 recommended={{ width: 1080, height: 1350 }}
               />
+
+              {clave === 'splash' && <OnboardingSlides slides={slides} />}
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <Input

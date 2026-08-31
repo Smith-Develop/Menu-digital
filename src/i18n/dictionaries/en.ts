@@ -604,6 +604,10 @@ const en: Dictionary = {
     apply: 'Show',
   },
   admin: {
+    introSlides: 'Intro screens',
+    introSlidesHint: 'Shown when the app is opened for the first time. People with an account skip them.',
+    noSlides: 'No intro screens',
+    position: 'Order',
     homeBanners: 'Home banners',
     homeBannersHint: 'Yours sit alongside the restaurants\u2019. The one you mark as first opens the home page; with no cities chosen, it leads everywhere.',
     rotationSeconds: 'Seconds per banner',
@@ -741,6 +745,8 @@ const en: Dictionary = {
     deliveryAddressHint: 'We will use it as the default address for your orders',
   },
   floor: {
+    attend: 'On my way',
+    morePending: '{count} more waiting',
     busyOne: 'Busy',
     freeOne: 'Free',
     callBody: '{table} is asking for you',

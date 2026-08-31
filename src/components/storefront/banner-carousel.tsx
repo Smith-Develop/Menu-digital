@@ -42,6 +42,13 @@ export function BannerCarousel({
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
 
+  // El carrusel se desplaza de forma suave, y durante ese trayecto el evento de
+  // scroll salta muchas veces con posiciones intermedias. Sin esta marca, la
+  // sincronización de los puntos leía una de esas posiciones y devolvía el
+  // índice al anterior, de modo que el paso automático se anulaba a sí mismo y
+  // el carrusel se quedaba quieto.
+  const desplazandoSolo = useRef(false);
+
   useEffect(() => {
     if (banners.length <= 1 || paused || autoPlayMs <= 0) return;
     const id = setInterval(() => setIndex((i) => (i + 1) % banners.length), autoPlayMs);
@@ -52,7 +59,14 @@ export function BannerCarousel({
     const track = trackRef.current;
     const slide = track?.children[index] as HTMLElement | undefined;
     if (!track || !slide) return;
+
+    desplazandoSolo.current = true;
     track.scrollTo({ left: slide.offsetLeft - track.offsetLeft, behavior: 'smooth' });
+
+    const fin = setTimeout(() => {
+      desplazandoSolo.current = false;
+    }, 700);
+    return () => clearTimeout(fin);
   }, [index]);
 
   if (banners.length === 0) return null;
@@ -63,6 +77,7 @@ export function BannerCarousel({
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onTouchStart={() => setPaused(true)}
+      onTouchEnd={() => setPaused(false)}
     >
       <ul
         ref={trackRef}
@@ -72,6 +87,7 @@ export function BannerCarousel({
         )}
         onScroll={(e) => {
           // Mantiene los puntos sincronizados cuando se desliza con el dedo.
+          if (desplazandoSolo.current) return;
           const track = e.currentTarget;
           const children = Array.from(track.children) as HTMLElement[];
           const nearest = children.reduce(

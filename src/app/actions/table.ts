@@ -48,12 +48,6 @@ async function notifyAssignedWaiter(tableCode: string, type: string) {
 
   if (!mesa?.assigned_waiter_id) return;
 
-  const { data: restaurante } = await service
-    .from('restaurants')
-    .select('slug')
-    .eq('id', mesa.restaurant_id)
-    .maybeSingle();
-
   const { t } = await getI18n();
   const asunto: Record<string, string> = {
     waiter: t.table.callWaiter,

@@ -726,3 +726,49 @@ export async function updateBannerRotation(seconds: number): Promise<Result> {
   revalidatePath('/');
   return { ok: true };
 }
+
+// ====================== Presentación de bienvenida =======================
+
+const slideSchema = z.object({
+  id: z.string().uuid().optional(),
+  title: z.string().min(1).max(80),
+  subtitle: z.string().max(200).nullable().optional(),
+  image_url: z.string().url().nullable().optional(),
+  position: z.coerce.number().int().min(0).default(0),
+  is_active: z.boolean().default(true),
+});
+
+/** Una de las pantallas que se enseñan al abrir la aplicación por primera vez. */
+export async function saveOnboardingSlide(input: unknown): Promise<Result> {
+  const admin = await requireAdmin();
+  if (!admin) return { ok: false, error: 'FORBIDDEN' };
+
+  const parsed = slideSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'INVALID_INPUT' };
+
+  const { id, ...values } = parsed.data;
+  const supabase = await createServerSupabase();
+
+  const { error } = id
+    ? await supabase.from('onboarding_slides').update(values).eq('id', id)
+    : await supabase.from('onboarding_slides').insert(values);
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath('/admin/branding');
+  revalidatePath('/welcome');
+  return { ok: true };
+}
+
+export async function deleteOnboardingSlide(id: string): Promise<Result> {
+  const admin = await requireAdmin();
+  if (!admin) return { ok: false, error: 'FORBIDDEN' };
+
+  const supabase = await createServerSupabase();
+  const { error } = await supabase.from('onboarding_slides').delete().eq('id', id);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath('/admin/branding');
+  revalidatePath('/welcome');
+  return { ok: true };
+}
