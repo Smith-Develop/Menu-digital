@@ -20,6 +20,9 @@ import { Badge, EmptyState } from '@/components/ui/misc';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { createClient } from '@/lib/supabase/client';
+import { deliverOrder } from '@/app/actions/delivery';
+import { CashDuePanel } from '@/components/courier/cash-due';
+import { PushPrompt } from '@/components/pwa/push-prompt';
 import { setCourierStatus } from '@/app/courier/actions';
 import { formatMoney } from '@/lib/money';
 import { minutesSince, formatTime, cn } from '@/lib/utils';
@@ -143,15 +146,22 @@ export function CourierDashboard({
 
   async function complete(order: DeliveryOrder) {
     setBusy(order.id);
-    const supabase = createClient();
-    const { error } = await supabase.rpc('courier_complete_order', { p_order_id: order.id });
+    const resultado = await deliverOrder(order.id);
     setBusy(null);
 
-    if (error) {
+    if (!resultado.ok) {
       toast(t.common.error, 'error');
       return;
     }
-    toast(t.order.status.completed, 'success');
+
+    // Cobrado en la puerta: conviene recordar cuánto se acaba de recibir, que
+    // es dinero que hay que devolver al restaurante.
+    toast(
+      resultado.cashCents > 0
+        ? `${t.courier.cashCollected}: ${formatMoney(resultado.cashCents, order.currency, order.currencyDecimals)}`
+        : t.order.status.completed,
+      'success',
+    );
     router.refresh();
   }
 
@@ -212,6 +222,17 @@ export function CourierDashboard({
       </header>
 
       <div className="mx-auto max-w-3xl space-y-8 px-5 py-7">
+        {/* Sin avisos al móvil no se entera de que le han dado un pedido, que
+            es justo para lo que trabaja con el teléfono en la mano. */}
+        <PushPrompt />
+
+        {/* El dinero que lleva encima, lo primero: es lo que tiene que cuadrar
+            al final del turno. */}
+        <CashDuePanel
+          currency={orders[0]?.currency ?? 'EUR'}
+          currencyDecimals={orders[0]?.currencyDecimals ?? 2}
+        />
+
         {mine.length > 0 && (
           <section>
             <h2 className="section-title mb-4">{t.courier.myDeliveries}</h2>

@@ -3,6 +3,7 @@ import { resolveSounds, type SoundSettings } from '@/lib/sounds';
 import { requireSection } from '@/lib/auth';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { OrdersBoard } from '@/components/dashboard/orders-board';
+import { CourierCashPanel } from '@/components/dashboard/courier-cash';
 import type { FloorTable } from '@/components/dashboard/floor-view';
 import type { OrderRow } from '@/components/dashboard/live-orders-panel';
 import { mapOrderRow } from '@/lib/queries/orders';
@@ -84,6 +85,37 @@ export default async function OrdersPage({
 
   // Los avisos de las mesas encabezan la pantalla: quien mira los pedidos en
   // curso es quien tiene que atenderlos, y antes sólo aparecían en el resumen.
+  // Efectivo cobrado en la puerta y aún no ingresado: esos pedidos siguen
+  // contando para el local aunque el cliente ya tenga su comida.
+  const { data: enCalle } = await supabase
+    .from('orders')
+    .select('courier_id, total_cents')
+    .eq('restaurant_id', restaurant.id)
+    .eq('payment_method', 'cash')
+    .eq('status', 'completed')
+    .is('cash_settled_at', null)
+    .not('courier_id', 'is', null);
+
+  const porRepartidor = new Map<string, { orders: number; cents: number }>();
+  for (const fila of enCalle ?? []) {
+    if (!fila.courier_id) continue;
+    const actual = porRepartidor.get(fila.courier_id) ?? { orders: 0, cents: 0 };
+    porRepartidor.set(fila.courier_id, {
+      orders: actual.orders + 1,
+      cents: actual.cents + fila.total_cents,
+    });
+  }
+
+  const { data: repartidores } = porRepartidor.size
+    ? await supabase.from('couriers').select('id, user_id').in('id', [...porRepartidor.keys()])
+    : { data: [] };
+  const { data: perfilesRepartidores } = (repartidores ?? []).length
+    ? await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', (repartidores ?? []).map((c) => c.user_id))
+    : { data: [] };
+
   const [{ data: mesas }, { data: equipo }] = await Promise.all([
     supabase.rpc('floor_status', { p_restaurant_id: restaurant.id }),
     supabase
@@ -125,6 +157,21 @@ export default async function OrdersPage({
   return (
     <div className="space-y-6">
       <h1 className="font-display text-2xl font-bold text-ink">{t.dashboard.floorAndOrders}</h1>
+
+      <CourierCashPanel
+        currency={restaurant.currency}
+        currencyDecimals={restaurant.currency_decimals}
+        pending={(repartidores ?? []).map((courier) => {
+          const persona = (perfilesRepartidores ?? []).find((p) => p.id === courier.user_id);
+          const saldo = porRepartidor.get(courier.id) ?? { orders: 0, cents: 0 };
+          return {
+            courierId: courier.id,
+            name: persona?.full_name ?? persona?.email ?? '—',
+            orders: saldo.orders,
+            cents: saldo.cents,
+          };
+        })}
+      />
 
       <OrdersBoard
         sounds={sounds}

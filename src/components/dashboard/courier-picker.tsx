@@ -8,6 +8,7 @@ import { EmptyState, Badge } from '@/components/ui/misc';
 import { useToast } from '@/components/ui/toast';
 import { createClient } from '@/lib/supabase/client';
 import { useT } from '@/i18n/provider';
+import { assignCourier } from '@/app/dashboard/actions';
 import { cn, initials } from '@/lib/utils';
 import type { Enums } from '@/types/database';
 
@@ -83,10 +84,11 @@ export function CourierPicker({
     setAssigning(courierId);
 
     const supabase = createClient();
-    const { error } = await supabase.rpc('assign_order_courier', {
-      p_order_id: orderId,
-      p_courier_id: courierId,
-    });
+    // Por la acción de servidor: además de asignar, avisa al móvil del
+    // repartidor, que si no no se entera de que tiene un pedido esperando.
+    const { ok, error } = await assignCourier(orderId, courierId).then((r) =>
+      r.ok ? { ok: true, error: null } : { ok: false, error: new Error(r.error) },
+    );
     setAssigning(null);
 
     if (error) {

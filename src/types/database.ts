@@ -729,6 +729,8 @@ export type Database = {
           coupon_id: string | null;
           coupon_code: string | null;
           waiter_id: string | null;
+          cash_settled_at: string | null;
+          cash_settled_by: string | null;
         };
         Insert: {
           id?: string;
@@ -770,6 +772,8 @@ export type Database = {
           coupon_id?: string | null;
           coupon_code?: string | null;
           waiter_id?: string | null;
+          cash_settled_at?: string | null;
+          cash_settled_by?: string | null;
         };
         Update: {
           id?: string;
@@ -811,6 +815,8 @@ export type Database = {
           coupon_id?: string | null;
           coupon_code?: string | null;
           waiter_id?: string | null;
+          cash_settled_at?: string | null;
+          cash_settled_by?: string | null;
         };
         Relationships: [];
       };
@@ -1593,6 +1599,10 @@ export type Database = {
       my_coupons: { Args: { [_ in never]: never }; Returns: Json };
       order_rating_targets: { Args: { p_order_id: string }; Returns: Json };
       table_session_alive: { Args: { p_code: string; p_session: string }; Returns: boolean };
+      courier_picked_up: { Args: { p_order_id: string }; Returns: Json };
+      courier_deliver_order: { Args: { p_order_id: string }; Returns: Json };
+      courier_cash_due: { Args: { p_courier_id?: string | null }; Returns: Json };
+      settle_courier_cash: { Args: { p_courier_id: string }; Returns: Json };
       is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };
       is_staff_of: { Args: { rid: string }; Returns: boolean };
     };

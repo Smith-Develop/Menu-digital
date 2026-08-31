@@ -20,7 +20,7 @@ import { sendPasswordResetFor } from '@/lib/password-reset';
 import { getPublicOrigin } from '@/lib/request-url';
 import { getBrand } from '@/lib/brand';
 import { getI18n } from '@/i18n';
-import { sendOrderPush } from '@/lib/push';
+import { sendOrderPush, sendUserPush } from '@/lib/push';
 import { orderPushMessage } from '@/lib/push-messages';
 
 export type Result<T = undefined> =
@@ -1081,5 +1081,83 @@ export async function endTableSession(tableId: string | null): Promise<Result> {
   }
 
   revalidatePath('/dashboard/floor');
+  return { ok: true };
+}
+
+// ============================== Reparto ==============================
+
+/**
+ * Asigna el pedido a un repartidor y le avisa al móvil.
+ *
+ * La asignación pasa por el servidor —y no por la llamada directa a la base de
+ * datos— porque avisar es parte del encargo: un repartidor que no se entera de
+ * que le han dado un pedido no va a recogerlo.
+ */
+export async function assignCourier(orderId: string, courierId: string): Promise<Result> {
+  const { context, error } = await guard('menu');
+  if (!context) return fail(error);
+
+  const supabase = await createServerSupabase();
+  const { error: rpcError } = await supabase.rpc('assign_order_courier', {
+    p_order_id: orderId,
+    p_courier_id: courierId,
+  });
+
+  if (rpcError) return fail(rpcError.message);
+
+  void notifyCourierAssigned(orderId, courierId, context.restaurant.name).catch(() => undefined);
+
+  revalidatePath('/dashboard/orders');
+  return { ok: true };
+}
+
+async function notifyCourierAssigned(orderId: string, courierId: string, restaurante: string) {
+  const service = createAdminSupabase();
+
+  const [{ data: courier }, { data: order }] = await Promise.all([
+    service.from('couriers').select('user_id').eq('id', courierId).maybeSingle(),
+    service.from('orders').select('code, address').eq('id', orderId).maybeSingle(),
+  ]);
+
+  if (!courier?.user_id) return;
+
+  const { t } = await getI18n();
+  await sendUserPush(courier.user_id, {
+    title: t.push.pickupTitle.replace('{restaurant}', restaurante),
+    body: t.push.pickupBody.replace('{code}', order?.code ?? ''),
+    url: '/courier',
+    tag: `reparto-${orderId}`,
+  });
+}
+
+/** El restaurante entrega el pedido al repartidor, que sale con él. */
+export async function markPickedUp(orderId: string): Promise<Result> {
+  const { context, error } = await guard('menu');
+  if (!context) return fail(error);
+
+  const supabase = await createServerSupabase();
+  const { error: rpcError } = await supabase.rpc('courier_picked_up', { p_order_id: orderId });
+  if (rpcError) return fail(rpcError.message);
+
+  // El cliente ve que su pedido ha salido; el aviso lo manda el mismo camino
+  // que el resto de cambios de estado.
+  await notifyOrderStatus(orderId, 'delivering', context.restaurant.name);
+
+  revalidatePath('/dashboard/orders');
+  return { ok: true };
+}
+
+/** El restaurante da por recibido el efectivo que traía un repartidor. */
+export async function settleCourierCash(courierId: string): Promise<Result> {
+  const { context, error } = await guard('menu');
+  if (!context) return fail(error);
+
+  const supabase = await createServerSupabase();
+  const { error: rpcError } = await supabase.rpc('settle_courier_cash', {
+    p_courier_id: courierId,
+  });
+  if (rpcError) return fail(rpcError.message);
+
+  revalidatePath('/dashboard/orders');
   return { ok: true };
 }

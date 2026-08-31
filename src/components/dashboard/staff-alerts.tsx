@@ -7,6 +7,7 @@ import { attendCall } from '@/app/dashboard/actions';
 import { playSound, unlockAudio, type SoundSettings } from '@/lib/sounds';
 import { subscribeToPush } from '@/lib/push-client';
 import { useT } from '@/i18n/provider';
+import { useLockScroll } from '@/lib/lock-scroll';
 import type { Enums } from '@/types/database';
 
 type Aviso = {
@@ -49,6 +50,7 @@ export function StaffAlerts({
   userId: string;
 }) {
   const t = useT();
+  useLockScroll(true);
   const [avisos, setAvisos] = useState<Aviso[]>([]);
   const [cerrando, setCerrando] = useState<string | null>(null);
   const vistos = useRef<Set<string>>(new Set());
@@ -138,7 +140,7 @@ export function StaffAlerts({
   };
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-ink/70 px-6 backdrop-blur">
+    <div className="fixed inset-0 z-[90] flex h-dvh w-full items-start justify-center overflow-y-auto bg-ink/70 p-6 backdrop-blur sm:p-10">
       <div className="w-full max-w-sm rounded-sheet bg-white p-8 text-center shadow-card animate-scale-in">
         <span className="mx-auto flex h-24 w-24 animate-pulse items-center justify-center rounded-full bg-brand text-brand-contrast">
           <Icono className="h-11 w-11" />

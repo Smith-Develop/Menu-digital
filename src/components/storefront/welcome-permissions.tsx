@@ -8,6 +8,7 @@ import { useToast } from '@/components/ui/toast';
 import { detectCity, setCustomerLocation } from '@/app/actions/location';
 import { subscribeToPush } from '@/lib/push-client';
 import { useT } from '@/i18n/provider';
+import { useLockScroll } from '@/lib/lock-scroll';
 
 const HECHO = 'yumi_permisos';
 
@@ -30,6 +31,8 @@ export function WelcomePermissions({ citySlug }: { citySlug: string | null }) {
   const [paso, setPaso] = useState<'ubicacion' | 'avisos'>('ubicacion');
   const [trabajando, setTrabajando] = useState(false);
   const [ciudad, setCiudad] = useState<string | null>(null);
+
+  useLockScroll(visible);
 
   useEffect(() => {
     try {
@@ -110,7 +113,7 @@ export function WelcomePermissions({ citySlug }: { citySlug: string | null }) {
   const enUbicacion = paso === 'ubicacion';
 
   return (
-    <div className="fixed inset-0 z-[95] flex h-dvh w-full items-end justify-center bg-ink/60 p-4 backdrop-blur-[2px] sm:items-center">
+    <div className="fixed inset-0 z-[95] flex h-dvh w-full items-start justify-center overflow-y-auto bg-ink/60 p-4 backdrop-blur-[2px] sm:p-8">
       <div className="w-full max-w-md rounded-sheet bg-white p-7 shadow-card animate-slide-up sm:animate-fade-up">
         <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-50 text-brand">
           {enUbicacion ? <MapPin className="h-8 w-8" /> : <Bell className="h-8 w-8" />}

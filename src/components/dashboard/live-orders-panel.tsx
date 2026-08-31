@@ -21,7 +21,11 @@ import { Badge, EmptyState } from '@/components/ui/misc';
 import { useToast } from '@/components/ui/toast';
 import { createClient } from '@/lib/supabase/client';
 import { playSound, unlockAudio, type SoundSettings } from '@/lib/sounds';
-import { updateOrderStatus, updateOrderPaymentStatus } from '@/app/dashboard/actions';
+import {
+  updateOrderStatus,
+  updateOrderPaymentStatus,
+  markPickedUp,
+} from '@/app/dashboard/actions';
 import { formatMoney } from '@/lib/money';
 import { formatTime, cn } from '@/lib/utils';
 import { Transcurrido } from '@/components/dashboard/elapsed';
@@ -356,6 +360,19 @@ export function LiveOrdersPanel({
     await applyStatus(order, target);
   }
 
+  async function entregarAlRepartidor(order: OrderRow) {
+    setBusy(order.id);
+    const result = await markPickedUp(order.id);
+    setBusy(null);
+
+    if (!result.ok) {
+      toast(result.error ?? t.common.error, 'error');
+      return;
+    }
+    await refetchOrder(order.id);
+    router.refresh();
+  }
+
   async function applyStatus(order: OrderRow, target: Enums<'order_status'>) {
     setBusy(order.id);
     // Vía acción de servidor: es la que dispara el aviso al móvil del cliente.
@@ -580,16 +597,30 @@ export function LiveOrdersPanel({
                 <div className="mt-4 space-y-2">
                   <div className="flex gap-2">
                     {target === 'delivering' ? (
-                      // Salir a reparto exige decidir quién lo lleva.
-                      <button
-                        type="button"
-                        onClick={() => setAssignFor(order)}
-                        disabled={busy === order.id}
-                        className="btn flex-1 bg-brand text-brand-contrast"
-                      >
-                        <Truck className="h-4 w-4" />
-                        {t.courier.sendCourier}
-                      </button>
+                      order.courierId ? (
+                        // Ya tiene repartidor: lo que falta es entregarle la
+                        // comida en mano, que es cuando el pedido sale de aquí.
+                        <button
+                          type="button"
+                          onClick={() => entregarAlRepartidor(order)}
+                          disabled={busy === order.id}
+                          className="btn flex-1 bg-brand text-brand-contrast"
+                        >
+                          <Truck className="h-4 w-4" />
+                          {t.courier.handedToCourier}
+                        </button>
+                      ) : (
+                        // Salir a reparto exige decidir quién lo lleva.
+                        <button
+                          type="button"
+                          onClick={() => setAssignFor(order)}
+                          disabled={busy === order.id}
+                          className="btn flex-1 bg-brand text-brand-contrast"
+                        >
+                          <Truck className="h-4 w-4" />
+                          {t.courier.sendCourier}
+                        </button>
+                      )
                     ) : (
                       target && (
                         <button

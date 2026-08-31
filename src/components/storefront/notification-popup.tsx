@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { useT } from '@/i18n/provider';
+import { useLockScroll } from '@/lib/lock-scroll';
 
 export type PopupNotification = {
   id: string;
@@ -34,6 +35,7 @@ function readSeen(): string[] {
  */
 export function NotificationPopup({ notifications }: { notifications: PopupNotification[] }) {
   const t = useT();
+  useLockScroll(true);
   const [current, setCurrent] = useState<PopupNotification | null>(null);
 
   useEffect(() => {
@@ -60,7 +62,7 @@ export function NotificationPopup({ notifications }: { notifications: PopupNotif
   if (!current) return null;
 
   return (
-    <div className="fixed inset-0 z-[90] flex h-dvh w-full items-end justify-center p-4 sm:items-center">
+    <div className="fixed inset-0 z-[90] flex h-dvh w-full items-start justify-center overflow-y-auto p-4 sm:p-8">
       <button
         type="button"
         aria-label={t.common.close}

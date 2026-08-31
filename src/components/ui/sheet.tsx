@@ -38,7 +38,7 @@ export function Sheet({
   const widths = { md: 'sm:max-w-lg', lg: 'sm:max-w-2xl', xl: 'sm:max-w-4xl' };
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+    <div className="fixed inset-0 z-50 flex h-dvh w-full items-start justify-center overflow-y-auto">
       <button
         type="button"
         aria-label="Cerrar"
