@@ -28,7 +28,7 @@ export function DesktopHeader({
 
   return (
     <header className="sticky top-0 z-40 hidden border-b border-surface-line bg-white/95 backdrop-blur lg:block">
-      <div className="mx-auto flex max-w-6xl items-center gap-8 px-8 py-3.5">
+      <div className="mx-auto flex max-w-[1400px] items-center gap-8 px-8 py-3.5">
         <Link href="/" className="flex shrink-0 items-center gap-2.5">
           {brand.logoUrl ? (
             <Image src={brand.logoUrl} alt={brand.appName} width={32} height={32} className="rounded-lg" />

@@ -21,7 +21,7 @@ export default async function StorefrontLayout({ children }: { children: React.R
         isSignedIn={Boolean(profile)}
       />
 
-      <div className="mx-auto w-full max-w-[480px] flex-1 bg-white lg:max-w-6xl lg:bg-transparent lg:px-8 lg:py-8">
+      <div className="mx-auto w-full max-w-[480px] flex-1 bg-white lg:max-w-[1400px] lg:bg-transparent lg:px-10 lg:py-8">
         {children}
       </div>
 

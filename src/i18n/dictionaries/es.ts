@@ -779,6 +779,15 @@ const es = {
     courier: 'Repartidor',
     waiter: 'Camarero',
   },
+  permissions: {
+    locationTitle: '¿Dónde te lo llevamos?',
+    locationBody: 'Con tu ubicación te enseñamos solo los restaurantes que reparten en tu zona. No la guardamos: sólo la usamos para saber tu ciudad.',
+    locationCta: 'Usar mi ubicación',
+    notificationsTitle: 'Te avisamos de tu pedido',
+    notificationsBody: 'Un aviso en el móvil cuando el restaurante lo acepte, cuando salga y cuando llegue. Nada más.',
+    notificationsCta: 'Activar avisos',
+    later: 'Ahora no',
+  },
 } as const;
 
 export default es;

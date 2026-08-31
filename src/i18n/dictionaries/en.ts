@@ -780,6 +780,15 @@ const en: Dictionary = {
     courier: 'Courier',
     waiter: 'Waiter',
   },
+  permissions: {
+    locationTitle: 'Where should we take it?',
+    locationBody: 'With your location we only show restaurants that deliver to your area. We do not store it: we just use it to find your city.',
+    locationCta: 'Use my location',
+    notificationsTitle: 'We will keep you posted',
+    notificationsBody: 'A phone alert when the restaurant accepts your order, when it leaves and when it arrives. Nothing else.',
+    notificationsCta: 'Turn on alerts',
+    later: 'Not now',
+  },
 
 };
 

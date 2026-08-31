@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Bell, BellOff, BellRing } from 'lucide-react';
 import { useT } from '@/i18n/provider';
+import { subscribeToPush } from '@/lib/push-client';
 import { cn } from '@/lib/utils';
 
 /** Base64 de la clave VAPID al formato que espera el navegador. */
@@ -33,27 +34,6 @@ async function activeRegistration(): Promise<ServiceWorkerRegistration | null> {
   ]);
 }
 
-/** Alta del dispositivo (y, si procede, del pedido) en el servidor. */
-async function postSubscription(
-  subscription: PushSubscription,
-  orderId: string | undefined,
-  citySlug: string | null | undefined,
-): Promise<boolean> {
-  const json = subscription.toJSON() as { endpoint?: string; keys?: Record<string, string> };
-  const response = await fetch('/api/push/subscribe', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      endpoint: json.endpoint,
-      keys: json.keys,
-      citySlug: citySlug ?? null,
-      locale: document.documentElement.lang || 'es',
-      orderId,
-    }),
-  });
-  return response.ok;
-}
-
 type State = 'unsupported' | 'idle' | 'granted' | 'denied' | 'working';
 
 /**
@@ -75,8 +55,8 @@ export function PushPrompt({
   const t = useT();
   const [state, setState] = useState<State>('idle');
 
-  const link = (subscription: PushSubscription, order: string) =>
-    postSubscription(subscription, order, citySlug).catch(() => false);
+  const link = (_subscription: PushSubscription, order: string) =>
+    subscribeToPush({ orderId: order, citySlug }).catch(() => false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -130,7 +110,7 @@ export function PushPrompt({
           applicationServerKey: urlBase64ToUint8Array(key) as BufferSource,
         }));
 
-      setState((await postSubscription(subscription, orderId, citySlug)) ? 'granted' : 'idle');
+      setState((await subscribeToPush({ orderId, citySlug })) ? 'granted' : 'idle');
     } catch {
       setState('idle');
     }

@@ -12,6 +12,7 @@ import {
 import { createPublicSupabase } from '@/lib/supabase/server';
 import { PushPrompt } from '@/components/pwa/push-prompt';
 import { FirstRunRedirect } from '@/components/auth/first-run';
+import { WelcomePermissions } from '@/components/storefront/welcome-permissions';
 import { getAuthScreens } from '@/lib/auth-screens';
 import { TopBar } from '@/components/storefront/top-bar';
 import { SectionHeader, EmptyState } from '@/components/ui/misc';
@@ -185,6 +186,7 @@ export default async function MarketplacePage() {
       )}
 
       <FirstRunRedirect enabled={screens.onboardingEnabled} />
+      <WelcomePermissions citySlug={citySlug} />
 
       {/* Aquí el aviso se registra con la ciudad, que es lo que permite al
           superadmin dirigir un comunicado sólo a determinadas ciudades. */}

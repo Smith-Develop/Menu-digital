@@ -60,7 +60,7 @@ export function NotificationPopup({ notifications }: { notifications: PopupNotif
   if (!current) return null;
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-end justify-center p-4 sm:items-center">
+    <div className="fixed inset-0 z-[90] flex h-dvh w-screen items-end justify-center p-4 sm:items-center">
       <button
         type="button"
         aria-label={t.common.close}
@@ -72,7 +72,7 @@ export function NotificationPopup({ notifications }: { notifications: PopupNotif
         role="dialog"
         aria-modal="true"
         aria-labelledby="yumi-popup-title"
-        className="relative w-full max-w-sm overflow-hidden rounded-sheet bg-white shadow-card animate-slide-up sm:animate-fade-up"
+        className="relative w-full max-w-md overflow-hidden rounded-sheet bg-white shadow-card animate-slide-up sm:animate-fade-up"
       >
         <button
           type="button"

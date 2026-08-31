@@ -11,6 +11,7 @@ import {
 } from '@/components/dashboard/live-orders-panel';
 import { formatMoney } from '@/lib/money';
 import { FloorView, type FloorTable } from '@/components/dashboard/floor-view';
+import { PushPrompt } from '@/components/pwa/push-prompt';
 import type { SoundSettings } from '@/lib/sounds';
 import { formatDateTime } from '@/lib/utils';
 import { useI18n } from '@/i18n/provider';
@@ -81,6 +82,10 @@ export function OrdersBoard({
 
       {!showHistory ? (
         <>
+          {/* Quien atiende se lleva el teléfono lejos de esta pantalla: sin los
+              avisos al móvil, el sonido del panel no le alcanza. */}
+          <PushPrompt className="lg:max-w-sm" />
+
           {/* Un solo sitio para todo lo que está en marcha: las mesas del local
               y los pedidos que salen fuera. */}
           <div className="flex gap-1 overflow-x-auto rounded-xl bg-surface-field p-1 sm:w-fit">

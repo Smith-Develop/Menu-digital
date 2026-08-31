@@ -5,6 +5,7 @@ import { BellRing, Check, ConciergeBell, Droplets, HelpCircle, Receipt } from 'l
 import { createClient } from '@/lib/supabase/client';
 import { attendCall } from '@/app/dashboard/actions';
 import { playSound, unlockAudio, type SoundSettings } from '@/lib/sounds';
+import { subscribeToPush } from '@/lib/push-client';
 import { useT } from '@/i18n/provider';
 import type { Enums } from '@/types/database';
 
@@ -57,6 +58,20 @@ export function StaffAlerts({
     const habilitar = () => unlockAudio();
     window.addEventListener('pointerdown', habilitar, { once: true });
     return () => window.removeEventListener('pointerdown', habilitar);
+  }, []);
+
+  /**
+   * Registra el dispositivo para los avisos al móvil.
+   *
+   * Sin esto, un camarero que sale de la barra deja de enterarse: el sonido
+   * vive en la pantalla del panel y él se lleva el teléfono. Sólo se hace si ya
+   * concedió el permiso; pedirlo a bocajarro al abrir el panel acabaría en un
+   * rechazo que no se puede deshacer.
+   */
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
+    if (Notification.permission !== 'granted') return;
+    void subscribeToPush();
   }, []);
 
   const releer = useCallback(async () => {
