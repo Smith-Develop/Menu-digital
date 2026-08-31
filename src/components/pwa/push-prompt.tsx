@@ -3,36 +3,16 @@
 import { useEffect, useState } from 'react';
 import { Bell, BellOff, BellRing } from 'lucide-react';
 import { useT } from '@/i18n/provider';
+import { useToast } from '@/components/ui/toast';
 import { subscribeToPush } from '@/lib/push-client';
 import { cn } from '@/lib/utils';
 
-/** Base64 de la clave VAPID al formato que espera el navegador. */
-function urlBase64ToUint8Array(base64: string): Uint8Array {
-  const padding = '='.repeat((4 - (base64.length % 4)) % 4);
-  const normalised = (base64 + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const raw = window.atob(normalised);
-  return Uint8Array.from([...raw].map((char) => char.charCodeAt(0)));
-}
-
-/**
- * Devuelve el service worker listo para suscribir, registrándolo si hiciera
- * falta. `navigator.serviceWorker.ready` nunca resuelve cuando no hay ninguno
- * registrado —no rechaza, se queda esperando—, así que esperar por él a secas
- * dejaría el botón pensando indefinidamente.
- */
-async function activeRegistration(): Promise<ServiceWorkerRegistration | null> {
-  try {
-    const existing = await navigator.serviceWorker.getRegistration('/');
-    if (!existing) await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-  } catch {
-    return null;
-  }
-
-  return Promise.race([
-    navigator.serviceWorker.ready,
-    new Promise<null>((resolve) => setTimeout(() => resolve(null), 10_000)),
-  ]);
-}
+const MOTIVOS = (t: ReturnType<typeof useT>): Record<string, string> => ({
+  'sitio-inseguro': t.permissions.insecure,
+  'sin-configurar': t.permissions.notConfigured,
+  'sin-soporte': t.permissions.unsupported,
+  fallo: t.common.error,
+});
 
 type State = 'unsupported' | 'idle' | 'granted' | 'denied' | 'working';
 
@@ -53,6 +33,7 @@ export function PushPrompt({
   className?: string;
 }) {
   const t = useT();
+  const toast = useToast();
   const [state, setState] = useState<State>('idle');
 
   const link = (_subscription: PushSubscription, order: string) =>
@@ -85,39 +66,26 @@ export function PushPrompt({
   }, [orderId, citySlug]);
 
   async function enable() {
-    const key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-    if (!key) return;
-
     setState('working');
-    try {
-      const permission = await Notification.requestPermission();
-      if (permission !== 'granted') {
-        setState(permission === 'denied' ? 'denied' : 'idle');
-        return;
-      }
 
-      const registration = await activeRegistration();
-      if (!registration) {
-        setState('idle');
-        return;
-      }
+    // Todo el trabajo —permiso, service worker y alta en el servidor— vive en
+    // un solo sitio, que es el que también usan la bienvenida y el panel.
+    const resultado = await subscribeToPush({ orderId, citySlug });
 
-      const existing = await registration.pushManager.getSubscription();
-      const subscription =
-        existing ??
-        (await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(key) as BufferSource,
-        }));
-
-      const resultado = await subscribeToPush({ orderId, citySlug });
-      setState(resultado === 'ok' ? 'granted' : resultado === 'denegado' ? 'denied' : 'idle');
-    } catch {
-      setState('idle');
+    if (resultado === 'ok') {
+      setState('granted');
+      return;
     }
+    if (resultado === 'denegado') {
+      setState('denied');
+      return;
+    }
+
+    setState('idle');
+    toast(MOTIVOS(t)[resultado] ?? t.common.error, 'info');
   }
 
-  if (state === 'unsupported' || !process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) return null;
+  if (state === 'unsupported') return null;
 
   if (state === 'granted') {
     return (

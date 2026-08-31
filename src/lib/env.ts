@@ -23,7 +23,12 @@ export const env = {
  * simplemente no se ofrece activar los avisos, en vez de romperse.
  */
 export const pushEnv = {
-  publicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '',
+  // Se lee `VAPID_PUBLIC_KEY`, sin el prefijo público, precisamente para que
+  // NO se incruste al compilar: las variables `NEXT_PUBLIC_` se resuelven en
+  // tiempo de compilación y quedan congeladas también en el código del
+  // servidor, de modo que añadirlas al despliegue después no servía de nada.
+  // El navegador la pide a `/api/push/key`, que la lee de aquí en ejecución.
+  publicKey: process.env.VAPID_PUBLIC_KEY ?? process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '',
   privateKey: process.env.VAPID_PRIVATE_KEY ?? '',
   subject: process.env.VAPID_SUBJECT ?? 'mailto:noreply@nexo-app.tech',
   get isConfigured() {

@@ -33,7 +33,7 @@ export async function subscribeToPush(opciones: {
   }
   if (Notification.permission === 'denied') return 'denegado';
 
-  const clave = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const clave = await clavePublica();
   if (!clave) return 'sin-configurar';
 
   try {
@@ -71,6 +71,32 @@ export async function subscribeToPush(opciones: {
   } catch {
     return 'fallo';
   }
+}
+
+let claveEnMemoria: string | null | undefined;
+
+/**
+ * Clave pública del servidor, preguntada una sola vez por sesión.
+ *
+ * Se prefiere la del entorno si el build la incrustó, y si no se pide al
+ * servidor: así los avisos funcionan aunque las claves se hayan añadido al
+ * despliegue después de compilar.
+ */
+async function clavePublica(): Promise<string | null> {
+  const incrustada = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  if (incrustada) return incrustada;
+
+  if (claveEnMemoria !== undefined) return claveEnMemoria;
+
+  try {
+    const respuesta = await fetch('/api/push/key');
+    const datos = (await respuesta.json()) as { key: string | null };
+    claveEnMemoria = datos.key ?? null;
+  } catch {
+    claveEnMemoria = null;
+  }
+
+  return claveEnMemoria;
 }
 
 /**

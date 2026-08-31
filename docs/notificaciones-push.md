@@ -52,3 +52,25 @@ los avisos dejarán de funcionar en silencio.
 Están en el bloque `push` de los dos diccionarios (`src/i18n/dictionaries`). El
 estado `confirmed` no genera aviso a propósito: ocurre a la vez que el cliente
 hace el pedido y está mirando la pantalla.
+
+## La clave pública se lee en ejecución, no al compilar
+
+Las variables `NEXT_PUBLIC_*` se resuelven **en tiempo de compilación** y quedan
+congeladas dentro del código, también en la parte del servidor. Añadirlas al
+despliegue después de haber compilado no sirve de nada: el navegador recibe un
+valor vacío y los avisos quedan inservibles aunque el servidor tenga las claves.
+
+Por eso el servidor lee `VAPID_PUBLIC_KEY` —sin el prefijo público— y la sirve
+en `/api/push/key`, que el navegador consulta al arrancar. Así basta con
+reiniciar el despliegue tras añadir las variables, sin recompilar.
+
+El entorno necesita, entonces:
+
+```env
+VAPID_PUBLIC_KEY=BC...        # la lee el servidor en ejecución
+VAPID_PRIVATE_KEY=DH...       # sólo servidor, nunca se publica
+VAPID_SUBJECT=mailto:...      # contacto que exige el estándar
+```
+
+`NEXT_PUBLIC_VAPID_PUBLIC_KEY` sigue admitiéndose por compatibilidad, pero no
+hace falta: si está, se usa sin consultar al servidor; si no, se pregunta.
