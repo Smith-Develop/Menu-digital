@@ -18,7 +18,16 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET() {
   if (!pushEnv.isConfigured) {
-    return NextResponse.json({ key: null }, { status: 200 });
+    // Se dicen los nombres de las variables que faltan, nunca sus valores: es
+    // lo que convierte un "no funciona" en algo que se puede arreglar sin
+    // entrar a mirar el código.
+    const faltan = [
+      !pushEnv.publicKey && 'VAPID_PUBLIC_KEY',
+      !pushEnv.privateKey && 'VAPID_PRIVATE_KEY',
+    ].filter(Boolean);
+
+    return NextResponse.json({ key: null, missing: faltan });
   }
+
   return NextResponse.json({ key: pushEnv.publicKey });
 }
