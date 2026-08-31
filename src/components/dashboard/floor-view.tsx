@@ -3,11 +3,12 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { BellRing, Plus, UserRound, Users } from 'lucide-react';
+import { BellRing, LogOut, Plus, UserRound, Users } from 'lucide-react';
 import { Select } from '@/components/ui/input';
 import { Badge, EmptyState } from '@/components/ui/misc';
+import { ConfirmDialog } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
-import { assignTableWaiter } from '@/app/dashboard/actions';
+import { assignTableWaiter, endTableSession } from '@/app/dashboard/actions';
 import { formatMoney } from '@/lib/money';
 import { useI18n } from '@/i18n/provider';
 import { cn } from '@/lib/utils';
@@ -47,6 +48,8 @@ export function FloorView({
   slug,
   canAssign,
   currentUserId,
+  compact = false,
+  canEndSessions = false,
 }: {
   tables: FloorTable[];
   waiters: { id: string; name: string }[];
@@ -55,17 +58,36 @@ export function FloorView({
   slug: string;
   canAssign: boolean;
   currentUserId: string;
+  /** Junto a los pedidos, la sala se enseña resumida para no comerse la vista. */
+  compact?: boolean;
+  /** Cerrar la sesión de una mesa echa al cliente que la tuviera abierta. */
+  canEndSessions?: boolean;
 }) {
   const { t } = useI18n();
   const toast = useToast();
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
+  const [confirmarLiberar, setConfirmarLiberar] = useState<FloorTable | 'todas' | null>(null);
 
   // La sala cambia sin que nadie toque esta pantalla: entran pedidos y avisos.
   useEffect(() => {
     const temporizador = setInterval(() => router.refresh(), 20_000);
     return () => clearInterval(temporizador);
   }, [router]);
+
+  async function liberar(mesa: FloorTable | null) {
+    setBusy(mesa?.id ?? 'todas');
+    const result = await endTableSession(mesa?.id ?? null);
+    setBusy(null);
+    setConfirmarLiberar(null);
+
+    if (!result.ok) {
+      toast(result.error ?? t.common.error, 'error');
+      return;
+    }
+    toast(mesa ? t.floor.sessionEnded : t.floor.allSessionsEnded, 'success');
+    router.refresh();
+  }
 
   async function pedirPara(mesa: FloorTable) {
     // Sin dueño, o siendo otro quien va a tomar la comanda, la mesa cambia de
@@ -94,11 +116,24 @@ export function FloorView({
   const mias = tables.filter((mesa) => mesa.waiter_id === currentUserId);
 
   if (tables.length === 0) {
-    return <EmptyState icon={<Users className="h-7 w-7" />} title={t.floor.noTables} />;
+    return compact ? null : <EmptyState icon={<Users className="h-7 w-7" />} title={t.floor.noTables} />;
   }
 
   return (
     <div className="space-y-6">
+      {canEndSessions && !compact && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setConfirmarLiberar('todas')}
+            className="btn-ghost text-xs"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            {t.floor.endAllSessions}
+          </button>
+        </div>
+      )}
+
       <div className="grid grid-cols-3 gap-3">
         <Resumen valor={ocupadas.length} etiqueta={t.floor.busy} tono="brand" />
         <Resumen valor={libres.length} etiqueta={t.floor.free} tono="success" />
@@ -106,7 +141,10 @@ export function FloorView({
       </div>
 
       <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {tables.map((mesa) => {
+        {(compact
+          ? tables.filter((mesa) => mesa.orders.length > 0 || mesa.pending_calls > 0)
+          : tables
+        ).map((mesa) => {
           const ocupada = mesa.orders.length > 0;
           return (
             <li
@@ -184,20 +222,46 @@ export function FloorView({
                     Quien lo hace se queda con la mesa, que es lo que ocurre en
                     la práctica —quien toma la comanda la atiende— y así sus
                     avisos le llegan sin tener que asignarse a mano. */}
-                <button
-                  type="button"
-                  onClick={() => pedirPara(mesa)}
-                  disabled={busy === mesa.id}
-                  className="btn-ghost w-full text-xs"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  {t.floor.orderForTable}
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => pedirPara(mesa)}
+                    disabled={busy === mesa.id}
+                    className="btn-ghost flex-1 text-xs"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    {t.floor.orderForTable}
+                  </button>
+
+                  {canEndSessions && (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmarLiberar(mesa)}
+                      disabled={busy === mesa.id}
+                      aria-label={t.floor.endSession}
+                      title={t.floor.endSession}
+                      className="btn shrink-0 px-3 text-xs text-ink-300 hover:bg-red-50 hover:text-state-danger"
+                    >
+                      <LogOut className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
               </div>
             </li>
           );
         })}
       </ul>
+
+      <ConfirmDialog
+        open={confirmarLiberar !== null}
+        onClose={() => setConfirmarLiberar(null)}
+        onConfirm={() => liberar(confirmarLiberar === 'todas' ? null : confirmarLiberar)}
+        title={confirmarLiberar === 'todas' ? t.floor.endAllSessions : t.floor.endSession}
+        message={t.floor.endSessionHint}
+        confirmLabel={t.floor.endSession}
+        cancelLabel={t.common.cancel}
+        loading={busy !== null}
+      />
     </div>
   );
 }

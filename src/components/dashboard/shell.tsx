@@ -63,8 +63,7 @@ export function DashboardShell({
     // El menú enseña exactamente lo que cada rol puede abrir: la misma tabla que
     // usan las páginas para dejar entrar, así que nunca ofrecen sitios cerrados.
     { href: '/dashboard', icon: LayoutDashboard, label: t.dashboard.overview, exact: true, show: true },
-    { href: '/dashboard/orders', icon: Receipt, label: t.dashboard.liveOrders, show: puede('orders') },
-    { href: '/dashboard/floor', icon: Users, label: t.floor.title, show: puede('floor') },
+    { href: '/dashboard/orders', icon: Receipt, label: t.dashboard.floorAndOrders, show: puede('orders') },
     { href: '/dashboard/menu', icon: UtensilsCrossed, label: t.dashboard.menu, show: puede('menu') },
     { href: '/dashboard/tables', icon: QrCode, label: t.dashboard.tables, show: puede('tables') },
     { href: '/dashboard/banners', icon: ImageIcon, label: t.dashboard.banners, show: puede('banners') },

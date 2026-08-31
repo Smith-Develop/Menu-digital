@@ -10,6 +10,7 @@ import {
   type CallRow,
 } from '@/components/dashboard/live-orders-panel';
 import { formatMoney } from '@/lib/money';
+import { FloorView, type FloorTable } from '@/components/dashboard/floor-view';
 import type { SoundSettings } from '@/lib/sounds';
 import { formatDateTime } from '@/lib/utils';
 import { useI18n } from '@/i18n/provider';
@@ -30,6 +31,11 @@ export function OrdersBoard({
   calls,
   orders,
   showHistory,
+  tables,
+  waiters,
+  slug,
+  currentUserId,
+  canManageFloor,
 }: {
   restaurantId: string;
   currency: string;
@@ -38,10 +44,33 @@ export function OrdersBoard({
   calls: CallRow[];
   orders: OrderRow[];
   showHistory: boolean;
+  /** Estado de la sala: las mesas son una vista más de lo que hay en marcha. */
+  tables: FloorTable[];
+  waiters: { id: string; name: string }[];
+  slug: string;
+  currentUserId: string;
+  canManageFloor: boolean;
   staffRole?: Enums<'staff_role'>;
 }) {
   const { t, locale } = useI18n();
   const [expanded, setExpanded] = useState<string | null>(null);
+
+  // Qué se está mirando dentro de lo que está en marcha. La sala y los pedidos
+  // eran dos pantallas separadas, pero es el mismo trabajo: lo que hay abierto
+  // ahora mismo en el local y fuera de él.
+  const [vista, setVista] = useState<'todo' | 'dine_in' | 'delivery' | 'pickup'>('todo');
+
+  const visibles =
+    vista === 'todo' || vista === 'dine_in'
+      ? orders
+      : orders.filter((order) => order.type === vista);
+
+  const VISTAS = [
+    { id: 'todo' as const, label: t.common.all },
+    { id: 'dine_in' as const, label: t.floor.tables },
+    { id: 'delivery' as const, label: t.cart.delivery },
+    { id: 'pickup' as const, label: t.cart.pickup },
+  ];
 
   return (
     <>
@@ -51,14 +80,50 @@ export function OrdersBoard({
       </div>
 
       {!showHistory ? (
-        <LiveOrdersPanel
-          restaurantId={restaurantId}
-          currency={currency}
-          currencyDecimals={currencyDecimals}
-          sounds={sounds}
-          initialOrders={orders}
-          initialCalls={calls}
-        />
+        <>
+          {/* Un solo sitio para todo lo que está en marcha: las mesas del local
+              y los pedidos que salen fuera. */}
+          <div className="flex gap-1 overflow-x-auto rounded-xl bg-surface-field p-1 sm:w-fit">
+            {VISTAS.map(({ id, label }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setVista(id)}
+                className={cn(
+                  'shrink-0 rounded-lg px-4 py-2 text-sm font-bold transition-colors',
+                  vista === id ? 'bg-white text-ink shadow-sm' : 'text-ink-400 hover:text-ink',
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {(vista === 'todo' || vista === 'dine_in') && (
+            <FloorView
+              tables={tables}
+              waiters={waiters}
+              currency={currency}
+              currencyDecimals={currencyDecimals}
+              slug={slug}
+              canAssign={canManageFloor}
+              canEndSessions={canManageFloor}
+              currentUserId={currentUserId}
+              compact={vista === 'todo'}
+            />
+          )}
+
+          {vista !== 'dine_in' && (
+            <LiveOrdersPanel
+              restaurantId={restaurantId}
+              currency={currency}
+              currencyDecimals={currencyDecimals}
+              sounds={sounds}
+              initialOrders={visibles}
+              initialCalls={calls}
+            />
+          )}
+        </>
       ) : orders.length === 0 ? (
         <EmptyState
           icon={<Receipt className="h-7 w-7" />}

@@ -472,6 +472,7 @@ const en: Dictionary = {
     changeCourier: 'Change courier',
   },
   dashboard: {
+    floorAndOrders: 'Floor & orders',
     dishImageHint: 'Square with the dish centred: the menu crops it into a circle.',
     coverHint: 'Used as a fallback: if you publish banners, they head your page instead.',
     documentType: 'Document type',
@@ -749,6 +750,12 @@ const en: Dictionary = {
     deliveryAddressHint: 'We will use it as the default address for your orders',
   },
   floor: {
+    endSession: 'Release table',
+    endAllSessions: 'Release every table',
+    sessionEnded: 'Table released',
+    allSessionsEnded: 'Tables released',
+    endSessionHint: 'The session on the phone that scanned the QR will be closed. Useful when a table stays taken by a customer who already left.',
+    tables: 'Tables',
     attend: 'On my way',
     morePending: '{count} more waiting',
     busyOne: 'Busy',

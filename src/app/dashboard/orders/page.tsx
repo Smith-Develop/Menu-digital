@@ -3,6 +3,7 @@ import { resolveSounds, type SoundSettings } from '@/lib/sounds';
 import { requireSection } from '@/lib/auth';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { OrdersBoard } from '@/components/dashboard/orders-board';
+import type { FloorTable } from '@/components/dashboard/floor-view';
 import type { OrderRow } from '@/components/dashboard/live-orders-panel';
 import { mapOrderRow } from '@/lib/queries/orders';
 import type { Enums } from '@/types/database';
@@ -24,7 +25,7 @@ export default async function OrdersPage({
 }: {
   searchParams: Promise<{ view?: string }>;
 }) {
-  const { restaurant, staffRole } = await requireSection('orders');
+  const { restaurant, staffRole, profile } = await requireSection('orders');
   const { t } = await getI18n();
   const { view } = await searchParams;
   const showHistory = view === 'history';
@@ -82,6 +83,20 @@ export default async function OrdersPage({
 
   // Los avisos de las mesas encabezan la pantalla: quien mira los pedidos en
   // curso es quien tiene que atenderlos, y antes sólo aparecían en el resumen.
+  const [{ data: mesas }, { data: equipo }] = await Promise.all([
+    supabase.rpc('floor_status', { p_restaurant_id: restaurant.id }),
+    supabase
+      .from('restaurant_staff')
+      .select('user_id')
+      .eq('restaurant_id', restaurant.id)
+      .eq('is_active', true),
+  ]);
+
+  const equipoIds = (equipo ?? []).map((m) => m.user_id);
+  const { data: perfilesEquipo } = equipoIds.length
+    ? await supabase.from('profiles').select('id, full_name, email').in('id', equipoIds)
+    : { data: [] };
+
   const { data: calls } = await supabase
     .from('waiter_calls')
     .select('*')
@@ -108,10 +123,18 @@ export default async function OrdersPage({
 
   return (
     <div className="space-y-6">
-      <h1 className="font-display text-2xl font-bold text-ink">{t.dashboard.liveOrders}</h1>
+      <h1 className="font-display text-2xl font-bold text-ink">{t.dashboard.floorAndOrders}</h1>
 
       <OrdersBoard
         sounds={sounds}
+        tables={(mesas as unknown as FloorTable[] | null) ?? []}
+        waiters={(perfilesEquipo ?? []).map((p) => ({
+          id: p.id,
+          name: p.full_name ?? p.email ?? '—',
+        }))}
+        slug={restaurant.slug}
+        currentUserId={profile.id}
+        canManageFloor={staffRole !== 'waiter'}
         calls={(calls ?? []).map((c) => ({
           id: c.id,
           type: c.type,

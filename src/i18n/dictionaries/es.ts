@@ -470,6 +470,7 @@ const es = {
     changeCourier: 'Cambiar repartidor',
   },
   dashboard: {
+    floorAndOrders: 'Sala y pedidos',
     dishImageHint: 'Cuadrada y con el plato centrado: en la carta se recorta en círculo.',
     coverHint: 'Se usa como respaldo: si publicas banners, son ellos los que encabezan tu ficha.',
     documentType: 'Tipo de documento',
@@ -748,6 +749,12 @@ const es = {
     deliveryAddressHint: 'La usaremos como dirección por defecto en tus pedidos',
   },
   floor: {
+    endSession: 'Liberar mesa',
+    endAllSessions: 'Liberar todas las mesas',
+    sessionEnded: 'Mesa liberada',
+    allSessionsEnded: 'Mesas liberadas',
+    endSessionHint: 'Se cerrará la sesión del móvil que escaneó el QR. Útil cuando la mesa se queda ocupada por un cliente que ya se fue.',
+    tables: 'Mesas',
     attend: 'Voy',
     morePending: '{count} avisos más esperando',
     busyOne: 'Ocupada',

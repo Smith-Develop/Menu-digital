@@ -123,32 +123,34 @@ export function StaffAlerts({
   };
 
   return (
-    <div className="fixed inset-0 z-[90] flex flex-col items-center justify-center bg-ink/95 px-6 text-center backdrop-blur">
-      <span className="flex h-24 w-24 animate-pulse items-center justify-center rounded-full bg-brand text-brand-contrast">
-        <Icono className="h-11 w-11" />
-      </span>
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-ink/70 px-6 backdrop-blur">
+      <div className="w-full max-w-sm rounded-sheet bg-white p-8 text-center shadow-card animate-scale-in">
+        <span className="mx-auto flex h-24 w-24 animate-pulse items-center justify-center rounded-full bg-brand text-brand-contrast">
+          <Icono className="h-11 w-11" />
+        </span>
 
-      <p className="mt-7 font-display text-5xl font-bold text-white">
-        {actual.tableName ?? t.table.calls}
-      </p>
-      <p className="mt-3 text-lg text-white/80">{etiqueta[actual.type] ?? t.table.calls}</p>
-
-      {avisos.length > 1 && (
-        <p className="mt-2 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-sm text-white/70">
-          <BellRing className="h-4 w-4" />
-          {t.floor.morePending.replace('{count}', String(avisos.length - 1))}
+        <p className="mt-6 font-display text-4xl font-bold text-ink">
+          {actual.tableName ?? t.table.calls}
         </p>
-      )}
+        <p className="mt-2 text-base text-ink-400">{etiqueta[actual.type] ?? t.table.calls}</p>
 
-      <button
-        type="button"
-        onClick={() => atender(actual)}
-        disabled={cerrando === actual.id}
-        className="mt-10 flex items-center gap-2.5 rounded-full bg-white px-9 py-4 font-display text-lg font-bold text-ink transition-transform active:scale-95 disabled:opacity-60"
-      >
-        <Check className="h-5 w-5" strokeWidth={3} />
-        {t.floor.attend}
-      </button>
+        {avisos.length > 1 && (
+          <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-surface-field px-4 py-1.5 text-sm text-ink-400">
+            <BellRing className="h-4 w-4" />
+            {t.floor.morePending.replace('{count}', String(avisos.length - 1))}
+          </p>
+        )}
+
+        <button
+          type="button"
+          onClick={() => atender(actual)}
+          disabled={cerrando === actual.id}
+          className="mt-8 flex w-full items-center justify-center gap-2.5 rounded-full bg-ink px-9 py-4 font-display text-lg font-bold text-white transition-transform active:scale-95 disabled:opacity-60"
+        >
+          <Check className="h-5 w-5" strokeWidth={3} />
+          {t.floor.attend}
+        </button>
+      </div>
     </div>
   );
 }

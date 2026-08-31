@@ -1030,3 +1030,55 @@ export async function attendCall(callId: string): Promise<Result> {
   revalidatePath('/dashboard');
   return { ok: true };
 }
+
+/**
+ * Cierra la sesión de una mesa, o de todas.
+ *
+ * Renovar el turno invalida al instante la cookie que llevan los móviles que
+ * escanearon esa mesa. Normalmente eso ocurre solo al cobrar la cuenta, pero
+ * hace falta poder forzarlo: si alguien escaneó y se fue sin pedir, la mesa se
+ * queda ocupada por un cliente que ya no está y el siguiente se encuentra con
+ * la sesión del anterior.
+ *
+ * Queda para quien responde del negocio, no para toda la sala: echar por error
+ * a una mesa que está pidiendo le borra el carrito.
+ */
+export async function endTableSession(tableId: string | null): Promise<Result> {
+  const context = await requireStaffContext();
+  if (!canManageSettings(context.staffRole)) return fail('FORBIDDEN');
+
+  const supabase = await createServerSupabase();
+  const cambios = {
+    session_id: crypto.randomUUID(),
+    assigned_waiter_id: null,
+    assigned_at: null,
+  };
+
+  // Una mesa concreta o todas las del restaurante. En el segundo caso cada una
+  // necesita su propio turno: compartirlo permitiría saltar de mesa con la
+  // cookie de otra.
+  if (tableId) {
+    const { error } = await supabase
+      .from('tables')
+      .update(cambios)
+      .eq('id', tableId)
+      .eq('restaurant_id', context.restaurant.id);
+    if (error) return fail(error.message);
+  } else {
+    const { data: mesas } = await supabase
+      .from('tables')
+      .select('id')
+      .eq('restaurant_id', context.restaurant.id);
+
+    for (const mesa of mesas ?? []) {
+      const { error } = await supabase
+        .from('tables')
+        .update({ ...cambios, session_id: crypto.randomUUID() })
+        .eq('id', mesa.id);
+      if (error) return fail(error.message);
+    }
+  }
+
+  revalidatePath('/dashboard/floor');
+  return { ok: true };
+}
