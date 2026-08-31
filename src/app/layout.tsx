@@ -57,6 +57,31 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       className={`${sen.variable} ${openSans.variable}`}
       style={brandCssVariables(brand) as React.CSSProperties}
     >
+      <head>
+        {/*
+          Chrome anuncia que la aplicación se puede instalar con un evento que
+          dispara muy pronto, a menudo antes de que React haya montado nada. Si
+          se espera a un efecto para escucharlo, ese aviso ya ha pasado y no
+          vuelve: el botón de instalar se quedaba sin diálogo que abrir y sólo
+          podía ofrecer instrucciones. Por eso se atrapa aquí, en cuanto se
+          analiza el documento, y se guarda para cuando la interfaz esté lista.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.__instalable = null;
+              window.addEventListener('beforeinstallprompt', function (e) {
+                e.preventDefault();
+                window.__instalable = e;
+                window.dispatchEvent(new Event('instalable'));
+              });
+              window.addEventListener('appinstalled', function () {
+                window.__instalable = null;
+              });
+            `,
+          }}
+        />
+      </head>
       <body>
         <I18nProvider locale={locale}>
           <ToastProvider>

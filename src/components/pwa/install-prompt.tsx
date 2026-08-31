@@ -9,6 +9,8 @@ type InstallEvent = Event & {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 };
 
+type InstallWindow = Window & { __instalable?: InstallEvent | null };
+
 const DISMISSED_KEY = 'yumi_install_dismissed';
 
 function isStandalone(): boolean {
@@ -40,11 +42,17 @@ export function InstallPrompt({ appName }: { appName: string }) {
       /* almacenamiento bloqueado: mostramos igualmente */
     }
 
-    const onPrompt = (event: Event) => {
-      event.preventDefault();
-      setDeferred(event as InstallEvent);
+    // El aviso pudo llegar antes de montar este componente: lo guarda el script
+    // del documento, así que primero se mira ahí y luego se queda a la escucha
+    // por si Chrome lo emite más tarde.
+    const guardado = (window as InstallWindow).__instalable;
+    if (guardado) setDeferred(guardado);
+
+    const onPrompt = () => {
+      const evento = (window as InstallWindow).__instalable;
+      if (evento) setDeferred(evento);
     };
-    window.addEventListener('beforeinstallprompt', onPrompt);
+    window.addEventListener('instalable', onPrompt);
 
     // iOS no dispara el evento: detectamos Safari móvil para dar la instrucción.
     const ua = window.navigator.userAgent;
@@ -54,11 +62,11 @@ export function InstallPrompt({ appName }: { appName: string }) {
       const timer = setTimeout(() => setShowIosHint(true), 4000);
       return () => {
         clearTimeout(timer);
-        window.removeEventListener('beforeinstallprompt', onPrompt);
+        window.removeEventListener('instalable', onPrompt);
       };
     }
 
-    return () => window.removeEventListener('beforeinstallprompt', onPrompt);
+    return () => window.removeEventListener('instalable', onPrompt);
   }, []);
 
   function dismiss() {
@@ -73,10 +81,16 @@ export function InstallPrompt({ appName }: { appName: string }) {
 
   async function install() {
     if (!deferred) return;
+
     await deferred.prompt();
     const { outcome } = await deferred.userChoice;
-    if (outcome === 'accepted') dismiss();
+
+    // El aviso sólo se puede usar una vez: se descarta pase lo que pase, y
+    // Chrome emitirá uno nuevo si vuelve a haber ocasión.
+    (window as InstallWindow).__instalable = null;
     setDeferred(null);
+
+    if (outcome === 'accepted') dismiss();
   }
 
   if (!deferred && !showIosHint) return null;
