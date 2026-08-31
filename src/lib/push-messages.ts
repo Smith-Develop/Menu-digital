@@ -5,6 +5,7 @@ type Status =
   | 'confirmed'
   | 'preparing'
   | 'ready'
+  | 'served'
   | 'delivering'
   | 'completed'
   | 'cancelled';
@@ -27,6 +28,8 @@ export function orderPushMessage(
       return { title: push.preparingTitle, body: push.preparingBody.replace('{restaurant}', restaurantName) };
     case 'ready':
       return { title: push.readyTitle, body: push.readyBody.replace('{code}', code) };
+    case 'served':
+      return { title: push.servedTitle, body: push.servedBody };
     case 'delivering':
       return { title: push.deliveringTitle, body: push.deliveringBody };
     case 'completed':

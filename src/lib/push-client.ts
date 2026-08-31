@@ -5,27 +5,45 @@
  * la bienvenida, la ficha de un pedido y el panel del restaurante, donde al
  * camarero le tienen que llegar las llamadas de sus mesas.
  */
+export type PushOutcome =
+  | 'ok'
+  | 'sin-configurar'
+  | 'sin-soporte'
+  | 'sitio-inseguro'
+  | 'denegado'
+  | 'fallo';
+
+/**
+ * Da de alta el dispositivo y explica por qué no pudo, si no pudo.
+ *
+ * Devolver sólo un booleano dejaba al usuario ante un botón que no hacía nada
+ * visible, y las causas son bien distintas: faltan las claves del servidor, el
+ * navegador ya tiene el permiso denegado, o la página no va por HTTPS —fuera de
+ * `localhost` los navegadores ni siquiera preguntan—.
+ */
 export async function subscribeToPush(opciones: {
   citySlug?: string | null;
   orderId?: string;
-} = {}): Promise<boolean> {
-  if (typeof window === 'undefined') return false;
+} = {}): Promise<PushOutcome> {
+  if (typeof window === 'undefined') return 'fallo';
+
+  if (!window.isSecureContext) return 'sitio-inseguro';
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+    return 'sin-soporte';
+  }
+  if (Notification.permission === 'denied') return 'denegado';
 
   const clave = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-  if (!clave) return false;
-  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
-    return false;
-  }
-  if (Notification.permission === 'denied') return false;
+  if (!clave) return 'sin-configurar';
 
   try {
     if (Notification.permission !== 'granted') {
       const respuesta = await Notification.requestPermission();
-      if (respuesta !== 'granted') return false;
+      if (respuesta !== 'granted') return 'denegado';
     }
 
     const registro = await registroActivo();
-    if (!registro) return false;
+    if (!registro) return 'fallo';
 
     const existente = await registro.pushManager.getSubscription();
     const suscripcion =
@@ -49,9 +67,9 @@ export async function subscribeToPush(opciones: {
       }),
     });
 
-    return respuesta.ok;
+    return respuesta.ok ? 'ok' : 'fallo';
   } catch {
-    return false;
+    return 'fallo';
   }
 }
 

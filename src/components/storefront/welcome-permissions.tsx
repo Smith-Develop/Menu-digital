@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Bell, Check, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/toast';
 import { detectCity, setCustomerLocation } from '@/app/actions/location';
 import { subscribeToPush } from '@/lib/push-client';
 import { useT } from '@/i18n/provider';
@@ -22,6 +23,7 @@ const HECHO = 'yumi_permisos';
  */
 export function WelcomePermissions({ citySlug }: { citySlug: string | null }) {
   const t = useT();
+  const toast = useToast();
   const router = useRouter();
 
   const [visible, setVisible] = useState(false);
@@ -68,8 +70,14 @@ export function WelcomePermissions({ citySlug }: { citySlug: string | null }) {
         setTrabajando(false);
         setPaso('avisos');
       },
-      () => {
+      (error) => {
         setTrabajando(false);
+        toast(
+          error.code === error.PERMISSION_DENIED
+            ? t.permissions.locationDenied
+            : t.location.noCityNearby,
+          'info',
+        );
         setPaso('avisos');
       },
       { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 },
@@ -78,8 +86,22 @@ export function WelcomePermissions({ citySlug }: { citySlug: string | null }) {
 
   async function pedirAvisos() {
     setTrabajando(true);
-    await subscribeToPush({ citySlug });
+    const resultado = await subscribeToPush({ citySlug });
     setTrabajando(false);
+
+    // Si no se pudo, se dice por qué: un botón que no hace nada visible deja a
+    // cualquiera pensando que la aplicación está rota.
+    if (resultado !== 'ok') {
+      const motivos: Record<string, string> = {
+        denegado: t.permissions.denied,
+        'sitio-inseguro': t.permissions.insecure,
+        'sin-configurar': t.permissions.notConfigured,
+        'sin-soporte': t.permissions.unsupported,
+        fallo: t.common.error,
+      };
+      toast(motivos[resultado] ?? t.common.error, 'info');
+    }
+
     terminar();
   }
 
@@ -88,7 +110,7 @@ export function WelcomePermissions({ citySlug }: { citySlug: string | null }) {
   const enUbicacion = paso === 'ubicacion';
 
   return (
-    <div className="fixed inset-0 z-[95] flex h-dvh w-screen items-end justify-center bg-ink/60 p-4 backdrop-blur-[2px] sm:items-center">
+    <div className="fixed inset-0 z-[95] flex h-dvh w-full items-end justify-center bg-ink/60 p-4 backdrop-blur-[2px] sm:items-center">
       <div className="w-full max-w-md rounded-sheet bg-white p-7 shadow-card animate-slide-up sm:animate-fade-up">
         <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-50 text-brand">
           {enUbicacion ? <MapPin className="h-8 w-8" /> : <Bell className="h-8 w-8" />}

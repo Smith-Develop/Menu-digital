@@ -442,6 +442,7 @@ type OrderStatus =
   | 'confirmed'
   | 'preparing'
   | 'ready'
+  | 'served'
   | 'delivering'
   | 'completed'
   | 'cancelled';

@@ -21,7 +21,7 @@ import { useI18n } from '@/i18n/provider';
 import type { Enums } from '@/types/database';
 
 /** Pasos por los que pasa un pedido servido en mesa. */
-const PASOS: Enums<'order_status'>[] = ['confirmed', 'preparing', 'ready', 'completed'];
+const PASOS: Enums<'order_status'>[] = ['confirmed', 'preparing', 'ready', 'served'];
 
 /**
  * Progreso del pedido dentro de la cuenta de la mesa.
@@ -36,7 +36,8 @@ function OrderProgress({ status }: { status: Enums<'order_status'> }) {
 
   // Un pedido recién hecho aún no está confirmado: se muestra el primer paso
   // como pendiente en lugar de dejar la barra vacía.
-  const actual = status === 'pending' ? -1 : PASOS.indexOf(status);
+  const actual =
+    status === 'pending' ? -1 : status === 'completed' ? PASOS.length - 1 : PASOS.indexOf(status);
 
   return (
     <ol className="mt-3 flex items-center gap-1.5">
@@ -56,7 +57,7 @@ function OrderProgress({ status }: { status: Enums<'order_status'> }) {
                 i === actual ? 'font-bold text-brand' : 'text-ink-300',
               )}
             >
-              {paso === 'completed' ? t.table.servedAtTable : t.order.status[paso]}
+              {t.order.status[paso]}
             </span>
           </li>
         );

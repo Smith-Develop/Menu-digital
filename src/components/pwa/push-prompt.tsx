@@ -110,7 +110,8 @@ export function PushPrompt({
           applicationServerKey: urlBase64ToUint8Array(key) as BufferSource,
         }));
 
-      setState((await subscribeToPush({ orderId, citySlug })) ? 'granted' : 'idle');
+      const resultado = await subscribeToPush({ orderId, citySlug });
+      setState(resultado === 'ok' ? 'granted' : resultado === 'denegado' ? 'denied' : 'idle');
     } catch {
       setState('idle');
     }

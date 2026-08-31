@@ -23,7 +23,8 @@ import { createClient } from '@/lib/supabase/client';
 import { playSound, unlockAudio, type SoundSettings } from '@/lib/sounds';
 import { updateOrderStatus, updateOrderPaymentStatus } from '@/app/dashboard/actions';
 import { formatMoney } from '@/lib/money';
-import { minutesSince, formatTime, cn } from '@/lib/utils';
+import { formatTime, cn } from '@/lib/utils';
+import { Transcurrido } from '@/components/dashboard/elapsed';
 import { useI18n, interpolate } from '@/i18n/provider';
 import { usePrint } from '@/components/dashboard/print/print-provider';
 import type { TicketOrder } from '@/components/dashboard/print/ticket';
@@ -126,7 +127,9 @@ function nextStatus(order: OrderRow): Enums<'order_status'> | null {
     case 'preparing':
       return 'ready';
     case 'ready':
-      return order.type === 'delivery' ? 'delivering' : 'completed';
+      // En mesa hay un paso más: llevar el plato no es cerrar la cuenta.
+      return order.type === 'delivery' ? 'delivering' : order.type === 'dine_in' ? 'served' : 'completed';
+    case 'served':
     case 'delivering':
       return 'completed';
     default:
@@ -234,7 +237,7 @@ export function LiveOrdersPanel({
       const row = mapOrderRow(order, items ?? [], tableName, courierName);
 
       setOrders((current) => {
-        const open = ['pending', 'confirmed', 'preparing', 'ready', 'delivering'];
+        const open = ['pending', 'confirmed', 'preparing', 'ready', 'served', 'delivering'];
         const without = current.filter((o) => o.id !== row.id);
         return open.includes(row.status) ? [row, ...without] : without;
       });
@@ -430,6 +433,7 @@ export function LiveOrdersPanel({
     confirmed: t.dashboard.acceptOrder,
     preparing: t.dashboard.markPreparing,
     ready: t.dashboard.markReady,
+    served: t.dashboard.markServed,
     delivering: t.dashboard.markDelivering,
     completed: t.dashboard.markCompleted,
   };
@@ -455,7 +459,7 @@ export function LiveOrdersPanel({
                     <Icon className="h-4 w-4 text-amber-600" />
                     {call.tableName ?? '—'}
                     <span className="text-ink-300">
-                      {interpolate(t.kitchen.elapsed, { n: minutesSince(call.createdAt) })}
+                      <Transcurrido desde={call.createdAt} plano />
                     </span>
                     <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] uppercase text-white">
                       {t.dashboard.attendCall}
@@ -507,7 +511,7 @@ export function LiveOrdersPanel({
             const TypeIcon = TYPE_ICON[order.type];
             const PayIcon = PAY_ICON[order.paymentMethod];
             const target = nextStatus(order);
-            const elapsed = minutesSince(order.createdAt);
+
 
             return (
               <li key={order.id} className="flex flex-col rounded-2xl bg-white p-5 shadow-chip">
@@ -521,9 +525,7 @@ export function LiveOrdersPanel({
                       {formatTime(order.createdAt, locale)}
                     </p>
                   </div>
-                  <Badge tone={elapsed > 25 ? 'danger' : elapsed > 15 ? 'warning' : 'brand'}>
-                    {interpolate(t.kitchen.elapsed, { n: elapsed })}
-                  </Badge>
+                  <Transcurrido desde={order.createdAt} />
                 </div>
 
                 <ul className="mt-4 flex-1 space-y-2">

@@ -728,6 +728,7 @@ export type Database = {
           picked_up_at: string | null;
           coupon_id: string | null;
           coupon_code: string | null;
+          waiter_id: string | null;
         };
         Insert: {
           id?: string;
@@ -768,6 +769,7 @@ export type Database = {
           picked_up_at?: string | null;
           coupon_id?: string | null;
           coupon_code?: string | null;
+          waiter_id?: string | null;
         };
         Update: {
           id?: string;
@@ -808,6 +810,7 @@ export type Database = {
           picked_up_at?: string | null;
           coupon_id?: string | null;
           coupon_code?: string | null;
+          waiter_id?: string | null;
         };
         Relationships: [];
       };
@@ -1602,7 +1605,7 @@ export type Database = {
       courier_status: "offline" | "available" | "busy";
       notification_audience: "all" | "cities";
       order_item_status: "queued" | "preparing" | "ready" | "served";
-      order_status: "pending" | "confirmed" | "preparing" | "ready" | "delivering" | "completed" | "cancelled";
+      order_status: "pending" | "confirmed" | "preparing" | "ready" | "served" | "delivering" | "completed" | "cancelled";
       order_type: "dine_in" | "delivery" | "pickup";
       payment_method: "cash" | "card" | "tpv" | "stripe";
       payment_status: "pending" | "paid" | "failed" | "refunded";

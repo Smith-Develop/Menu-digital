@@ -12,7 +12,14 @@ import type { Enums } from '@/types/database';
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Mis pedidos' };
 
-const ONGOING: Enums<'order_status'>[] = ['pending', 'confirmed', 'preparing', 'ready', 'delivering'];
+const ONGOING: Enums<'order_status'>[] = [
+  'pending',
+  'confirmed',
+  'preparing',
+  'ready',
+  'served',
+  'delivering',
+];
 
 export default async function MyOrdersPage({
   searchParams,

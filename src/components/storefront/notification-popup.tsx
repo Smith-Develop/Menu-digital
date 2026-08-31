@@ -60,7 +60,7 @@ export function NotificationPopup({ notifications }: { notifications: PopupNotif
   if (!current) return null;
 
   return (
-    <div className="fixed inset-0 z-[90] flex h-dvh w-screen items-end justify-center p-4 sm:items-center">
+    <div className="fixed inset-0 z-[90] flex h-dvh w-full items-end justify-center p-4 sm:items-center">
       <button
         type="button"
         aria-label={t.common.close}

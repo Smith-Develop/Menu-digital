@@ -16,6 +16,7 @@ const OPEN_STATUSES: Enums<'order_status'>[] = [
   'confirmed',
   'preparing',
   'ready',
+  'served',
   'delivering',
 ];
 const CLOSED_STATUSES: Enums<'order_status'>[] = ['completed', 'cancelled'];

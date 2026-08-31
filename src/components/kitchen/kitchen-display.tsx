@@ -69,12 +69,16 @@ export function KitchenDisplay({
   const { t, locale } = useI18n();
   const [tickets, setTickets] = useState(initialTickets);
   const [sound, setSound] = useState(true);
-  const [, forceTick] = useState(0);
+  // `null` hasta que la pantalla está montada en el navegador. Los minutos
+  // transcurridos no pueden calcularse durante el pintado del servidor: se
+  // haría en un instante distinto al de la hidratación y React descartaría el
+  // árbol entero por texto que no coincide. Además hace de reloj: al avanzar
+  // cada 30 s, los contadores suben solos.
+  const [ahora, setAhora] = useState<number | null>(null);
 
-
-  // Repinta cada 30 s para que los contadores de minutos avancen solos.
   useEffect(() => {
-    const id = setInterval(() => forceTick((n) => n + 1), 30_000);
+    setAhora(Date.now());
+    const id = setInterval(() => setAhora(Date.now()), 30_000);
     return () => clearInterval(id);
   }, []);
 
@@ -264,7 +268,7 @@ export function KitchenDisplay({
               ) : (
                 <ul className="space-y-3">
                   {columnTickets.map((ticket) => {
-                    const elapsed = minutesSince(ticket.createdAt);
+                    const elapsed = ahora === null ? 0 : minutesSince(ticket.createdAt);
                     const TypeIcon = TYPE_ICON[ticket.type];
                     const urgency =
                       elapsed > 25
@@ -296,7 +300,7 @@ export function KitchenDisplay({
                                   : 'bg-white/15 text-white',
                             )}
                           >
-                            {interpolate(t.kitchen.elapsed, { n: elapsed })}
+                            {ahora === null ? '' : interpolate(t.kitchen.elapsed, { n: elapsed })}
                           </span>
                         </div>
 

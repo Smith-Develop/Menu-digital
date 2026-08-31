@@ -41,7 +41,7 @@ export default async function DashboardOverview({
       .from('orders')
       .select('*')
       .eq('restaurant_id', restaurant.id)
-      .in('status', ['pending', 'confirmed', 'preparing', 'ready', 'delivering'])
+      .in('status', ['pending', 'confirmed', 'preparing', 'ready', 'served', 'delivering'])
       .order('created_at', { ascending: false })
       .limit(20),
     supabase
