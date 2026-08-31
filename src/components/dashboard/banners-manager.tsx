@@ -222,7 +222,7 @@ export function BannersManager({
               value={draft.imageUrl}
               onChange={(url) => setDraft({ ...draft, imageUrl: url })}
               label={t.common.image}
-              hint="Proporción recomendada 16:8 (por ejemplo 1200 × 600)."
+              recommended={{ width: 1200, height: 600 }}
             />
 
             <Input

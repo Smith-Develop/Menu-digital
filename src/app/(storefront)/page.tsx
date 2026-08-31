@@ -11,6 +11,8 @@ import {
 } from '@/lib/queries/public';
 import { createPublicSupabase } from '@/lib/supabase/server';
 import { PushPrompt } from '@/components/pwa/push-prompt';
+import { FirstRunRedirect } from '@/components/auth/first-run';
+import { getAuthScreens } from '@/lib/auth-screens';
 import { TopBar } from '@/components/storefront/top-bar';
 import { SectionHeader, EmptyState } from '@/components/ui/misc';
 import { CategoryChip, PopularCard, RestaurantCard } from '@/components/storefront/cards';
@@ -34,6 +36,14 @@ function greetingKey(): 'goodMorning' | 'goodAfternoon' | 'goodEvening' {
 export default async function MarketplacePage() {
   const { t } = await getI18n();
   const { location, citySlug, cities } = await resolveCity();
+  const screens = await getAuthScreens();
+
+  const { data: ajustes } = await createPublicSupabase()
+    .from('app_settings')
+    .select('banner_rotation_seconds')
+    .eq('id', true)
+    .maybeSingle();
+  const rotationSeconds = ajustes?.banner_rotation_seconds ?? 6;
 
   const [profile, restaurants, categories, featured, banners, notifications] =
     await Promise.all([
@@ -73,7 +83,12 @@ export default async function MarketplacePage() {
 
       {banners.length > 0 && (
         <div className="mt-6 lg:-mx-0">
-          <BannerCarousel banners={banners} className="lg:[&_ul]:px-0" />
+          {/* El ritmo del carrusel lo fija el superadministrador. */}
+          <BannerCarousel
+            banners={banners}
+            autoPlayMs={rotationSeconds * 1000}
+            className="lg:[&_ul]:px-0"
+          />
         </div>
       )}
 
@@ -168,6 +183,8 @@ export default async function MarketplacePage() {
           </div>
         </section>
       )}
+
+      <FirstRunRedirect enabled={screens.onboardingEnabled} />
 
       {/* Aquí el aviso se registra con la ciudad, que es lo que permite al
           superadmin dirigir un comunicado sólo a determinadas ciudades. */}

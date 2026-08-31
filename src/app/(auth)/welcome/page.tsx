@@ -31,6 +31,7 @@ export default async function WelcomePage() {
         primaryColor: brand.primaryColor,
       }}
       showSplash={screens.splashEnabled}
+      splashSeconds={screens.splashSeconds}
       splash={{
         imageUrl: screens.splashImageUrl,
         title: screens.splashTitle,

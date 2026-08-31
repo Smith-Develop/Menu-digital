@@ -625,3 +625,104 @@ export async function updateOwnAdminAccount(input: {
   revalidatePath('/admin/account');
   return { ok: true };
 }
+
+// ============================ Banners de portada =============================
+
+const platformBannerSchema = z.object({
+  id: z.string().uuid().optional(),
+  title: z.string().max(80).nullable().optional(),
+  subtitle: z.string().max(160).nullable().optional(),
+  image_url: z.string().url(),
+  link_url: z.string().max(400).nullable().optional(),
+  is_active: z.boolean().default(true),
+  is_pinned: z.boolean().default(false),
+  pinned_cities: z.array(z.string()).default([]),
+  position: z.coerce.number().int().min(0).default(0),
+});
+
+/**
+ * Banner propio de la plataforma en la portada.
+ *
+ * Va sin restaurante: eso es lo que lo distingue de los que publica cada local.
+ * Si se marca como el que abre, deja de estarlo cualquier otro que compitiera
+ * por las mismas ciudades; dos banners disputándose el primer puesto darían un
+ * orden impredecible.
+ */
+export async function savePlatformBanner(input: unknown): Promise<Result> {
+  const admin = await requireAdmin();
+  if (!admin) return { ok: false, error: 'FORBIDDEN' };
+
+  const parsed = platformBannerSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'INVALID_INPUT' };
+
+  const { id, ...values } = parsed.data;
+  const supabase = await createServerSupabase();
+
+  if (values.is_pinned) {
+    const { data: fijados } = await supabase
+      .from('banners')
+      .select('id, pinned_cities')
+      .is('restaurant_id', null)
+      .eq('is_pinned', true);
+
+    const chocan = (fijados ?? [])
+      .filter((otro) => otro.id !== id)
+      .filter((otro) => {
+        // Sin ciudades, un banner manda en todas: choca con cualquiera.
+        if (otro.pinned_cities.length === 0 || values.pinned_cities.length === 0) return true;
+        return otro.pinned_cities.some((ciudad) => values.pinned_cities.includes(ciudad));
+      })
+      .map((otro) => otro.id);
+
+    if (chocan.length) {
+      await supabase.from('banners').update({ is_pinned: false }).in('id', chocan);
+    }
+  }
+
+  const { error } = id
+    ? await supabase.from('banners').update(values).eq('id', id).is('restaurant_id', null)
+    : await supabase.from('banners').insert({ ...values, restaurant_id: null });
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath('/admin/banners');
+  revalidatePath('/');
+  return { ok: true };
+}
+
+export async function deletePlatformBanner(id: string): Promise<Result> {
+  const admin = await requireAdmin();
+  if (!admin) return { ok: false, error: 'FORBIDDEN' };
+
+  const supabase = await createServerSupabase();
+  const { error } = await supabase
+    .from('banners')
+    .delete()
+    .eq('id', id)
+    .is('restaurant_id', null);
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath('/admin/banners');
+  revalidatePath('/');
+  return { ok: true };
+}
+
+/** Cada cuántos segundos pasa solo el carrusel de la portada. */
+export async function updateBannerRotation(seconds: number): Promise<Result> {
+  const admin = await requireAdmin();
+  if (!admin) return { ok: false, error: 'FORBIDDEN' };
+
+  const valor = Math.min(Math.max(Math.round(seconds), 2), 30);
+  const supabase = await createServerSupabase();
+  const { error } = await supabase
+    .from('app_settings')
+    .update({ banner_rotation_seconds: valor, updated_by: admin.id })
+    .eq('id', true);
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath('/admin/banners');
+  revalidatePath('/');
+  return { ok: true };
+}

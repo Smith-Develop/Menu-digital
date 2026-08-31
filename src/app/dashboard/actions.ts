@@ -314,6 +314,9 @@ const settingsSchema = z.object({
   address: z.string().max(240).nullable().optional(),
   city: z.string().max(80).nullable().optional(),
   country: z.string().length(2).optional(),
+  // Texto libre: cada país nombra su documento a su manera.
+  document_type: z.string().max(40).nullable().optional(),
+  document_number: z.string().max(60).nullable().optional(),
   logo_url: z.string().url().nullable().optional(),
   cover_url: z.string().url().nullable().optional(),
   currency: z.string().length(3),

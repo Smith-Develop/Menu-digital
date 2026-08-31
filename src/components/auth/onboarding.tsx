@@ -20,11 +20,14 @@ export function Onboarding({
   slides,
   brand,
   showSplash,
+  splashSeconds = 3,
   splash,
 }: {
   slides: OnboardingSlide[];
   brand: { appName: string; tagline: string; logoUrl: string | null; primaryColor: string };
   showSplash: boolean;
+  /** Segundos que se queda la portada antes de dar paso a la presentación. */
+  splashSeconds?: number;
   /** Portada de la pantalla de carga, configurable desde el panel. */
   splash?: { imageUrl: string | null; title: string | null; subtitle: string | null };
 }) {
@@ -49,9 +52,9 @@ export function Onboarding({
 
   useEffect(() => {
     if (phase !== 'splash' || !checked) return;
-    const timer = setTimeout(() => setPhase('slides'), 1600);
+    const timer = setTimeout(() => setPhase('slides'), Math.max(1, splashSeconds) * 1000);
     return () => clearTimeout(timer);
-  }, [phase, checked]);
+  }, [phase, checked, splashSeconds]);
 
   function finish() {
     try {
@@ -118,7 +121,9 @@ export function Onboarding({
 
   return (
     <div className="flex min-h-dvh flex-col bg-white">
-      <div className="flex justify-end px-6 pt-6">
+      {/* A la izquierda: la esquina derecha la ocupa el selector de idioma del
+          marco de estas pantallas, y ahí los dos se pisaban. */}
+      <div className="flex justify-start px-6 pt-6">
         <button
           type="button"
           onClick={finish}

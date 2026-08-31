@@ -44,6 +44,8 @@ export default async function SettingsPage() {
           address: restaurant.address,
           city: restaurant.city,
           country: restaurant.country ?? 'ES',
+          document_type: restaurant.document_type,
+          document_number: restaurant.document_number,
           logoUrl: restaurant.logo_url,
           coverUrl: restaurant.cover_url,
           currency: restaurant.currency,

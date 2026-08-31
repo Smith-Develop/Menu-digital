@@ -397,6 +397,8 @@ export function MenuManager({
               value={productDraft.imageUrl}
               onChange={(url) => setProductDraft({ ...productDraft, imageUrl: url })}
               label={t.common.image}
+              recommended={{ width: 800, height: 800 }}
+              hint={t.dashboard.dishImageHint}
             />
 
             <div className={cn(!allows3d && 'opacity-50')}>

@@ -6,6 +6,7 @@ import { Input, Select, Switch, Textarea } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { FileUpload } from '@/components/dashboard/file-upload';
+import { ImagePicker } from '@/components/ui/image-picker';
 import { updateRestaurantSettings, updateRestaurantTheme } from '@/app/dashboard/actions';
 import { ColorInput } from '@/components/ui/color-input';
 import { brandCssVariables } from '@/lib/brand-theme';
@@ -18,6 +19,8 @@ export type SettingsValues = {
   phone: string | null;
   address: string | null;
   city: string | null;
+  document_type: string | null;
+  document_number: string | null;
   country: string;
   logoUrl: string | null;
   coverUrl: string | null;
@@ -71,6 +74,8 @@ export function SettingsForm({
       phone: values.phone || null,
       address: values.address || null,
       city: values.city || null,
+      document_type: values.document_type || null,
+      document_number: values.document_number || null,
       country: values.country.toUpperCase().slice(0, 2),
       logo_url: values.logoUrl,
       cover_url: values.coverUrl,
@@ -119,19 +124,23 @@ export function SettingsForm({
         />
 
         <div className="grid gap-5 sm:grid-cols-2">
-          <FileUpload
+          <ImagePicker
             bucket="restaurants"
-            restaurantId={restaurantId}
+            folder={restaurantId}
+            fit="contain"
+            recommended={{ width: 512, height: 512 }}
             value={values.logoUrl}
             onChange={(url) => set('logoUrl', url)}
             label="Logotipo"
           />
-          <FileUpload
+          <ImagePicker
             bucket="restaurants"
-            restaurantId={restaurantId}
+            folder={restaurantId}
+            recommended={{ width: 1200, height: 600 }}
             value={values.coverUrl}
             onChange={(url) => set('coverUrl', url)}
             label="Portada"
+            hint={t.dashboard.coverHint}
           />
         </div>
 
@@ -154,6 +163,28 @@ export function SettingsForm({
           onChange={(e) => set('address', e.target.value)}
           label="Dirección"
         />
+
+        {/* Documento fiscal. El tipo se escribe a mano porque cada país tiene el
+            suyo: NIF, RUC, RFC, CUIT, NIT… */}
+        <div className="grid gap-4 sm:grid-cols-[minmax(0,180px)_1fr]">
+          <Input
+            value={values.document_type ?? ''}
+            onChange={(e) => set('document_type', e.target.value)}
+            label={t.dashboard.documentType}
+            placeholder={t.dashboard.documentTypePlaceholder}
+            list="tipos-de-documento"
+          />
+          <datalist id="tipos-de-documento">
+            {['NIF', 'CIF', 'NIT', 'RUC', 'RFC', 'CUIT', 'RUT', 'EIN'].map((tipo) => (
+              <option key={tipo} value={tipo} />
+            ))}
+          </datalist>
+          <Input
+            value={values.document_number ?? ''}
+            onChange={(e) => set('document_number', e.target.value)}
+            label={t.dashboard.documentNumber}
+          />
+        </div>
       </section>
 
       <section className="space-y-5 rounded-2xl bg-white p-6 shadow-chip">

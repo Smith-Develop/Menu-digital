@@ -1,5 +1,8 @@
 const es = {
   common: {
+    title: 'Título',
+    subtitle: 'Subtítulo',
+    link: 'Enlace',
     menu: 'Menú',
     appName: 'Menu Digital',
     search: 'Buscar',
@@ -202,6 +205,7 @@ const es = {
     addedToCart: 'Añadido al carrito',
   },
   image: {
+    recommendedSize: 'Tamaño recomendado',
     upload: 'Subir',
     library: 'Biblioteca',
     fromUrl: 'Desde una dirección web',
@@ -364,6 +368,10 @@ const es = {
     paidWhenSettled: 'Tu pedido seguirá aquí hasta que el restaurante lo marque como pagado',
   },
   pwa: {
+    howTo: 'Cómo instalar',
+    step1: 'Pulsa el botón Compartir, abajo en la barra del navegador.',
+    step2: 'Baja en la lista y elige “Añadir a pantalla de inicio”.',
+    step3: 'Confirma con Añadir: el icono quedará junto a tus otras apps.',
     installTitle: 'Instala {app} en tu móvil',
     installHint: 'Acceso directo, sin pasar por el navegador',
     install: 'Instalar',
@@ -454,6 +462,11 @@ const es = {
     changeCourier: 'Cambiar repartidor',
   },
   dashboard: {
+    dishImageHint: 'Cuadrada y con el plato centrado: en la carta se recorta en círculo.',
+    coverHint: 'Se usa como respaldo: si publicas banners, son ellos los que encabezan tu ficha.',
+    documentType: 'Tipo de documento',
+    documentTypePlaceholder: 'NIF, RUC, RFC…',
+    documentNumber: 'Número de documento',
     title: 'Panel de control',
     overview: 'Resumen',
     ordersToday: 'Pedidos de hoy',
@@ -581,6 +594,15 @@ const es = {
     apply: 'Ver',
   },
   admin: {
+    homeBanners: 'Banners de la portada',
+    homeBannersHint: 'Los tuyos conviven con los de los restaurantes. El que marques como primero abre la portada; si no eliges ciudades, manda en todas.',
+    rotationSeconds: 'Segundos por banner',
+    rotationHint: 'Cada cuánto pasa solo el carrusel de la portada',
+    pinFirst: 'Abrir la portada con este',
+    pinnedCities: 'Ciudades donde va primero',
+    pinnedAllCities: 'En todas las ciudades',
+    newBanner: 'Nuevo banner',
+    noBanners: 'Todavía no has publicado ninguno',
     authScreens: 'Pantallas de entrada',
     authScreensHint: 'La imagen y los textos que ve quien abre la aplicación, entra o crea su cuenta.',
     splashScreen: 'Pantalla de bienvenida',
@@ -699,6 +721,15 @@ const es = {
     completedBody: 'Tu pedido se ha entregado',
     cancelledTitle: 'Pedido cancelado',
     cancelledBody: 'Tu pedido se ha cancelado',
+  },
+  account: {
+    city: 'Ciudad',
+    myData: 'Mis datos',
+    myDataHint: 'Tu nombre, tu dirección y cómo entras a la cuenta',
+    saved: 'Datos guardados',
+    changePhoto: 'Cambiar foto',
+    deliveryAddress: 'Dirección de entrega',
+    deliveryAddressHint: 'La usaremos como dirección por defecto en tus pedidos',
   },
 } as const;
 

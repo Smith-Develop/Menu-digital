@@ -2,6 +2,9 @@ import type { Dictionary } from './es';
 
 const en: Dictionary = {
   common: {
+    title: 'Title',
+    subtitle: 'Subtitle',
+    link: 'Link',
     menu: 'Menu',
     appName: 'Menu Digital',
     search: 'Search',
@@ -204,6 +207,7 @@ const en: Dictionary = {
     addedToCart: 'Added to cart',
   },
   image: {
+    recommendedSize: 'Recommended size',
     upload: 'Upload',
     library: 'Library',
     fromUrl: 'From a web address',
@@ -366,6 +370,10 @@ const en: Dictionary = {
     paidWhenSettled: 'Your order stays here until the restaurant marks it as paid',
   },
   pwa: {
+    howTo: 'How to install',
+    step1: 'Tap the Share button in the browser bar.',
+    step2: 'Scroll down and choose “Add to Home Screen”.',
+    step3: 'Confirm with Add: the icon will sit with your other apps.',
     installTitle: 'Install {app} on your phone',
     installHint: 'One tap away, no browser needed',
     install: 'Install',
@@ -456,6 +464,11 @@ const en: Dictionary = {
     changeCourier: 'Change courier',
   },
   dashboard: {
+    dishImageHint: 'Square with the dish centred: the menu crops it into a circle.',
+    coverHint: 'Used as a fallback: if you publish banners, they head your page instead.',
+    documentType: 'Document type',
+    documentTypePlaceholder: 'VAT, EIN, TIN…',
+    documentNumber: 'Document number',
     title: 'Dashboard',
     overview: 'Overview',
     ordersToday: "Today's orders",
@@ -583,6 +596,15 @@ const en: Dictionary = {
     apply: 'Show',
   },
   admin: {
+    homeBanners: 'Home banners',
+    homeBannersHint: 'Yours sit alongside the restaurants\u2019. The one you mark as first opens the home page; with no cities chosen, it leads everywhere.',
+    rotationSeconds: 'Seconds per banner',
+    rotationHint: 'How often the home carousel moves on its own',
+    pinFirst: 'Open the home page with this one',
+    pinnedCities: 'Cities where it goes first',
+    pinnedAllCities: 'In every city',
+    newBanner: 'New banner',
+    noBanners: 'You have not published any yet',
     authScreens: 'Entry screens',
     authScreensHint: 'The image and wording people see when they open the app, sign in or register.',
     splashScreen: 'Welcome screen',
@@ -701,7 +723,16 @@ const en: Dictionary = {
     completedBody: 'Your order has been delivered',
     cancelledTitle: 'Order cancelled',
     cancelledBody: 'Your order has been cancelled',
+  },  account: {
+    city: 'City',
+    myData: 'My details',
+    myDataHint: 'Your name, your address and how you sign in',
+    saved: 'Details saved',
+    changePhoto: 'Change photo',
+    deliveryAddress: 'Delivery address',
+    deliveryAddressHint: 'We will use it as the default address for your orders',
   },
+
 };
 
 export default en;

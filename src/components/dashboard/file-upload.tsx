@@ -34,12 +34,15 @@ export function FileUpload({
   onChange,
   label,
   hint,
+  recommended,
   preview = 'image',
 }: {
   bucket: Bucket;
   restaurantId: string;
   value: string | null;
   onChange: (url: string | null) => void;
+  /** Medida aconsejada, para que la foto no salga recortada donde se use. */
+  recommended?: { width: number; height: number };
   label: string;
   hint?: string;
   preview?: 'image' | 'file';
@@ -131,7 +134,12 @@ export function FileUpload({
               </button>
             )}
           </div>
-          {hint && <p className="mt-2 text-xs leading-relaxed text-ink-300">{hint}</p>}
+          {recommended && (
+        <p className="mt-2 text-xs font-semibold text-ink-400">
+          {t.image.recommendedSize}: {recommended.width} × {recommended.height} px
+        </p>
+      )}
+      {hint && <p className="mt-2 text-xs leading-relaxed text-ink-300">{hint}</p>}
         </div>
       </div>
 

@@ -10,6 +10,7 @@ export type OnboardingSlide = {
 
 export type AuthScreens = {
   splashEnabled: boolean;
+  splashSeconds: number;
   splashTitle: string | null;
   splashSubtitle: string | null;
   splashImageUrl: string | null;
@@ -29,6 +30,7 @@ export type AuthScreens = {
 
 export const DEFAULT_AUTH_SCREENS: AuthScreens = {
   splashEnabled: true,
+  splashSeconds: 3,
   splashTitle: null,
   splashSubtitle: null,
   splashImageUrl: null,
@@ -55,6 +57,7 @@ export const getAuthScreens = cache(async (): Promise<AuthScreens> => {
 
     return {
       splashEnabled: data.splash_enabled,
+      splashSeconds: data.splash_seconds,
       splashTitle: data.splash_title,
       splashSubtitle: data.splash_subtitle,
       splashImageUrl: data.splash_image_url,

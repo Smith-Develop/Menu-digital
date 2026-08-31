@@ -37,6 +37,8 @@ export type Database = {
           splash_title: string | null;
           splash_subtitle: string | null;
           social_apple: boolean;
+          splash_seconds: number;
+          banner_rotation_seconds: number;
         };
         Insert: {
           id?: boolean;
@@ -67,6 +69,8 @@ export type Database = {
           splash_title?: string | null;
           splash_subtitle?: string | null;
           social_apple?: boolean;
+          splash_seconds?: number;
+          banner_rotation_seconds?: number;
         };
         Update: {
           id?: boolean;
@@ -97,13 +101,15 @@ export type Database = {
           splash_title?: string | null;
           splash_subtitle?: string | null;
           social_apple?: boolean;
+          splash_seconds?: number;
+          banner_rotation_seconds?: number;
         };
         Relationships: [];
       };
       banners: {
         Row: {
           id: string;
-          restaurant_id: string;
+          restaurant_id: string | null;
           title: string | null;
           subtitle: string | null;
           image_url: string;
@@ -114,10 +120,12 @@ export type Database = {
           ends_at: string | null;
           created_at: string;
           updated_at: string;
+          is_pinned: boolean;
+          pinned_cities: string[];
         };
         Insert: {
           id?: string;
-          restaurant_id: string;
+          restaurant_id?: string | null;
           title?: string | null;
           subtitle?: string | null;
           image_url: string;
@@ -128,10 +136,12 @@ export type Database = {
           ends_at?: string | null;
           created_at?: string;
           updated_at?: string;
+          is_pinned?: boolean;
+          pinned_cities?: string[];
         };
         Update: {
           id?: string;
-          restaurant_id?: string;
+          restaurant_id?: string | null;
           title?: string | null;
           subtitle?: string | null;
           image_url?: string;
@@ -142,6 +152,8 @@ export type Database = {
           ends_at?: string | null;
           created_at?: string;
           updated_at?: string;
+          is_pinned?: boolean;
+          pinned_cities?: string[];
         };
         Relationships: [];
       };
@@ -984,6 +996,8 @@ export type Database = {
           locale: string;
           created_at: string;
           updated_at: string;
+          address: string | null;
+          city: string | null;
         };
         Insert: {
           id: string;
@@ -995,6 +1009,8 @@ export type Database = {
           locale?: string;
           created_at?: string;
           updated_at?: string;
+          address?: string | null;
+          city?: string | null;
         };
         Update: {
           id?: string;
@@ -1006,6 +1022,8 @@ export type Database = {
           locale?: string;
           created_at?: string;
           updated_at?: string;
+          address?: string | null;
+          city?: string | null;
         };
         Relationships: [];
       };
@@ -1146,6 +1164,8 @@ export type Database = {
           text_color: string;
           print_settings: Json;
           sound_settings: Json | null;
+          document_type: string | null;
+          document_number: string | null;
         };
         Insert: {
           id?: string;
@@ -1190,6 +1210,8 @@ export type Database = {
           text_color?: string;
           print_settings?: Json;
           sound_settings?: Json | null;
+          document_type?: string | null;
+          document_number?: string | null;
         };
         Update: {
           id?: string;
@@ -1234,6 +1256,8 @@ export type Database = {
           text_color?: string;
           print_settings?: Json;
           sound_settings?: Json | null;
+          document_type?: string | null;
+          document_number?: string | null;
         };
         Relationships: [];
       };

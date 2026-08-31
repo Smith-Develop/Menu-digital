@@ -13,6 +13,7 @@ import { updateBranding } from '@/app/admin/actions';
 import { brandCssVariables } from '@/lib/brand-theme';
 import type { Brand } from '@/lib/brand';
 import type { AuthScreens } from '@/lib/auth-screens';
+import { ImagePicker } from '@/components/ui/image-picker';
 import { useT } from '@/i18n/provider';
 
 export function BrandingForm({
@@ -104,16 +105,23 @@ export function BrandingForm({
           />
 
           <div className="grid gap-5 sm:grid-cols-2">
-            <BrandAsset
+            <ImagePicker
+              bucket="restaurants"
+              folder="app"
+              fit="contain"
+              recommended={{ width: 512, height: 512 }}
               label={t.admin.logo}
               value={values.logoUrl}
               onChange={(url) => set('logoUrl', url)}
             />
-            <BrandAsset
+            <ImagePicker
+              bucket="restaurants"
+              folder="app"
+              fit="contain"
+              recommended={{ width: 512, height: 512 }}
               label={t.admin.appIcon}
               value={values.iconUrl}
               onChange={(url) => set('iconUrl', url)}
-              hint="Cuadrado, mínimo 512 × 512"
             />
           </div>
         </section>
@@ -169,11 +177,14 @@ export function BrandingForm({
                 )}
               </div>
 
-              <BrandAsset
+              <ImagePicker
+                bucket="restaurants"
+                folder="app"
                 label={t.admin.screenImage}
                 value={screens[campoImagen]}
                 onChange={(url) => setScreen({ [campoImagen]: url } as Partial<AuthScreens>)}
                 hint={t.admin.screenImageHint}
+                recommended={{ width: 1080, height: 1350 }}
               />
 
               <div className="grid gap-3 sm:grid-cols-2">
@@ -238,101 +249,3 @@ export function BrandingForm({
 }
 
 /** Subida de logotipo/icono al bucket público de la aplicación. */
-function BrandAsset({
-  label,
-  value,
-  onChange,
-  hint,
-}: {
-  label: string;
-  value: string | null;
-  onChange: (url: string | null) => void;
-  hint?: string;
-}) {
-  const t = useT();
-  const toast = useToast();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-
-  async function upload(file: File) {
-    setUploading(true);
-    try {
-      const supabase = createClient();
-      const extension = file.name.split('.').pop()?.toLowerCase() ?? 'png';
-      // Carpeta "app": las políticas de storage la reservan al superadmin.
-      const path = `app/${crypto.randomUUID()}.${extension}`;
-
-      const { error } = await supabase.storage.from('restaurants').upload(path, file, {
-        cacheControl: '31536000',
-        upsert: false,
-        contentType: file.type || undefined,
-      });
-
-      if (error) {
-        toast(`${t.common.error}: ${error.message}`, 'error');
-        return;
-      }
-
-      const { data } = supabase.storage.from('restaurants').getPublicUrl(path);
-      onChange(data.publicUrl);
-    } finally {
-      setUploading(false);
-      if (inputRef.current) inputRef.current.value = '';
-    }
-  }
-
-  return (
-    <div>
-      <span className="label">{label}</span>
-      <div className="flex items-center gap-3">
-        <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-surface-field text-ink-300">
-          {value ? (
-            <Image src={value} alt="" fill sizes="80px" className="object-contain p-2" />
-          ) : (
-            <ImageIcon className="h-6 w-6" />
-          )}
-          {uploading && (
-            <span className="absolute inset-0 flex items-center justify-center bg-white/80">
-              <Loader2 className="h-5 w-5 animate-spin text-brand" />
-            </span>
-          )}
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => inputRef.current?.click()}
-              disabled={uploading}
-              className="btn-ghost text-xs"
-            >
-              <Upload className="h-3.5 w-3.5" />
-              {value ? t.common.edit : t.dashboard.uploadImage}
-            </button>
-            {value && (
-              <button
-                type="button"
-                onClick={() => onChange(null)}
-                className="btn text-xs text-state-danger hover:bg-red-50"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-          {hint && <p className="mt-2 text-xs text-ink-300">{hint}</p>}
-        </div>
-      </div>
-
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/png,image/jpeg,image/webp,image/svg+xml"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) void upload(file);
-        }}
-      />
-    </div>
-  );
-}

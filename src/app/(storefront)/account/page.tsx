@@ -53,6 +53,7 @@ export default async function AccountPage() {
 
   const groups: { href: string; icon: typeof Receipt; label: string }[][] = [
     [
+      { href: '/account/profile', icon: UserRound, label: t.account.myData },
       { href: '/orders', icon: Receipt, label: t.order.myOrders },
       { href: '/favorites', icon: Heart, label: t.storefront.featured },
     ],

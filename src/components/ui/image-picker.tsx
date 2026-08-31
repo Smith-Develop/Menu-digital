@@ -27,6 +27,8 @@ export function ImagePicker({
   onChange,
   label,
   hint,
+  recommended,
+  fit = 'cover',
 }: {
   bucket: 'restaurants' | 'products' | 'models';
   folder: string;
@@ -34,6 +36,14 @@ export function ImagePicker({
   onChange: (url: string | null) => void;
   label: string;
   hint?: string;
+  /**
+   * Medida recomendada, en píxeles. Se enseña junto al campo y la vista previa
+   * adopta esa proporción, que es la única forma de ver antes de guardar si la
+   * imagen va a quedar recortada.
+   */
+  recommended?: { width: number; height: number };
+  /** Los logotipos se ven enteros; las fotos llenan el hueco. */
+  fit?: 'cover' | 'contain';
 }) {
   const t = useT();
   const toast = useToast();
@@ -107,9 +117,22 @@ export function ImagePicker({
       <span className="label">{label}</span>
 
       <div className="flex items-start gap-3">
-        <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-surface-field text-ink-300">
+        <div
+          className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-surface-field text-ink-300"
+          style={
+            recommended
+              ? { width: 96, height: Math.round((96 * recommended.height) / recommended.width) }
+              : { width: 80, height: 80 }
+          }
+        >
           {value ? (
-            <Image src={value} alt="" fill sizes="80px" className="object-cover" />
+            <Image
+              src={value}
+              alt=""
+              fill
+              sizes="96px"
+              className={fit === 'contain' ? 'object-contain p-2' : 'object-cover'}
+            />
           ) : (
             <ImageIcon className="h-6 w-6" />
           )}
@@ -149,7 +172,12 @@ export function ImagePicker({
               </button>
             )}
           </div>
-          {hint && <p className="mt-2 text-xs leading-relaxed text-ink-300">{hint}</p>}
+          {recommended && (
+            <p className="mt-2 text-xs font-semibold text-ink-400">
+              {t.image.recommendedSize}: {recommended.width} × {recommended.height} px
+            </p>
+          )}
+          {hint && <p className="mt-1.5 text-xs leading-relaxed text-ink-300">{hint}</p>}
         </div>
       </div>
 

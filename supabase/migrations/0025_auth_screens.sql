@@ -21,3 +21,8 @@ alter table public.app_settings
 -- Acceso con Apple: la tabla ya contemplaba Google y Facebook.
 alter table public.app_settings
   add column if not exists social_apple boolean not null default false;
+
+-- Cuánto se queda la pantalla de bienvenida antes de dar paso a la aplicación.
+-- El superadministrador la ajusta según lo que quiera que dé tiempo a leer.
+alter table public.app_settings
+  add column if not exists splash_seconds smallint not null default 3;
