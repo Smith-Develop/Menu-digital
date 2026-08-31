@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getI18n } from '@/i18n';
+import { getAuthScreens } from '@/lib/auth-screens';
 import { LoginForm } from '@/components/auth/login-form';
 
 export const metadata = { title: 'Iniciar sesión' };
@@ -9,13 +10,13 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ next?: string }>;
 }) {
-  const { t } = await getI18n();
+  const [{ t }, screens] = await Promise.all([getI18n(), getAuthScreens()]);
   const { next } = await searchParams;
 
   return (
     <>
-      <h1 className="font-display text-2xl font-bold text-ink">{t.auth.signIn}</h1>
-      <p className="mt-1.5 text-sm text-ink-300">{t.auth.signInSubtitle}</p>
+      <h1 className="font-display text-2xl font-bold text-ink">{screens.loginTitle}</h1>
+      <p className="mt-1.5 text-sm text-ink-300">{screens.loginSubtitle}</p>
 
       <LoginForm nextPath={next ?? '/dashboard'} />
 

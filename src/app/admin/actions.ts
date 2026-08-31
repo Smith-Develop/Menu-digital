@@ -223,6 +223,18 @@ const brandingSchema = z.object({
   primary_color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   accent_color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   text_color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+
+  // Portadas y textos de las pantallas por las que se entra a la aplicación.
+  login_image_url: z.string().url().nullable().optional(),
+  login_title: z.string().max(80).nullable().optional(),
+  login_subtitle: z.string().max(160).nullable().optional(),
+  register_image_url: z.string().url().nullable().optional(),
+  register_title: z.string().max(80).nullable().optional(),
+  register_subtitle: z.string().max(160).nullable().optional(),
+  splash_image_url: z.string().url().nullable().optional(),
+  splash_title: z.string().max(80).nullable().optional(),
+  splash_subtitle: z.string().max(160).nullable().optional(),
+  splash_enabled: z.boolean().optional(),
 });
 
 export async function updateBranding(input: unknown): Promise<Result> {

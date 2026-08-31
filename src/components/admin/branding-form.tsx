@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useRef, useState, type FormEvent } from 'react';
 import { ImageIcon, Loader2, ShoppingBag, Trash2, Upload } from 'lucide-react';
-import { Input, Textarea } from '@/components/ui/input';
+import { Input, Textarea, Switch } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ColorInput } from '@/components/ui/color-input';
 import { useToast } from '@/components/ui/toast';
@@ -12,18 +12,30 @@ import { createClient } from '@/lib/supabase/client';
 import { updateBranding } from '@/app/admin/actions';
 import { brandCssVariables } from '@/lib/brand-theme';
 import type { Brand } from '@/lib/brand';
+import type { AuthScreens } from '@/lib/auth-screens';
 import { useT } from '@/i18n/provider';
 
-export function BrandingForm({ initial }: { initial: Brand }) {
+export function BrandingForm({
+  initial,
+  initialScreens,
+}: {
+  initial: Brand;
+  initialScreens: AuthScreens;
+}) {
   const t = useT();
   const toast = useToast();
   const router = useRouter();
 
   const [values, setValues] = useState(initial);
+  const [screens, setScreens] = useState(initialScreens);
   const [saving, setSaving] = useState(false);
 
   function set<K extends keyof Brand>(key: K, value: Brand[K]) {
     setValues((current) => ({ ...current, [key]: value }));
+  }
+
+  function setScreen(patch: Partial<AuthScreens>) {
+    setScreens((current) => ({ ...current, ...patch }));
   }
 
   async function onSubmit(event: FormEvent) {
@@ -39,6 +51,17 @@ export function BrandingForm({ initial }: { initial: Brand }) {
       primary_color: values.primaryColor,
       accent_color: values.accentColor,
       text_color: values.textColor,
+
+      login_image_url: screens.loginImageUrl,
+      login_title: screens.loginTitle || null,
+      login_subtitle: screens.loginSubtitle || null,
+      register_image_url: screens.registerImageUrl,
+      register_title: screens.registerTitle || null,
+      register_subtitle: screens.registerSubtitle || null,
+      splash_image_url: screens.splashImageUrl,
+      splash_title: screens.splashTitle || null,
+      splash_subtitle: screens.splashSubtitle || null,
+      splash_enabled: screens.splashEnabled,
     });
 
     setSaving(false);
@@ -117,6 +140,57 @@ export function BrandingForm({ initial }: { initial: Brand }) {
               hint="Titulares"
             />
           </div>
+        </section>
+
+        <section className="space-y-6 rounded-2xl bg-white p-6 shadow-chip">
+          <div>
+            <h2 className="font-display text-base font-bold text-ink-700">
+              {t.admin.authScreens}
+            </h2>
+            <p className="mt-1 text-xs text-ink-300">{t.admin.authScreensHint}</p>
+          </div>
+
+          {(
+            [
+              ['splash', t.admin.splashScreen, 'splashImageUrl', 'splashTitle', 'splashSubtitle'],
+              ['login', t.admin.loginScreen, 'loginImageUrl', 'loginTitle', 'loginSubtitle'],
+              ['register', t.admin.registerScreen, 'registerImageUrl', 'registerTitle', 'registerSubtitle'],
+            ] as const
+          ).map(([clave, titulo, campoImagen, campoTitulo, campoSubtitulo]) => (
+            <div key={clave} className="space-y-4 rounded-xl bg-surface-field p-4">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-sm font-bold text-ink-700">{titulo}</h3>
+                {clave === 'splash' && (
+                  <Switch
+                    checked={screens.splashEnabled}
+                    onChange={(splashEnabled) => setScreen({ splashEnabled })}
+                    label={t.common.active}
+                  />
+                )}
+              </div>
+
+              <BrandAsset
+                label={t.admin.screenImage}
+                value={screens[campoImagen]}
+                onChange={(url) => setScreen({ [campoImagen]: url } as Partial<AuthScreens>)}
+                hint={t.admin.screenImageHint}
+              />
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Input
+                  label={t.admin.screenTitle}
+                  value={screens[campoTitulo] ?? ''}
+                  onChange={(e) => setScreen({ [campoTitulo]: e.target.value } as Partial<AuthScreens>)}
+                  placeholder={t.admin.screenTitlePlaceholder}
+                />
+                <Input
+                  label={t.admin.screenSubtitle}
+                  value={screens[campoSubtitulo] ?? ''}
+                  onChange={(e) => setScreen({ [campoSubtitulo]: e.target.value } as Partial<AuthScreens>)}
+                />
+              </div>
+            </div>
+          ))}
         </section>
 
         <Button type="submit" size="lg" loading={saving}>

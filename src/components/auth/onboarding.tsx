@@ -20,10 +20,13 @@ export function Onboarding({
   slides,
   brand,
   showSplash,
+  splash,
 }: {
   slides: OnboardingSlide[];
   brand: { appName: string; tagline: string; logoUrl: string | null; primaryColor: string };
   showSplash: boolean;
+  /** Portada de la pantalla de carga, configurable desde el panel. */
+  splash?: { imageUrl: string | null; title: string | null; subtitle: string | null };
 }) {
   const t = useT();
   const router = useRouter();
@@ -69,10 +72,26 @@ export function Onboarding({
   if (phase === 'splash') {
     return (
       <div
-        className="flex min-h-dvh flex-col items-center justify-center px-8"
+        className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden px-8"
         style={{ backgroundColor: brand.primaryColor }}
       >
-        <div className="animate-scale-in text-center">
+        {splash?.imageUrl && (
+          <>
+            <Image
+              src={splash.imageUrl}
+              alt=""
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover"
+            />
+            {/* Velo oscuro: el logotipo y el lema tienen que leerse sea cual sea
+                la foto que se suba desde el panel. */}
+            <span className="absolute inset-0 bg-ink/45" />
+          </>
+        )}
+
+        <div className="animate-scale-in relative text-center">
           {brand.logoUrl ? (
             <Image
               src={brand.logoUrl}
@@ -87,9 +106,9 @@ export function Onboarding({
             </span>
           )}
           <h1 className="font-display text-4xl font-bold tracking-tight text-white">
-            {brand.appName}
+            {splash?.title || brand.appName}
           </h1>
-          <p className="mt-2 text-sm text-white/80">{brand.tagline}</p>
+          <p className="mt-2 text-sm text-white/80">{splash?.subtitle || brand.tagline}</p>
         </div>
       </div>
     );

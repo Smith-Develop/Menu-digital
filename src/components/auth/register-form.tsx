@@ -6,6 +6,7 @@ import { Lock, Mail, Store, User } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
+import { signUp } from '@/app/actions/auth';
 import { useToast } from '@/components/ui/toast';
 import { useT } from '@/i18n/provider';
 
@@ -36,23 +37,33 @@ export function RegisterForm() {
     }
 
     setLoading(true);
-    const supabase = createClient();
-    const { data, error: signUpError } = await supabase.auth.signUp({
+
+    // Por la acción de servidor: el registro del navegador deja la cuenta a la
+    // espera de un correo de confirmación que este despliegue no envía.
+    const result = await signUp({
+      fullName: fullName.trim(),
       email: email.trim(),
       password,
-      options: { data: { full_name: fullName.trim(), role: 'restaurant' } },
+      kind: 'restaurant',
+      restaurantName: restaurantName.trim(),
     });
 
-    if (signUpError) {
-      setError(signUpError.message);
+    if (!result.ok) {
+      setError(result.error === 'EMAIL_TAKEN' ? t.auth.emailTaken : t.common.error);
       setLoading(false);
       return;
     }
 
-    // Sin sesión inmediata → la instancia exige confirmar el correo.
-    if (!data.session) {
-      toast(t.auth.checkEmail, 'info');
-      setLoading(false);
+    // La cuenta queda utilizable: se entra directamente.
+    const supabase = createClient();
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+    setLoading(false);
+
+    if (signInError) {
+      setError(t.common.error);
       return;
     }
 

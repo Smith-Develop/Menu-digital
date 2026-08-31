@@ -10,6 +10,9 @@ export type OnboardingSlide = {
 
 export type AuthScreens = {
   splashEnabled: boolean;
+  splashTitle: string | null;
+  splashSubtitle: string | null;
+  splashImageUrl: string | null;
   onboardingEnabled: boolean;
   loginTitle: string;
   loginSubtitle: string;
@@ -25,6 +28,9 @@ export type AuthScreens = {
 
 export const DEFAULT_AUTH_SCREENS: AuthScreens = {
   splashEnabled: true,
+  splashTitle: null,
+  splashSubtitle: null,
+  splashImageUrl: null,
   onboardingEnabled: true,
   loginTitle: 'Bienvenido de nuevo',
   loginSubtitle: 'Inicia sesión para acceder a tu cuenta',
@@ -47,12 +53,15 @@ export const getAuthScreens = cache(async (): Promise<AuthScreens> => {
 
     return {
       splashEnabled: data.splash_enabled,
+      splashTitle: data.splash_title,
+      splashSubtitle: data.splash_subtitle,
+      splashImageUrl: data.splash_image_url,
       onboardingEnabled: data.onboarding_enabled,
-      loginTitle: data.login_title,
-      loginSubtitle: data.login_subtitle,
+      loginTitle: data.login_title ?? DEFAULT_AUTH_SCREENS.loginTitle,
+      loginSubtitle: data.login_subtitle ?? DEFAULT_AUTH_SCREENS.loginSubtitle,
       loginImageUrl: data.login_image_url,
-      registerTitle: data.register_title,
-      registerSubtitle: data.register_subtitle,
+      registerTitle: data.register_title ?? DEFAULT_AUTH_SCREENS.registerTitle,
+      registerSubtitle: data.register_subtitle ?? DEFAULT_AUTH_SCREENS.registerSubtitle,
       registerImageUrl: data.register_image_url,
       socialGoogle: data.social_google,
       socialFacebook: data.social_facebook,

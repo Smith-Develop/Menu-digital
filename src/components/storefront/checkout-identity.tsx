@@ -5,6 +5,7 @@ import { Lock, LogIn, Mail, User, UserPlus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
+import { signUp } from '@/app/actions/auth';
 import { useT } from '@/i18n/provider';
 import { cn } from '@/lib/utils';
 
@@ -66,36 +67,54 @@ export function CheckoutIdentity({
       return;
     }
 
-    const { data, error: signUpError } = await supabase.auth.signUp({
+    // El alta va por la acción de servidor, no por el registro del navegador:
+    // aquel deja la cuenta pendiente de un correo de confirmación que este
+    // despliegue nunca envía, y quien compraba se quedaba esperando un mensaje
+    // que no existía. La acción crea la cuenta ya utilizable y manda la
+    // bienvenida por el correo de la aplicación.
+    const result = await signUp({
+      fullName: fullName.trim(),
       email: email.trim(),
+      phone: phone.trim() || null,
       password,
-      options: { data: { full_name: fullName.trim(), phone: phone.trim() } },
+      kind: 'customer',
     });
 
-    if (signUpError) {
+    if (!result.ok) {
       // Correo ya registrado: se intenta entrar con esa contraseña.
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
-      setLoading(false);
+      if (result.error === 'EMAIL_TAKEN') {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+        setLoading(false);
 
-      if (signInError) {
-        setError(t.checkout.emailTakenHint);
-        setMode('signin');
+        if (signInError) {
+          setError(t.checkout.emailTakenHint);
+          setMode('signin');
+          return;
+        }
+        onReady();
         return;
       }
-      onReady();
+
+      setLoading(false);
+      setError(t.common.error);
       return;
     }
 
+    // La cuenta ya existe y está confirmada: se abre la sesión sin más pasos.
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
     setLoading(false);
 
-    // Sin sesión inmediata la instancia exige confirmar el correo.
-    if (!data.session) {
-      setNotice(t.auth.checkEmail);
+    if (signInError) {
+      setError(t.common.error);
       return;
     }
+
     onReady();
   }
 

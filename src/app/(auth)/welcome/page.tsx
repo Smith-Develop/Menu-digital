@@ -31,6 +31,11 @@ export default async function WelcomePage() {
         primaryColor: brand.primaryColor,
       }}
       showSplash={screens.splashEnabled}
+      splash={{
+        imageUrl: screens.splashImageUrl,
+        title: screens.splashTitle,
+        subtitle: screens.splashSubtitle,
+      }}
     />
   );
 }

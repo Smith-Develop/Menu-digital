@@ -9,7 +9,7 @@ import { welcomeEmail } from '@/lib/emails/welcome';
 import { slugify } from '@/lib/utils';
 import { getCurrency } from '@/lib/money';
 
-export type AccountKind = 'customer' | 'restaurant' | 'courier';
+export type AccountKind = 'customer' | 'restaurant' | 'courier' | 'staff';
 
 export type SignUpResult =
   | { ok: true; redirectTo: string }
@@ -20,7 +20,9 @@ const baseSchema = z.object({
   email: z.string().email(),
   phone: z.string().max(40).optional().nullable(),
   password: z.string().min(8).max(72),
-  kind: z.enum(['customer', 'restaurant', 'courier']),
+  // `staff` es quien entra por una invitación: trabaja en un restaurante que
+  // ya existe, así que se le crea la cuenta pero ningún restaurante nuevo.
+  kind: z.enum(['customer', 'restaurant', 'courier', 'staff']),
   // Solo para restaurantes
   restaurantName: z.string().max(120).optional().nullable(),
   city: z.string().max(80).optional().nullable(),
@@ -88,6 +90,7 @@ export async function signUp(input: unknown): Promise<SignUpResult> {
 
   if (createError || !created.user) {
     const message = createError?.message ?? '';
+    console.error('[signUp] Supabase rechazó el alta:', message);
     return {
       ok: false,
       error: /already|registered|exists/i.test(message) ? ERRORS.EMAIL_TAKEN : ERRORS.SIGNUP_FAILED,
@@ -135,6 +138,10 @@ export async function signUp(input: unknown): Promise<SignUpResult> {
     redirectTo = '/dashboard';
   }
 
+  if (data.kind === 'staff') {
+    redirectTo = '/dashboard';
+  }
+
   if (data.kind === 'courier') {
     await admin.from('couriers').insert({
       user_id: userId,
@@ -152,7 +159,7 @@ export async function signUp(input: unknown): Promise<SignUpResult> {
     tagline: brand.tagline,
     brandColor: brand.primaryColor,
     fullName: data.fullName.trim(),
-    kind: data.kind,
+    kind: data.kind === 'staff' ? 'restaurant' : data.kind,
     url: `${origin.replace(/\/$/, '')}${redirectTo}`,
   });
   void sendMail({ to: email, ...message });

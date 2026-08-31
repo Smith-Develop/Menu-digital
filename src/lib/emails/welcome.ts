@@ -21,6 +21,10 @@ const NEXT_STEP: Record<AccountKind, { cta: string; note: string }> = {
     cta: 'Ir a mis repartos',
     note: 'Completa tu perfil y pide a los restaurantes de tu zona que te añadan a su equipo.',
   },
+  staff: {
+    cta: 'Ir al panel',
+    note: 'Ya formas parte del equipo: desde el panel verás los pedidos que entren en el restaurante.',
+  },
 };
 
 /** Correo de bienvenida, maquetado con tablas para que Outlook lo respete. */

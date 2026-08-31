@@ -1,6 +1,7 @@
 import { getI18n } from '@/i18n';
 import { requireSuperadmin } from '@/lib/auth';
 import { getBrand } from '@/lib/brand';
+import { getAuthScreens } from '@/lib/auth-screens';
 import { BrandingForm } from '@/components/admin/branding-form';
 import { PlatformSoundSettings } from '@/components/admin/platform-sound-settings';
 import { createServerSupabase } from '@/lib/supabase/server';
@@ -11,7 +12,7 @@ export const metadata = { title: 'Marca' };
 
 export default async function BrandingPage() {
   await requireSuperadmin();
-  const [{ t }, brand] = await Promise.all([getI18n(), getBrand()]);
+  const [{ t }, brand, screens] = await Promise.all([getI18n(), getBrand(), getAuthScreens()]);
 
   const supabase = await createServerSupabase();
   const { data: settings } = await supabase
@@ -28,7 +29,7 @@ export default async function BrandingPage() {
         <p className="mt-1 max-w-2xl text-sm text-ink-300">{t.admin.brandingHint}</p>
       </div>
 
-      <BrandingForm initial={brand} />
+      <BrandingForm initialScreens={screens} initial={brand} />
 
       <PlatformSoundSettings initial={sounds} />
     </div>

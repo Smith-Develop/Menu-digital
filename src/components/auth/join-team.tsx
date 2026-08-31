@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { createClient } from '@/lib/supabase/client';
+import { signUp } from '@/app/actions/auth';
 import { staffRoleLabel } from '@/lib/staff-roles';
 import { useT } from '@/i18n/provider';
 import type { Enums } from '@/types/database';
@@ -107,25 +108,29 @@ export function JoinTeam({
     setLoading(true);
     const supabase = createClient();
 
-    const { data, error: signUpError } = await supabase.auth.signUp({
+    // Alta por la acción de servidor: el registro del navegador dejaría al
+    // empleado esperando un correo de confirmación que no llega, y con él la
+    // invitación sin aceptar.
+    const result = await signUp({
+      fullName: fullName.trim(),
       email: invitation.email,
       password,
-      options: { data: { full_name: fullName.trim(), role: 'restaurant' } },
+      kind: 'staff',
     });
 
-    if (signUpError) {
-      // Si ya existía la cuenta, se intenta entrar con esa contraseña.
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: invitation.email,
-        password,
-      });
-      if (signInError) {
-        setError(signUpError.message);
-        setLoading(false);
-        return;
-      }
-    } else if (!data.session) {
-      toast(t.auth.checkEmail, 'info');
+    // Si ya existía la cuenta —o acaba de crearse— se entra con esa contraseña.
+    if (!result.ok && result.error !== 'EMAIL_TAKEN') {
+      setError(t.common.error);
+      setLoading(false);
+      return;
+    }
+
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: invitation.email,
+      password,
+    });
+    if (signInError) {
+      setError(result.ok ? t.common.error : t.auth.invalidCredentials);
       setLoading(false);
       return;
     }
