@@ -229,6 +229,7 @@ const en: Dictionary = {
     askAdmin: 'Categories are created by the platform. If one is missing, ask the administrator.',
   },
   coupon: {
+    saved: 'Your coupons',
     title: 'Discount coupon',
     placeholder: 'CODE',
     apply: 'Apply',
@@ -753,6 +754,14 @@ const en: Dictionary = {
     assignedWaiter: 'Assigned waiter',
     noWaiter: 'Unassigned',
     orderForTable: 'Order for this table',
+  },
+  rating: {
+    title: 'How did it go?',
+    hint: 'Your rating helps others choose',
+    restaurant: 'Restaurant',
+    dish: 'Dish',
+    courier: 'Courier',
+    waiter: 'Waiter',
   },
 
 };

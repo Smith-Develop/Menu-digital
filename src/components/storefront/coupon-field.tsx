@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect, useCallback} from 'react';
 import { BadgePercent, Check, Loader2, LogIn, X } from 'lucide-react';
 import { useActiveCart } from '@/components/storefront/cart-provider';
 import { cartToOrderItems } from '@/lib/cart';
 import { createClient } from '@/lib/supabase/client';
+import { rememberCoupon, listMyCoupons, type SavedCoupon } from '@/app/actions/coupons';
 import { formatMoney } from '@/lib/money';
 import { useT } from '@/i18n/provider';
 import { cn } from '@/lib/utils';
@@ -51,6 +52,7 @@ export function CouponField({
 
   const [code, setCode] = useState('');
   const [checking, setChecking] = useState(false);
+  const [guardados, setGuardados] = useState<SavedCoupon[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [needsLogin, setNeedsLogin] = useState(false);
 
@@ -66,6 +68,19 @@ export function CouponField({
     LOGIN_REQUIRED: t.coupon.loginRequired,
     RESTAURANT_NOT_FOUND: t.common.error,
   };
+
+  const cargarGuardados = useCallback(async () => {
+    const filas = await listMyCoupons().catch(() => []);
+    // Los del propio restaurante y los de plataforma; los de otros locales no
+    // sirven aquí y sólo darían un rechazo al aplicarlos.
+    setGuardados(
+      filas.filter((cupon) => !cupon.restaurant_id || cupon.restaurant_slug === slug),
+    );
+  }, [slug]);
+
+  useEffect(() => {
+    void cargarGuardados();
+  }, [cargarGuardados]);
 
   async function apply() {
     const trimmed = code.trim();
@@ -98,13 +113,18 @@ export function CouponField({
         return;
       }
 
+      const aplicado = result.code ?? trimmed.toUpperCase();
       setCoupon({
-        code: result.code ?? trimmed.toUpperCase(),
+        code: aplicado,
         kind: result.kind ?? 'fixed',
         discountCents: result.discount_cents ?? 0,
         description: result.description ?? null,
       });
       setCode('');
+
+      // Queda guardado en la cuenta para no tener que recordar el código la
+      // próxima vez. Va sin esperar: el descuento ya está aplicado.
+      void rememberCoupon(aplicado, slug).then(() => cargarGuardados());
     } catch {
       setError(t.common.error);
     } finally {
@@ -171,6 +191,36 @@ export function CouponField({
           {checking ? <Loader2 className="h-4 w-4 animate-spin" /> : t.coupon.apply}
         </button>
       </div>
+
+      {/* Cupones que ya canjeó antes y siguen sirviendo: se aplican con un
+          toque, sin tener que acordarse del código. */}
+      {guardados.length > 0 && (
+        <div className="mt-3">
+          <p className="mb-2 text-xs font-semibold text-ink-400">{t.coupon.saved}</p>
+          <div className="flex flex-wrap gap-2">
+            {guardados.map((cupon) => (
+              <button
+                key={cupon.code}
+                type="button"
+                onClick={() => {
+                  setCode(cupon.code);
+                  void apply();
+                }}
+                disabled={checking}
+                className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-brand/50 bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-700 transition-colors hover:bg-brand-100 disabled:opacity-50"
+              >
+                <BadgePercent className="h-3.5 w-3.5" />
+                {cupon.code}
+                {cupon.max_per_customer !== null && (
+                  <span className="font-normal text-brand-700/70">
+                    {cupon.max_per_customer - cupon.used}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {error && (
         <p className="mt-2 text-xs font-semibold text-state-danger">

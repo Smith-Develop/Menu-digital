@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { PushPrompt } from '@/components/pwa/push-prompt';
+import { RatingPanel } from '@/components/storefront/rating-panel';
 import { useEffect, useState } from 'react';
 import {
   Bike,
@@ -312,6 +313,8 @@ export function OrderTracker({ order: initial, token }: { order: TrackedOrder; t
             · {t.order.payment[order.payment_status]}
           </p>
         </section>
+
+        {order.status === 'completed' && <RatingPanel orderId={order.id} />}
 
         <PushPrompt orderId={order.id} className="mt-6" />
 

@@ -227,6 +227,7 @@ const es = {
     askAdmin: 'Las categorías las crea la plataforma. Si te falta alguna, pídesela al administrador.',
   },
   coupon: {
+    saved: 'Tus cupones',
     title: 'Cupón de descuento',
     placeholder: 'CÓDIGO',
     apply: 'Aplicar',
@@ -752,6 +753,14 @@ const es = {
     assignedWaiter: 'Camarero asignado',
     noWaiter: 'Sin asignar',
     orderForTable: 'Pedir para esta mesa',
+  },
+  rating: {
+    title: '¿Qué tal ha ido?',
+    hint: 'Tu valoración ayuda a los demás a elegir',
+    restaurant: 'Restaurante',
+    dish: 'Plato',
+    courier: 'Repartidor',
+    waiter: 'Camarero',
   },
 } as const;
 

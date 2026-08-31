@@ -415,6 +415,24 @@ export type Database = {
         };
         Relationships: [];
       };
+      customer_coupons: {
+        Row: {
+          user_id: string;
+          coupon_id: string;
+          saved_at: string;
+        };
+        Insert: {
+          user_id: string;
+          coupon_id: string;
+          saved_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          coupon_id?: string;
+          saved_at?: string;
+        };
+        Relationships: [];
+      };
       favorites: {
         Row: {
           user_id: string;
@@ -1063,6 +1081,39 @@ export type Database = {
         };
         Relationships: [];
       };
+      ratings: {
+        Row: {
+          id: string;
+          order_id: string;
+          customer_id: string;
+          target_type: Enums<"rating_target">;
+          target_id: string;
+          score: number;
+          comment: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          order_id: string;
+          customer_id: string;
+          target_type: Enums<"rating_target">;
+          target_id: string;
+          score: number;
+          comment?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          order_id?: string;
+          customer_id?: string;
+          target_type?: Enums<"rating_target">;
+          target_id?: string;
+          score?: number;
+          comment?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       restaurant_couriers: {
         Row: {
           id: string;
@@ -1533,6 +1584,8 @@ export type Database = {
       platform_stats: { Args: { p_days?: number }; Returns: Json };
       restaurant_analytics: { Args: { p_restaurant_id: string; p_from: string; p_to: string }; Returns: Json };
       floor_status: { Args: { p_restaurant_id: string }; Returns: Json };
+      my_coupons: { Args: { [_ in never]: never }; Returns: Json };
+      order_rating_targets: { Args: { p_order_id: string }; Returns: Json };
       is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };
       is_staff_of: { Args: { rid: string }; Returns: boolean };
     };
@@ -1550,6 +1603,7 @@ export type Database = {
       payment_method: "cash" | "card" | "tpv" | "stripe";
       payment_status: "pending" | "paid" | "failed" | "refunded";
       plan_interval: "month" | "year";
+      rating_target: "restaurant" | "product" | "courier" | "waiter";
       staff_role: "owner" | "admin" | "manager" | "waiter" | "kitchen" | "cashier";
       subscription_status: "trialing" | "active" | "past_due" | "canceled" | "expired";
     };
