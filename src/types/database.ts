@@ -1451,6 +1451,7 @@ export type Database = {
           updated_at: string;
           assigned_waiter_id: string | null;
           assigned_at: string | null;
+          session_id: string;
         };
         Insert: {
           id?: string;
@@ -1464,6 +1465,7 @@ export type Database = {
           updated_at?: string;
           assigned_waiter_id?: string | null;
           assigned_at?: string | null;
+          session_id?: string;
         };
         Update: {
           id?: string;
@@ -1477,6 +1479,7 @@ export type Database = {
           updated_at?: string;
           assigned_waiter_id?: string | null;
           assigned_at?: string | null;
+          session_id?: string;
         };
         Relationships: [];
       };
@@ -1586,6 +1589,7 @@ export type Database = {
       floor_status: { Args: { p_restaurant_id: string }; Returns: Json };
       my_coupons: { Args: { [_ in never]: never }; Returns: Json };
       order_rating_targets: { Args: { p_order_id: string }; Returns: Json };
+      table_session_alive: { Args: { p_code: string; p_session: string }; Returns: boolean };
       is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };
       is_staff_of: { Args: { rid: string }; Returns: boolean };
     };

@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getTableByCode } from '@/lib/queries/public';
-import { tableCookieName } from '@/lib/table-session';
+import { tableCookieName, tableCookieValue } from '@/lib/table-session';
 import { BROWSE_COOKIE } from '@/lib/store-context';
 import { originFromRequest } from '@/lib/request-url';
 
@@ -37,7 +37,10 @@ export async function GET(
     sameSite: 'lax',
   });
 
-  response.cookies.set(tableCookieName(restaurant.slug), table.code, {
+  // Junto al código va el turno de la mesa. Cuando se cobre la cuenta, la mesa
+  // estrenará turno y esta cookie dejará de valer sola, sin esperar a que
+  // caduque: es lo que impide que alguien siga "en la mesa 7" desde su casa.
+  response.cookies.set(tableCookieName(restaurant.slug), tableCookieValue(table.code, table.session_id), {
     path: '/',
     maxAge: 60 * 60 * 6, // una sobremesa larga
     sameSite: 'lax',

@@ -191,6 +191,7 @@ export type Database = {
     out.append("      floor_status: { Args: { p_restaurant_id: string }; Returns: Json };")
     out.append("      my_coupons: { Args: { [_ in never]: never }; Returns: Json };")
     out.append("      order_rating_targets: { Args: { p_order_id: string }; Returns: Json };")
+    out.append("      table_session_alive: { Args: { p_code: string; p_session: string }; Returns: boolean };")
     out.append("      is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };")
     out.append("      is_staff_of: { Args: { rid: string }; Returns: boolean };")
     out.append("    };")

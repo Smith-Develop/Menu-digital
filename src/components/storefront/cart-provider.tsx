@@ -37,6 +37,25 @@ export function CartProvider({
 }) {
   const store = inTable ? useTableCart : useDeliveryCart;
 
+  // La cesta de mesa se vacía al cambiar de mesa o de turno. Sin esto, quien
+  // vuelve al restaurante otro día se encuentra en la cesta lo que dejó a
+  // medias la vez anterior, y a nombre de una mesa que ya no es la suya.
+  useEffect(() => {
+    const CLAVE = 'yumi-table-session';
+    try {
+      const anterior = localStorage.getItem(CLAVE);
+      const actual = inTable ? tableCode : null;
+
+      if (anterior !== actual) {
+        if (anterior) useTableCart.getState().clear();
+        if (actual) localStorage.setItem(CLAVE, actual);
+        else localStorage.removeItem(CLAVE);
+      }
+    } catch {
+      /* sin almacenamiento no hay nada que arrastrar */
+    }
+  }, [inTable, tableCode]);
+
   return (
     <CartContext.Provider value={{ store, inTable, tableCode }}>{children}</CartContext.Provider>
   );
