@@ -164,7 +164,7 @@ export function MenuBrowser({
                   onClick={() => quickAdd(product)}
                   disabled={!product.available}
                   aria-label={t.product.addToCart}
-                  className="absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-brand text-white shadow-[0_6px_14px_-6px_rgba(255,118,34,0.9)] transition-transform active:scale-95 disabled:bg-ink-200"
+                  className="absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-brand text-white shadow-[0_6px_14px_-6px_rgba(255,118,34,0.9)] disabled:bg-ink-200 lg:transition-transform lg:active:scale-95"
                 >
                   <Plus className="h-4 w-4" strokeWidth={3} />
                 </button>

@@ -2,6 +2,7 @@ import { cache } from 'react';
 import { redirect } from 'next/navigation';
 import { createServerSupabase } from '@/lib/supabase/server';
 import type { Tables, Enums } from '@/types/database';
+import { canAccessSection, type DashboardSection } from '@/lib/auth-permissions';
 
 export type Profile = Tables<'profiles'>;
 export type Restaurant = Tables<'restaurants'>;
@@ -113,9 +114,29 @@ export async function requireStaffContext(): Promise<StaffContext> {
   return context;
 }
 
+/**
+ * Contexto de trabajo comprobando que el rol puede abrir esa sección.
+ *
+ * Quien no tiene acceso vuelve al resumen, que es lo que todo el equipo puede
+ * ver, en lugar de encontrarse un formulario que la base de datos le rechazará
+ * al guardar.
+ */
+export async function requireSection(section: DashboardSection): Promise<StaffContext> {
+  const context = await requireStaffContext();
+  if (!canAccessSection(section, context.staffRole)) redirect('/dashboard');
+  return context;
+}
+
 // Los permisos por rol viven en lib/auth-permissions.ts para que el cliente
 // pueda usarlos sin arrastrar las APIs de servidor de este módulo.
-export { canManageMenu, canManageStaff, canManageBilling, canWorkKitchen } from '@/lib/auth-permissions';
+export {
+  canManageMenu,
+  canManageStaff,
+  canManageBilling,
+  canWorkKitchen,
+  canManageSettings,
+  canAccessSection,
+} from '@/lib/auth-permissions';
 
 /** Días que quedan de suscripción. Negativo = caducada. */
 export function daysUntil(date: string | null | undefined): number {

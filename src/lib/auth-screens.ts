@@ -22,6 +22,7 @@ export type AuthScreens = {
   registerImageUrl: string | null;
   socialGoogle: boolean;
   socialFacebook: boolean;
+  socialApple: boolean;
   termsUrl: string | null;
   privacyUrl: string | null;
 };
@@ -40,6 +41,7 @@ export const DEFAULT_AUTH_SCREENS: AuthScreens = {
   registerImageUrl: null,
   socialGoogle: false,
   socialFacebook: false,
+  socialApple: false,
   termsUrl: null,
   privacyUrl: null,
 };
@@ -65,6 +67,7 @@ export const getAuthScreens = cache(async (): Promise<AuthScreens> => {
       registerImageUrl: data.register_image_url,
       socialGoogle: data.social_google,
       socialFacebook: data.social_facebook,
+      socialApple: data.social_apple,
       termsUrl: data.terms_url,
       privacyUrl: data.privacy_url,
     };

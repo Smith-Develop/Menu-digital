@@ -1,5 +1,5 @@
 import { getI18n } from '@/i18n';
-import { requireStaffContext } from '@/lib/auth';
+import { requireSection } from '@/lib/auth';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { StaffManager } from '@/components/dashboard/staff-manager';
 import { getPublicOrigin } from '@/lib/request-url';
@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Equipo' };
 
 export default async function StaffPage() {
-  const { restaurant, subscription, profile } = await requireStaffContext();
+  const { restaurant, subscription, profile } = await requireSection('staff');
   const { t } = await getI18n();
   const supabase = await createServerSupabase();
 

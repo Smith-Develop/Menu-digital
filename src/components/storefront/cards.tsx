@@ -31,7 +31,7 @@ export function DishImage({
           fill
           sizes={sizes}
           priority={priority}
-          className="img-fade object-cover"
+          className="object-cover lg:img-fade"
         />
       ) : (
         <div className="flex h-full w-full items-center justify-center text-ink-200">
@@ -152,7 +152,9 @@ export function PopularCard({
       href={href}
       className="group block w-[186px] shrink-0 pt-[70px] sm:w-[210px] sm:pt-[80px]"
     >
-      <div className="relative flex min-h-[132px] flex-col rounded-2xl bg-white px-4 pb-4 pt-[78px] shadow-chip transition-transform group-active:scale-[0.98] sm:min-h-[148px] sm:pt-[88px]">
+      {/* Las animaciones se reservan al escritorio: en un móvil, con el dedo
+          encima de la tarjeta, el rebote y el zoom se notan como un retardo. */}
+      <div className="relative flex min-h-[132px] flex-col rounded-2xl bg-white px-4 pb-4 pt-[78px] shadow-chip sm:min-h-[148px] sm:pt-[88px] lg:transition-transform lg:group-active:scale-[0.98]">
         <div className="absolute -top-[70px] left-1/2 h-[140px] w-[140px] -translate-x-1/2 sm:-top-20 sm:h-40 sm:w-40">
           <DishImage
             src={image}
@@ -204,7 +206,7 @@ export function RestaurantCard({
   const t = useT();
 
   return (
-    <Link href={`/r/${slug}`} className="lift group block">
+    <Link href={`/r/${slug}`} className="group block lg:lift">
       <div className="relative h-[150px] w-full overflow-hidden rounded-2xl bg-surface-muted">
         {cover ? (
           <Image
@@ -212,7 +214,7 @@ export function RestaurantCard({
             alt={name}
             fill
             sizes="(max-width: 480px) 100vw, 440px"
-            className="img-fade object-cover transition-transform duration-500 group-hover:scale-105"
+            className="object-cover lg:img-fade lg:transition-transform lg:duration-500 lg:group-hover:scale-105"
           />
         ) : (
           <div className="flex h-full items-center justify-center text-ink-200">

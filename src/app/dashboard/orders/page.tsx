@@ -1,6 +1,6 @@
 import { getI18n } from '@/i18n';
 import { resolveSounds, type SoundSettings } from '@/lib/sounds';
-import { requireStaffContext } from '@/lib/auth';
+import { requireSection } from '@/lib/auth';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { OrdersBoard } from '@/components/dashboard/orders-board';
 import type { OrderRow } from '@/components/dashboard/live-orders-panel';
@@ -24,7 +24,7 @@ export default async function OrdersPage({
 }: {
   searchParams: Promise<{ view?: string }>;
 }) {
-  const { restaurant, staffRole } = await requireStaffContext();
+  const { restaurant, staffRole } = await requireSection('orders');
   const { t } = await getI18n();
   const { view } = await searchParams;
   const showHistory = view === 'history';

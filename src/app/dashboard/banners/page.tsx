@@ -1,5 +1,5 @@
 import { getI18n } from '@/i18n';
-import { requireStaffContext } from '@/lib/auth';
+import { requireSection } from '@/lib/auth';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { BannersManager } from '@/components/dashboard/banners-manager';
 
@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Banners' };
 
 export default async function BannersPage() {
-  const { restaurant } = await requireStaffContext();
+  const { restaurant } = await requireSection('banners');
   const { t } = await getI18n();
   const supabase = await createServerSupabase();
 

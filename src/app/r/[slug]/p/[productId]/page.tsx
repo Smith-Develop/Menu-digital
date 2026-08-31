@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { createServerSupabase } from '@/lib/supabase/server';
 import { getRestaurantBySlug, getProduct } from '@/lib/queries/public';
 import { ProductDetail } from '@/components/product/product-detail';
 import type { Metadata } from 'next';
@@ -34,8 +35,22 @@ export default async function ProductPage({
   const product = await getProduct(restaurant.id, productId);
   if (!product) notFound();
 
+  const supabase = await createServerSupabase();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: favorito } = user
+    ? await supabase
+        .from('favorites')
+        .select('product_id')
+        .eq('user_id', user.id)
+        .eq('product_id', productId)
+        .maybeSingle()
+    : { data: null };
+
   return (
     <ProductDetail
+      isFavorite={Boolean(favorito)}
       slug={slug}
       restaurantName={restaurant.name}
       restaurantLogo={restaurant.logo_url}

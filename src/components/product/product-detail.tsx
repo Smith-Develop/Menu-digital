@@ -10,6 +10,7 @@ import { Sheet } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
 import { type CartOption } from '@/lib/cart';
 import { useActiveCart } from '@/components/storefront/cart-provider';
+import { toggleFavorite } from '@/app/actions/favorites';
 import { formatMoney } from '@/lib/money';
 import { useT, interpolate } from '@/i18n/provider';
 import { cn } from '@/lib/utils';
@@ -51,6 +52,7 @@ export function ProductDetail({
   currency,
   currencyDecimals,
   product,
+  isFavorite = false,
 }: {
   slug: string;
   restaurantName: string;
@@ -58,6 +60,8 @@ export function ProductDetail({
   currency: string;
   currencyDecimals: number;
   product: DetailProduct;
+  /** Si esa persona ya lo tenía guardado; lo resuelve el servidor. */
+  isFavorite?: boolean;
 }) {
   const t = useT();
   const toast = useToast();
@@ -67,9 +71,31 @@ export function ProductDetail({
 
   const [quantity, setQuantity] = useState(1);
   const [notes, setNotes] = useState('');
-  const [favorite, setFavorite] = useState(false);
+  const [favorite, setFavorite] = useState(isFavorite);
+  const [savingFavorite, setSavingFavorite] = useState(false);
   const [showViewer, setShowViewer] = useState(false);
   const [mode, setMode] = useState<'photo' | '3d'>('photo');
+
+  async function saveFavorite() {
+    setSavingFavorite(true);
+    // Se pinta antes de confirmar: el corazón tiene que responder al dedo, y si
+    // el guardado falla se devuelve a su sitio.
+    const deseado = !favorite;
+    setFavorite(deseado);
+
+    const result = await toggleFavorite(product.id);
+    setSavingFavorite(false);
+
+    if (!result.ok) {
+      setFavorite(!deseado);
+      if (result.error === 'SIGN_IN_REQUIRED') {
+        toast(t.storefront.featuredSignIn, 'info');
+        router.push(`/login?next=${encodeURIComponent(window.location.pathname)}`);
+        return;
+      }
+      toast(t.common.error, 'error');
+    }
+  }
 
   // Preselección: las opciones marcadas por defecto en el panel del restaurante.
   const [selected, setSelected] = useState<Record<string, string[]>>(() => {
@@ -145,28 +171,10 @@ export function ProductDetail({
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      <header className="flex items-center gap-4 px-5 pb-2 pt-4">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="icon-btn shrink-0"
-          aria-label={t.common.back}
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </button>
-        <h1 className="flex-1 font-display text-lg font-bold text-ink-700">{t.product.details}</h1>
-        <button
-          type="button"
-          onClick={() => setFavorite((v) => !v)}
-          className="icon-btn shrink-0"
-          aria-label="Favorito"
-          aria-pressed={favorite}
-        >
-          <Heart className={cn('h-5 w-5', favorite && 'fill-brand text-brand')} />
-        </button>
-      </header>
-
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-6">
+      {/* Ni cabecera propia ni título: el botón de volver y el nombre de la
+          sección viven en la cabecera de la tienda, que es la que se ve arriba
+          en todas las pantallas. */}
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-6 pt-4">
         {/* Visor: foto o 3D según el conmutador */}
         <div className="relative h-[220px] w-full overflow-hidden rounded-2xl bg-surface-muted">
           {mode === '3d' && has3d ? (
@@ -193,6 +201,17 @@ export function ProductDetail({
               <ImageIcon className="h-9 w-9" />
             </div>
           )}
+
+          <button
+            type="button"
+            onClick={saveFavorite}
+            disabled={savingFavorite}
+            aria-label={t.product.favorite}
+            aria-pressed={favorite}
+            className="absolute left-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 shadow-chip backdrop-blur transition-transform active:scale-95"
+          >
+            <Heart className={cn('h-5 w-5', favorite ? 'fill-brand text-brand' : 'text-ink-400')} />
+          </button>
 
           {has3d && (
             <div className="absolute right-3 top-3 flex gap-1.5 rounded-full bg-white/90 p-1 shadow-chip backdrop-blur">

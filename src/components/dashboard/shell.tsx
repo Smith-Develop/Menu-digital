@@ -26,7 +26,7 @@ import {
   X,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { canManageBilling, canManageMenu, canManageStaff } from '@/lib/auth-permissions';
+import { canAccessSection, type DashboardSection } from '@/lib/auth-permissions';
 import { LocaleSwitcher } from '@/components/locale-switcher';
 import { useT } from '@/i18n/provider';
 import { staffRoleLabel } from '@/lib/staff-roles';
@@ -55,17 +55,22 @@ export function DashboardShell({
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
+  const puede = (seccion: DashboardSection) => canAccessSection(seccion, staffRole);
+
+
   const links = [
+    // El menú enseña exactamente lo que cada rol puede abrir: la misma tabla que
+    // usan las páginas para dejar entrar, así que nunca ofrecen sitios cerrados.
     { href: '/dashboard', icon: LayoutDashboard, label: t.dashboard.overview, exact: true, show: true },
-    { href: '/dashboard/orders', icon: Receipt, label: t.dashboard.liveOrders, show: true },
-    { href: '/dashboard/menu', icon: UtensilsCrossed, label: t.dashboard.menu, show: canManageMenu(staffRole) },
-    { href: '/dashboard/tables', icon: QrCode, label: t.dashboard.tables, show: canManageMenu(staffRole) },
-    { href: '/dashboard/banners', icon: ImageIcon, label: t.dashboard.banners, show: canManageMenu(staffRole) },
-    { href: '/dashboard/coupons', icon: Ticket, label: t.coupon.coupons, show: canManageMenu(staffRole) },
-    { href: '/dashboard/staff', icon: UsersRound, label: t.dashboard.staff, show: canManageStaff(staffRole) },
-    { href: '/dashboard/couriers', icon: Truck, label: t.courier.couriers, show: canManageStaff(staffRole) },
-    { href: '/dashboard/subscription', icon: CreditCard, label: t.dashboard.subscription, show: canManageBilling(staffRole) },
-    { href: '/dashboard/settings', icon: Settings, label: t.dashboard.settings, show: canManageMenu(staffRole) },
+    { href: '/dashboard/orders', icon: Receipt, label: t.dashboard.liveOrders, show: puede('orders') },
+    { href: '/dashboard/menu', icon: UtensilsCrossed, label: t.dashboard.menu, show: puede('menu') },
+    { href: '/dashboard/tables', icon: QrCode, label: t.dashboard.tables, show: puede('tables') },
+    { href: '/dashboard/banners', icon: ImageIcon, label: t.dashboard.banners, show: puede('banners') },
+    { href: '/dashboard/coupons', icon: Ticket, label: t.coupon.coupons, show: puede('coupons') },
+    { href: '/dashboard/staff', icon: UsersRound, label: t.dashboard.staff, show: puede('staff') },
+    { href: '/dashboard/couriers', icon: Truck, label: t.courier.couriers, show: puede('couriers') },
+    { href: '/dashboard/subscription', icon: CreditCard, label: t.dashboard.subscription, show: puede('subscription') },
+    { href: '/dashboard/settings', icon: Settings, label: t.dashboard.settings, show: puede('settings') },
   ].filter((l) => l.show);
 
   async function signOut() {

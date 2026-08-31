@@ -17,3 +17,7 @@ alter table public.app_settings
   alter column login_subtitle drop not null,
   alter column register_title drop not null,
   alter column register_subtitle drop not null;
+
+-- Acceso con Apple: la tabla ya contemplaba Google y Facebook.
+alter table public.app_settings
+  add column if not exists social_apple boolean not null default false;

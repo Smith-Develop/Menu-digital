@@ -149,9 +149,18 @@
 }
 
 @layer components {
-  /* Entrada escalonada de listas: cada hijo arranca un poco después. */
+  /* Entrada escalonada de listas: cada hijo arranca un poco después.
+     Sólo en pantallas grandes. En un móvil la lista de platos se recorre con el
+     dedo y esa entrada se percibe como que la página va lenta, además de
+     repetirse cada vez que se vuelve a la carta. */
   .stagger > * {
-    animation: fade-up 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+    animation: none;
+  }
+
+  @media (min-width: 1024px) {
+    .stagger > * {
+      animation: fade-up 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+    }
   }
   .stagger > *:nth-child(1) { animation-delay: 0ms; }
   .stagger > *:nth-child(2) { animation-delay: 40ms; }

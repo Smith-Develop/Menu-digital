@@ -1,5 +1,5 @@
 import { getI18n } from '@/i18n';
-import { requireStaffContext } from '@/lib/auth';
+import { requireSection } from '@/lib/auth';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { MenuManager } from '@/components/dashboard/menu-manager';
 
@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Carta' };
 
 export default async function MenuPage() {
-  const { restaurant, subscription } = await requireStaffContext();
+  const { restaurant, subscription } = await requireSection('menu');
   const { t } = await getI18n();
   const supabase = await createServerSupabase();
 

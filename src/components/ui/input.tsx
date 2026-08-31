@@ -34,17 +34,28 @@ const FIELD =
   'border border-transparent transition-colors focus:border-brand/40 focus:bg-white ' +
   'disabled:opacity-60 disabled:cursor-not-allowed';
 
+/**
+ * Campo con forma de píldora y borde fino, sin etiqueta encima: el texto de
+ * ayuda va dentro. Es el que usan las pantallas de acceso.
+ */
+const FIELD_PILL =
+  'w-full rounded-full border border-surface-line bg-white px-5 py-3.5 text-[15px] text-ink ' +
+  'placeholder:text-ink-300 transition-colors focus:border-brand focus:outline-none ' +
+  'disabled:opacity-60 disabled:cursor-not-allowed';
+
 export type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   label?: ReactNode;
   hint?: ReactNode;
   error?: string | null;
   icon?: ReactNode;
+  variant?: 'default' | 'pill';
 };
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { label, hint, error, icon, className, ...props },
+  { label, hint, error, icon, className, variant = 'default', ...props },
   ref,
 ) {
+  const base = variant === 'pill' ? FIELD_PILL : FIELD;
   return (
     <FieldShell label={label} hint={hint} error={error}>
       <span className="relative block">
@@ -55,7 +66,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
         )}
         <input
           ref={ref}
-          className={cn(FIELD, icon && 'pl-12', error && 'border-state-danger/50', className)}
+          className={cn(base, icon && 'pl-12', error && 'border-state-danger/50', className)}
           {...props}
         />
       </span>

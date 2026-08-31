@@ -1,5 +1,5 @@
 import { getI18n } from '@/i18n';
-import { requireStaffContext } from '@/lib/auth';
+import { requireSection } from '@/lib/auth';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { CouriersManager } from '@/components/dashboard/couriers-manager';
 
@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Repartidores' };
 
 export default async function DashboardCouriersPage() {
-  const { restaurant } = await requireStaffContext();
+  const { restaurant } = await requireSection('couriers');
   const { t } = await getI18n();
   const supabase = await createServerSupabase();
 

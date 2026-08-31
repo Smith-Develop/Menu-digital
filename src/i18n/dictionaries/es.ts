@@ -1,5 +1,6 @@
 const es = {
   common: {
+    menu: 'Menú',
     appName: 'Menu Digital',
     search: 'Buscar',
     searchPlaceholder: '¿Qué te apetece comer?',
@@ -89,6 +90,11 @@ const es = {
     noSlidesHint: 'Sin ellas, la app lleva directamente al inicio de sesión',
   },
   auth: {
+    agreePrefix: 'Acepto los',
+    termsAndConditions: 'términos y condiciones',
+    or: 'o',
+    socialHint: 'Entra con tu cuenta de siempre',
+    socialSoon: 'Este acceso todavía no está configurado',
     emailTaken: 'Ese correo ya tiene cuenta. Inicia sesión.',
     signIn: 'Iniciar sesión',
     signUp: 'Crear cuenta',
@@ -124,6 +130,10 @@ const es = {
     accountCreated: 'Cuenta creada correctamente',
   },
   storefront: {
+    featuredHint: 'Los platos que has guardado',
+    featuredEmpty: 'Todavía no has guardado ningún plato',
+    featuredEmptyHint: 'Pulsa el corazón en la ficha de un plato para tenerlo aquí a mano.',
+    featuredSignIn: 'Entra para ver tus platos guardados',
     heroTitle: 'Pide en tus restaurantes favoritos',
     heroSubtitle: 'Carta digital, pedidos desde la mesa y entrega a domicilio',
     deliverTo: 'Enviar a',
@@ -171,6 +181,7 @@ const es = {
     noRestaurantsInCityHint: 'Prueba con otra ciudad cercana',
   },
   product: {
+    favorite: 'Añadir a favoritos',
     details: 'Detalles',
     ingredients: 'Ingredientes',
     allergens: 'Alérgenos',

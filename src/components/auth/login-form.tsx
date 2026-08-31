@@ -45,8 +45,8 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
         type="email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        label={t.auth.email}
-        placeholder="tu@restaurante.com"
+        variant="pill"
+        placeholder={t.auth.email}
         icon={<Mail className="h-4 w-4" />}
         autoComplete="email"
         required
@@ -55,8 +55,8 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
         type="password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
-        label={t.auth.password}
-        placeholder="••••••••"
+        variant="pill"
+        placeholder={t.auth.password}
         icon={<Lock className="h-4 w-4" />}
         autoComplete="current-password"
         required
@@ -69,7 +69,7 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
         </Link>
       </div>
 
-      <Button type="submit" size="block" loading={loading} className="mt-6">
+      <Button type="submit" size="block" loading={loading} className="mt-6 rounded-full">
         {t.auth.signIn}
       </Button>
     </form>

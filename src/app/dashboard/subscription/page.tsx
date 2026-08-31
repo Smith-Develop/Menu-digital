@@ -1,5 +1,5 @@
 import { getI18n } from '@/i18n';
-import { requireStaffContext, daysUntil, subscriptionIsLive } from '@/lib/auth';
+import { requireSection, daysUntil, subscriptionIsLive } from '@/lib/auth';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { stripeEnv } from '@/lib/env';
 import { SubscriptionView } from '@/components/dashboard/subscription-view';
@@ -12,7 +12,7 @@ export default async function SubscriptionPage({
 }: {
   searchParams: Promise<{ payment?: string }>;
 }) {
-  const { restaurant, subscription } = await requireStaffContext();
+  const { restaurant, subscription } = await requireSection('subscription');
   const { t } = await getI18n();
   const { payment } = await searchParams;
   const supabase = await createServerSupabase();

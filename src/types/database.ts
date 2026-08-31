@@ -36,6 +36,7 @@ export type Database = {
           splash_image_url: string | null;
           splash_title: string | null;
           splash_subtitle: string | null;
+          social_apple: boolean;
         };
         Insert: {
           id?: boolean;
@@ -65,6 +66,7 @@ export type Database = {
           splash_image_url?: string | null;
           splash_title?: string | null;
           splash_subtitle?: string | null;
+          social_apple?: boolean;
         };
         Update: {
           id?: boolean;
@@ -94,6 +96,7 @@ export type Database = {
           splash_image_url?: string | null;
           splash_title?: string | null;
           splash_subtitle?: string | null;
+          social_apple?: boolean;
         };
         Relationships: [];
       };

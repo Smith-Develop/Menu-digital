@@ -1,5 +1,5 @@
 import { getI18n } from '@/i18n';
-import { requireStaffContext } from '@/lib/auth';
+import { requireSection } from '@/lib/auth';
 import { SettingsForm } from '@/components/dashboard/settings-form';
 import { PrintSettingsForm } from '@/components/dashboard/print-settings-form';
 import { RestaurantSoundSettings } from '@/components/dashboard/restaurant-sound-settings';
@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Ajustes' };
 
 export default async function SettingsPage() {
-  const { restaurant } = await requireStaffContext();
+  const { restaurant } = await requireSection('settings');
   const { t } = await getI18n();
 
   const supabase = await createServerSupabase();

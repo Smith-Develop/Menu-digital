@@ -1,26 +1,39 @@
 import Link from 'next/link';
 import { getI18n } from '@/i18n';
 import { getAuthScreens } from '@/lib/auth-screens';
+import { getBrand } from '@/lib/brand';
+import { AuthCard } from '@/components/auth/auth-card';
+import { SocialButtons } from '@/components/auth/social-buttons';
 import { RegisterForm } from '@/components/auth/register-form';
 
 export const metadata = { title: 'Crear cuenta' };
 
 export default async function RegisterPage() {
-  const [{ t }, screens] = await Promise.all([getI18n(), getAuthScreens()]);
+  const [{ t }, screens, brand] = await Promise.all([getI18n(), getAuthScreens(), getBrand()]);
 
   return (
-    <>
-      <h1 className="font-display text-2xl font-bold text-ink">{screens.registerTitle}</h1>
-      <p className="mt-1.5 text-sm text-ink-300">{screens.registerSubtitle}</p>
+    <AuthCard
+      title={screens.registerTitle}
+      subtitle={screens.registerSubtitle}
+      imageUrl={screens.registerImageUrl}
+      logoUrl={brand.logoUrl}
+      appName={brand.appName}
+      footer={
+        <p className="mt-7 text-center text-sm text-ink-300">
+          {t.auth.hasAccount}{' '}
+          <Link href="/login" className="font-bold text-brand">
+            {t.auth.signIn}
+          </Link>
+        </p>
+      }
+    >
+      <RegisterForm termsUrl={screens.termsUrl} />
 
-      <RegisterForm />
-
-      <p className="mt-8 text-center text-sm text-ink-300">
-        {t.auth.hasAccount}{' '}
-        <Link href="/login" className="font-bold text-brand">
-          {t.auth.signIn}
-        </Link>
-      </p>
-    </>
+      <SocialButtons
+        google={screens.socialGoogle}
+        facebook={screens.socialFacebook}
+        apple={screens.socialApple}
+      />
+    </AuthCard>
   );
 }

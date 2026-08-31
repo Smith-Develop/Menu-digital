@@ -10,7 +10,7 @@ import { signUp } from '@/app/actions/auth';
 import { useToast } from '@/components/ui/toast';
 import { useT } from '@/i18n/provider';
 
-export function RegisterForm() {
+export function RegisterForm({ termsUrl }: { termsUrl?: string | null }) {
   const t = useT();
   const router = useRouter();
   const toast = useToast();
@@ -22,6 +22,7 @@ export function RegisterForm() {
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [accepted, setAccepted] = useState(false);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -77,7 +78,8 @@ export function RegisterForm() {
       <Input
         value={fullName}
         onChange={(e) => setFullName(e.target.value)}
-        label={t.auth.fullName}
+        variant="pill"
+        placeholder={t.auth.fullName}
         icon={<User className="h-4 w-4" />}
         autoComplete="name"
         required
@@ -85,16 +87,17 @@ export function RegisterForm() {
       <Input
         value={restaurantName}
         onChange={(e) => setRestaurantName(e.target.value)}
-        label={t.auth.restaurantName}
+        variant="pill"
+        placeholder={t.auth.restaurantName}
         icon={<Store className="h-4 w-4" />}
-        placeholder="La Trattoria"
         required
       />
       <Input
         type="email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        label={t.auth.email}
+        variant="pill"
+        placeholder={t.auth.email}
         icon={<Mail className="h-4 w-4" />}
         autoComplete="email"
         required
@@ -103,7 +106,8 @@ export function RegisterForm() {
         type="password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
-        label={t.auth.password}
+        variant="pill"
+        placeholder={t.auth.password}
         icon={<Lock className="h-4 w-4" />}
         autoComplete="new-password"
         minLength={8}
@@ -113,14 +117,38 @@ export function RegisterForm() {
         type="password"
         value={confirm}
         onChange={(e) => setConfirm(e.target.value)}
-        label={t.auth.confirmPassword}
+        variant="pill"
+        placeholder={t.auth.confirmPassword}
         icon={<Lock className="h-4 w-4" />}
         autoComplete="new-password"
         required
         error={error}
       />
 
-      <Button type="submit" size="block" loading={loading} className="mt-6">
+      {/* Sin aceptar las condiciones no se crea la cuenta: es el propio botón
+          el que queda desactivado, para que se vea por qué no avanza. */}
+      <label className="flex items-start gap-2.5 pt-1 text-xs text-ink-400">
+        <input
+          type="checkbox"
+          checked={accepted}
+          onChange={(e) => setAccepted(e.target.checked)}
+          className="mt-0.5 h-4 w-4 shrink-0 rounded border-surface-line text-brand focus:ring-brand"
+        />
+        <span>
+          {t.auth.agreePrefix}{' '}
+          <a href={termsUrl ?? '#'} className="font-bold text-brand" target="_blank" rel="noreferrer">
+            {t.auth.termsAndConditions}
+          </a>
+        </span>
+      </label>
+
+      <Button
+        type="submit"
+        size="block"
+        loading={loading}
+        disabled={!accepted}
+        className="mt-6 rounded-full"
+      >
         {t.auth.signUpCta}
       </Button>
     </form>

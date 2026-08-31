@@ -41,7 +41,12 @@ export function StoreHeader({
   // En el carrito y en el pago hace falta poder retroceder, y el sitio natural
   // es la esquina de la que uno viene. El logotipo cede ahí su hueco: dentro de
   // esas pantallas ya se sabe en qué restaurante se está.
-  const showBack = pathname.endsWith('/cart') || pathname.endsWith('/checkout');
+  const showBack =
+    pathname.endsWith('/cart') || pathname.endsWith('/checkout') || pathname.includes('/p/');
+
+  // La ficha de un plato además se anuncia por su nombre de sección, que es lo
+  // único que la distingue una vez fuera el logotipo.
+  const backLabel = pathname.includes('/p/') ? t.product.details : null;
 
   return (
     <header className="sticky top-0 z-40 border-b border-surface-line bg-white/95 backdrop-blur">
@@ -51,9 +56,10 @@ export function StoreHeader({
             type="button"
             onClick={() => router.back()}
             aria-label={t.common.back}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-field text-ink transition-colors hover:bg-surface-muted"
+            className="flex h-10 shrink-0 items-center gap-2 rounded-full bg-surface-field pl-3 pr-4 text-ink transition-colors hover:bg-surface-muted"
           >
             <ArrowLeft className="h-[18px] w-[18px]" />
+            {backLabel && <span className="text-sm font-bold">{backLabel}</span>}
           </button>
         ) : (
           <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-surface-muted">

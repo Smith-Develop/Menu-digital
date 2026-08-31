@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { isoDateTime } from '@/lib/validation';
 import { createServerSupabase, createPublicSupabase, createAdminSupabase } from '@/lib/supabase/server';
 import { requireStaffContext } from '@/lib/auth';
-import { canManageMenu, canManageStaff } from '@/lib/auth-permissions';
+import { canManageMenu, canManageStaff, canManageSettings } from '@/lib/auth-permissions';
 import { tableCode as makeTableCode } from '@/lib/utils';
 import { getCurrency } from '@/lib/money';
 import { sendMail } from '@/lib/mailer';
@@ -27,9 +27,14 @@ function fail(error: string): { ok: false; error: string } {
 }
 
 /** Comprueba sesión + permiso y devuelve el restaurante del usuario. */
-async function guard(kind: 'menu' | 'staff' = 'menu') {
+async function guard(kind: 'menu' | 'staff' | 'settings' = 'menu') {
   const context = await requireStaffContext();
-  const allowed = kind === 'staff' ? canManageStaff(context.staffRole) : canManageMenu(context.staffRole);
+  const allowed =
+    kind === 'staff'
+      ? canManageStaff(context.staffRole)
+      : kind === 'settings'
+        ? canManageSettings(context.staffRole)
+        : canManageMenu(context.staffRole);
   if (!allowed) return { context: null, error: 'FORBIDDEN' as const };
   return { context, error: null };
 }
@@ -328,7 +333,7 @@ const settingsSchema = z.object({
 });
 
 export async function updateRestaurantSettings(input: unknown): Promise<Result> {
-  const { context, error } = await guard();
+  const { context, error } = await guard('settings');
   if (!context) return fail(error);
 
   const parsed = settingsSchema.safeParse(input);
@@ -564,7 +569,7 @@ export async function updateRestaurantTheme(input: {
   accent_color: string;
   text_color: string;
 }): Promise<Result> {
-  const { context, error } = await guard();
+  const { context, error } = await guard('settings');
   if (!context) return fail(error);
 
   const hex = /^#[0-9a-fA-F]{6}$/;
@@ -691,7 +696,7 @@ export async function updatePrintSettings(input: {
   showLogo: boolean;
   footerNote: string | null;
 }): Promise<Result> {
-  const { context, error } = await guard();
+  const { context, error } = await guard('settings');
   if (!context) return fail(error);
 
   const supabase = await createServerSupabase();
@@ -813,7 +818,7 @@ export async function createStaffAccount(input: {
 
 /** Avisos sonoros del restaurante. `null` vuelve a los de la plataforma. */
 export async function updateSoundSettings(value: unknown): Promise<Result> {
-  const { context, error } = await guard();
+  const { context, error } = await guard('settings');
   if (!context) return fail(error);
 
   const schema = z

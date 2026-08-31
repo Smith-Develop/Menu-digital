@@ -2,6 +2,7 @@ import type { Dictionary } from './es';
 
 const en: Dictionary = {
   common: {
+    menu: 'Menu',
     appName: 'Menu Digital',
     search: 'Search',
     searchPlaceholder: 'What will you like to eat?',
@@ -91,6 +92,11 @@ const en: Dictionary = {
     noSlidesHint: 'Without them the app goes straight to sign-in',
   },
   auth: {
+    agreePrefix: 'I agree to the',
+    termsAndConditions: 'terms and conditions',
+    or: 'or',
+    socialHint: 'Log in with your social media account',
+    socialSoon: 'This sign-in method is not set up yet',
     emailTaken: 'That email already has an account. Please sign in.',
     signIn: 'Sign in',
     signUp: 'Create account',
@@ -126,6 +132,10 @@ const en: Dictionary = {
     accountCreated: 'Account created successfully',
   },
   storefront: {
+    featuredHint: 'The dishes you saved',
+    featuredEmpty: 'You have not saved any dish yet',
+    featuredEmptyHint: 'Tap the heart on a dish to keep it here.',
+    featuredSignIn: 'Sign in to see your saved dishes',
     heroTitle: 'Order from your favourite restaurants',
     heroSubtitle: 'Digital menu, table ordering and home delivery',
     deliverTo: 'Deliver to',
@@ -173,6 +183,7 @@ const en: Dictionary = {
     noRestaurantsInCityHint: 'Try a nearby city',
   },
   product: {
+    favorite: 'Add to favourites',
     details: 'Details',
     ingredients: 'Ingredients',
     allergens: 'Allergens',

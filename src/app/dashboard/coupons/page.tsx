@@ -1,5 +1,5 @@
 import { getI18n } from '@/i18n';
-import { requireStaffContext } from '@/lib/auth';
+import { requireSection } from '@/lib/auth';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { listCoupons } from '@/lib/queries/coupons';
 import { CouponsManager } from '@/components/dashboard/coupons-manager';
@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Cupones' };
 
 export default async function DashboardCouponsPage() {
-  const { restaurant } = await requireStaffContext();
+  const { restaurant } = await requireSection('coupons');
   const { t } = await getI18n();
   const supabase = await createServerSupabase();
 
