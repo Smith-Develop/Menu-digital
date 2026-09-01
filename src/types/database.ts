@@ -2405,6 +2405,7 @@ export type Database = {
       pick_order_item: { Args: { p_item_id: string; p_qty: number; p_note?: string | null }; Returns: Json };
       replace_order_item: { Args: { p_item_id: string; p_product_id: string; p_qty?: number | null; p_note?: string | null }; Returns: Json };
       available_delivery_slots: { Args: { p_restaurant_id: string; p_days?: number }; Returns: Json };
+      import_products: { Args: { p_restaurant_id: string; p_rows: Json; p_dry_run?: boolean }; Returns: Json };
       is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };
       is_staff_of: { Args: { rid: string }; Returns: boolean };
     };

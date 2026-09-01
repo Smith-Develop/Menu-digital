@@ -245,6 +245,7 @@ export type Database = {
     out.append('      pick_order_item: { Args: { p_item_id: string; p_qty: number; p_note?: string | null }; Returns: Json };')
     out.append('      replace_order_item: { Args: { p_item_id: string; p_product_id: string; p_qty?: number | null; p_note?: string | null }; Returns: Json };')
     out.append('      available_delivery_slots: { Args: { p_restaurant_id: string; p_days?: number }; Returns: Json };')
+    out.append('      import_products: { Args: { p_restaurant_id: string; p_rows: Json; p_dry_run?: boolean }; Returns: Json };')
     out.append("      is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };")
     out.append("      is_staff_of: { Args: { rid: string }; Returns: boolean };")
     out.append("    };")

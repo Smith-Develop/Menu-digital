@@ -1184,6 +1184,34 @@ const es = {
     parentCategory: 'Dentro de',
     topLevel: 'Pasillo principal',
   },
+
+  /** Alta masiva del catálogo desde un fichero. */
+  import: {
+    title: 'Importar catálogo',
+    subtitle: 'Sube el fichero que ya tienes y da de alta miles de referencias de una vez',
+    pick: 'Elegir fichero',
+    formats: 'Vale un CSV separado por comas o por punto y coma, como el que exporta Excel',
+    columns: 'Columnas reconocidas',
+    unknownColumns: 'Columnas que no se han reconocido',
+    needName: 'Hace falta al menos una columna de nombre y una de precio',
+    preview: 'Esto es lo que va a pasar',
+    willCreate: 'Se crean',
+    willUpdate: 'Se actualizan',
+    willFail: 'No se pueden leer',
+    noCategory: 'Sin pasillo',
+    unknownCategories: 'Estos pasillos no existen todavía. Las referencias entran sin pasillo; créalos y vuelve a subir el fichero para colocarlas.',
+    confirm: 'Importar',
+    done: 'Catálogo importado',
+    rowsRead: '{n} filas leídas',
+    errorRow: 'Fila {n}',
+    NAME_REQUIRED: 'Sin nombre',
+    PRICE_REQUIRED: 'Precio ilegible',
+    EMPTY_FILE: 'El fichero está vacío',
+    TOO_MANY_ROWS: 'El fichero tiene más de cinco mil filas. Pártelo en varios.',
+    PLAN_LIMIT_PRODUCTS: 'No caben en el plan contratado',
+    template: 'Descargar una plantilla',
+    matchHint: 'Las referencias que ya existen se reconocen por su código de barras, o por el nombre si no lo traen. Lo que el fichero no diga se queda como está.',
+  },
 } as const;
 
 export default es;

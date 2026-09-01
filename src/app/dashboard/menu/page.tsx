@@ -2,6 +2,8 @@ import { getI18n } from '@/i18n';
 import { requireSection } from '@/lib/auth';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { MenuManager } from '@/components/dashboard/menu-manager';
+import { CatalogImport } from '@/components/dashboard/catalog-import';
+import { hasModule } from '@/lib/business-modules';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Carta' };
@@ -37,11 +39,16 @@ export default async function MenuPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-ink">{t.dashboard.menu}</h1>
-        <p className="mt-1 text-sm text-ink-300">
-          {(products ?? []).length} {t.dashboard.products.toLowerCase()}
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-ink">{t.dashboard.menu}</h1>
+          <p className="mt-1 text-sm text-ink-300">
+            {(products ?? []).length} {t.dashboard.products.toLowerCase()}
+          </p>
+        </div>
+        {/* Doce platos se teclean; cuatro mil referencias, no. La importación
+            se ofrece donde hay miles de ellas. */}
+        {hasModule(restaurant.business_type, 'barcodes') && <CatalogImport />}
       </div>
 
       <MenuManager

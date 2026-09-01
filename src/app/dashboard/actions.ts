@@ -1889,3 +1889,57 @@ export async function deleteDeliverySlot(id: string): Promise<Result> {
   revalidatePath('/dashboard/slots');
   return { ok: true };
 }
+
+// ========================== Alta masiva del catálogo =========================
+
+export type ImportReport = {
+  ok: boolean;
+  dry_run: boolean;
+  created: number;
+  updated: number;
+  failed: number;
+  errors: { row: number; code: string; name?: string }[];
+  without_category: number;
+  unknown_categories: string[];
+};
+
+/**
+ * Mete el catálogo entero de un fichero.
+ *
+ * Se llama dos veces: una en seco para enseñar el informe, y otra de verdad
+ * cuando quien importa ha visto lo que va a pasar. La segunda repite el trabajo
+ * en vez de guardar la primera en algún sitio, porque entre una y otra el
+ * catálogo ha podido cambiar y un informe viejo mentiría.
+ *
+ * El tamaño se limita aquí y no en la base: cinco mil filas son un fichero
+ * grande de verdad, y más que eso suele ser un error de exportación —el catálogo
+ * repetido, o dos ficheros pegados— que conviene parar antes de escribir.
+ */
+export async function importProducts(
+  rows: unknown,
+  dryRun: boolean,
+): Promise<Result<ImportReport>> {
+  const { context, error } = await guard();
+  if (!context) return fail(error);
+
+  if (!Array.isArray(rows) || rows.length === 0) return fail('EMPTY_FILE');
+  if (rows.length > 5000) return fail('TOO_MANY_ROWS');
+
+  const supabase = await createServerSupabase();
+  const { data, error: dbError } = await supabase.rpc('import_products', {
+    p_restaurant_id: context.restaurant.id,
+    p_rows: rows as never,
+    p_dry_run: dryRun,
+  });
+
+  if (dbError) return fail(errorCode(dbError.message));
+
+  const report = data as unknown as ImportReport;
+  if (!report.ok) return fail((report as unknown as { error: string }).error);
+
+  if (!dryRun) {
+    revalidatePath('/dashboard/menu');
+    revalidatePath(`/r/${context.restaurant.slug}`);
+  }
+  return { ok: true, data: report };
+}

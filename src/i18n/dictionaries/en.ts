@@ -1186,6 +1186,34 @@ const en: Dictionary = {
     topLevel: 'Top-level aisle',
   },
 
+  /** Alta masiva del catálogo desde un fichero. */
+  import: {
+    title: 'Import catalogue',
+    subtitle: 'Upload the file you already have and add thousands of items at once',
+    pick: 'Choose a file',
+    formats: 'A CSV separated by commas or semicolons works, like the one Excel exports',
+    columns: 'Columns recognised',
+    unknownColumns: 'Columns that were not recognised',
+    needName: 'A name column and a price column are required',
+    preview: 'This is what will happen',
+    willCreate: 'Created',
+    willUpdate: 'Updated',
+    willFail: 'Unreadable',
+    noCategory: 'No aisle',
+    unknownCategories: 'These aisles do not exist yet. The items go in without one; create them and upload the file again to place them.',
+    confirm: 'Import',
+    done: 'Catalogue imported',
+    rowsRead: '{n} rows read',
+    errorRow: 'Row {n}',
+    NAME_REQUIRED: 'No name',
+    PRICE_REQUIRED: 'Unreadable price',
+    EMPTY_FILE: 'The file is empty',
+    TOO_MANY_ROWS: 'The file has more than five thousand rows. Split it up.',
+    PLAN_LIMIT_PRODUCTS: 'They do not fit in the current plan',
+    template: 'Download a template',
+    matchHint: 'Items that already exist are matched by barcode, or by name when there is none. Anything the file does not say is left alone.',
+  },
+
 };
 
 export default en;
