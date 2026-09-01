@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle,
   Calculator,
@@ -57,6 +57,7 @@ export function DashboardShell({
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const cabecera = useRef<HTMLElement>(null);
 
   const puede = (seccion: DashboardSection) => canAccessSection(seccion, staffRole);
 
@@ -81,6 +82,28 @@ export function DashboardShell({
     { href: '/dashboard/subscription', icon: CreditCard, label: t.dashboard.subscription, show: puede('subscription') },
     { href: '/dashboard/settings', icon: Settings, label: t.dashboard.settings, show: puede('settings') },
   ].filter((l) => l.show);
+
+  /**
+   * Publica el alto de la cabecera móvil como variable de CSS.
+   *
+   * Las barras pegajosas de las pantallas de dentro necesitan saber dónde
+   * empieza el espacio libre. Medirla es preferible a escribir un número: en
+   * escritorio la cabecera no existe y el alto pasa a cero solo, y si algún día
+   * cambia el relleno no hay que acordarse de tocar nada más.
+   */
+  useEffect(() => {
+    const el = cabecera.current;
+    if (!el) return;
+    const medir = () =>
+      document.documentElement.style.setProperty('--dash-header-h', `${el.offsetHeight}px`);
+    medir();
+    const observador = new ResizeObserver(medir);
+    observador.observe(el);
+    return () => {
+      observador.disconnect();
+      document.documentElement.style.removeProperty('--dash-header-h');
+    };
+  }, []);
 
   async function signOut() {
     const supabase = createClient();
@@ -222,7 +245,10 @@ export function DashboardShell({
       )}
 
       <div className="lg:pl-[264px]">
-        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-surface-line bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
+        <header
+          ref={cabecera}
+          className="sticky top-0 z-30 flex items-center gap-3 border-b border-surface-line bg-white/95 px-4 py-3 backdrop-blur lg:hidden"
+        >
           <button type="button" onClick={() => setOpen(true)} className="icon-btn" aria-label={t.nav.dashboard}>
             <MenuIcon className="h-5 w-5" />
           </button>

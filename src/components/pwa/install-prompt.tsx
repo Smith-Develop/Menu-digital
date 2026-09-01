@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { Download, Share, X } from 'lucide-react';
 import { useT } from '@/i18n/provider';
 
@@ -27,11 +28,15 @@ function isStandalone(): boolean {
  * nativo. Safari en iOS no lo implementa, así que allí explicamos el gesto
  * manual (Compartir → Añadir a pantalla de inicio).
  */
+/** Pantallas de trabajo, donde el aviso estorba en lugar de ayudar. */
+const RUTAS_DE_TRABAJO = ['/dashboard', '/kitchen', '/admin', '/courier'];
+
 export function InstallPrompt({ appName }: { appName: string }) {
   const t = useT();
   const [deferred, setDeferred] = useState<InstallEvent | null>(null);
   const [showIosHint, setShowIosHint] = useState(false);
   const [showSteps, setShowSteps] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     if (typeof window === 'undefined' || isStandalone()) return;
@@ -92,6 +97,12 @@ export function InstallPrompt({ appName }: { appName: string }) {
 
     if (outcome === 'accepted') dismiss();
   }
+
+  // El panel, la cocina y el superadministrador son herramientas de trabajo:
+  // a quien está tomando una comanda no se le ofrece instalar la aplicación, y
+  // menos con una tarjeta fija abajo que tapa la barra del carrito y el botón
+  // de cobrar. El aviso es para el cliente.
+  if (RUTAS_DE_TRABAJO.some((r) => pathname?.startsWith(r))) return null;
 
   if (!deferred && !showIosHint) return null;
 
