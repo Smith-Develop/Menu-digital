@@ -44,6 +44,8 @@ const TONES = {
   ink: 'from-ink to-ink-700 text-white',
   success: 'from-emerald-500 to-emerald-700 text-white',
   accent: 'from-accent to-accent-dark text-accent-contrast',
+  // Ámbar para lo que reclama una acción: dinero que todavía no ha entrado.
+  warning: 'from-amber-500 to-amber-700 text-white',
 } as const;
 
 /**

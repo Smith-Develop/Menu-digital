@@ -43,6 +43,7 @@ export function CheckoutView({
   slug,
   orderType,
   tableCode,
+  tableSession,
   currency,
   currencyDecimals,
   deliveryFeeCents,
@@ -55,6 +56,8 @@ export function CheckoutView({
   slug: string;
   orderType: Enums<'order_type'>;
   tableCode: string | null;
+  /** Turno de la mesa que traía el navegador al escanear el QR. */
+  tableSession: string | null;
   currency: string;
   currencyDecimals: number;
   deliveryFeeCents: number;
@@ -182,6 +185,10 @@ export function CheckoutView({
         p_type: orderType,
         p_payment_method: method,
         p_table_code: tableCode,
+        // El turno de la mesa. La función lo exige desde la migración 0035:
+        // sin él, cualquiera con un enlace antiguo podía colar comandas en la
+        // cuenta de quien estuviera sentado en ese momento.
+        p_table_session: tableSession,
         p_customer_name: name.trim() || null,
         p_customer_phone: phone.trim() || null,
         p_customer_email: email.trim() || null,

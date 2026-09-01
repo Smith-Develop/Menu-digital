@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { getRestaurantBySlug } from '@/lib/queries/public';
-import { getTableCodeFor } from '@/lib/table-session';
+import { getTableSessionFor } from '@/lib/table-session';
 import { getSessionProfile } from '@/lib/auth';
 import { getCustomerLocation } from '@/lib/customer-location';
 import { CheckoutView } from '@/components/storefront/checkout-view';
@@ -19,11 +19,13 @@ export default async function CheckoutPage({
   const restaurant = await getRestaurantBySlug(slug);
   if (!restaurant) notFound();
 
-  const [tableCode, profile, location] = await Promise.all([
-    getTableCodeFor(slug),
+  const [table, profile, location] = await Promise.all([
+    getTableSessionFor(slug),
     getSessionProfile(),
     getCustomerLocation(),
   ]);
+
+  const tableCode = table?.code ?? null;
 
   const requested = (['dine_in', 'delivery', 'pickup'] as const).includes(
     type as Enums<'order_type'>,
@@ -38,6 +40,7 @@ export default async function CheckoutPage({
       slug={slug}
       orderType={requested}
       tableCode={tableCode}
+      tableSession={table?.sessionId ?? null}
       currency={restaurant.currency}
       currencyDecimals={restaurant.currency_decimals}
       deliveryFeeCents={restaurant.delivery_fee_cents}

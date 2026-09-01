@@ -22,8 +22,11 @@ export function mapOrderRow(
     paymentMethod: order.payment_method,
     paymentStatus: order.payment_status,
     totalCents: order.total_cents,
+    paidCents: order.paid_cents,
+    refundedCents: order.refunded_cents,
     subtotalCents: order.subtotal_cents,
     discountCents: order.discount_cents,
+    manualDiscountCents: order.manual_discount_cents,
     couponCode: order.coupon_code,
     deliveryFeeCents: order.delivery_fee_cents,
     taxCents: order.tax_cents,
@@ -38,6 +41,8 @@ export function mapOrderRow(
     notes: order.notes,
     createdAt: order.created_at,
     completedAt: order.completed_at,
+    deliveryFailedAt: order.delivery_failed_at,
+    deliveryFailedReason: order.delivery_failed_reason,
     items: items
       .filter((item) => item.order_id === order.id)
       .map((item) => ({
@@ -50,6 +55,10 @@ export function mapOrderRow(
           : [],
         notes: item.notes,
         status: item.status,
+        // Las líneas quitadas se siguen enseñando tachadas: borrarlas de la
+        // vista escondería que alguien retiró un plato de la comanda.
+        voidedAt: item.voided_at,
+        voidReason: item.void_reason,
       })),
   };
 }

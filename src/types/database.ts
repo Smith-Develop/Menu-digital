@@ -637,6 +637,9 @@ export type Database = {
           status: Enums<"order_item_status">;
           notes: string | null;
           created_at: string;
+          voided_at: string | null;
+          voided_by: string | null;
+          void_reason: string | null;
         };
         Insert: {
           id?: string;
@@ -652,6 +655,9 @@ export type Database = {
           status?: Enums<"order_item_status">;
           notes?: string | null;
           created_at?: string;
+          voided_at?: string | null;
+          voided_by?: string | null;
+          void_reason?: string | null;
         };
         Update: {
           id?: string;
@@ -666,6 +672,57 @@ export type Database = {
           line_total_cents?: number;
           status?: Enums<"order_item_status">;
           notes?: string | null;
+          created_at?: string;
+          voided_at?: string | null;
+          voided_by?: string | null;
+          void_reason?: string | null;
+        };
+        Relationships: [];
+      };
+      order_payments: {
+        Row: {
+          id: string;
+          order_id: string;
+          restaurant_id: string;
+          kind: Enums<"payment_entry_kind">;
+          amount_cents: number;
+          method: Enums<"payment_method">;
+          note: string | null;
+          reason: string | null;
+          created_by: string | null;
+          courier_id: string | null;
+          cash_settled_at: string | null;
+          cash_settled_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          order_id: string;
+          restaurant_id: string;
+          kind?: Enums<"payment_entry_kind">;
+          amount_cents: number;
+          method: Enums<"payment_method">;
+          note?: string | null;
+          reason?: string | null;
+          created_by?: string | null;
+          courier_id?: string | null;
+          cash_settled_at?: string | null;
+          cash_settled_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          order_id?: string;
+          restaurant_id?: string;
+          kind?: Enums<"payment_entry_kind">;
+          amount_cents?: number;
+          method?: Enums<"payment_method">;
+          note?: string | null;
+          reason?: string | null;
+          created_by?: string | null;
+          courier_id?: string | null;
+          cash_settled_at?: string | null;
+          cash_settled_by?: string | null;
           created_at?: string;
         };
         Relationships: [];
@@ -731,6 +788,17 @@ export type Database = {
           waiter_id: string | null;
           cash_settled_at: string | null;
           cash_settled_by: string | null;
+          paid_at: string | null;
+          paid_by: string | null;
+          paid_method: Enums<"payment_method"> | null;
+          cancelled_by: string | null;
+          paid_cents: number;
+          refunded_cents: number;
+          manual_discount_cents: number;
+          discount_reason: string | null;
+          discount_by: string | null;
+          delivery_failed_at: string | null;
+          delivery_failed_reason: string | null;
         };
         Insert: {
           id?: string;
@@ -774,6 +842,17 @@ export type Database = {
           waiter_id?: string | null;
           cash_settled_at?: string | null;
           cash_settled_by?: string | null;
+          paid_at?: string | null;
+          paid_by?: string | null;
+          paid_method?: Enums<"payment_method"> | null;
+          cancelled_by?: string | null;
+          paid_cents?: number;
+          refunded_cents?: number;
+          manual_discount_cents?: number;
+          discount_reason?: string | null;
+          discount_by?: string | null;
+          delivery_failed_at?: string | null;
+          delivery_failed_reason?: string | null;
         };
         Update: {
           id?: string;
@@ -817,6 +896,17 @@ export type Database = {
           waiter_id?: string | null;
           cash_settled_at?: string | null;
           cash_settled_by?: string | null;
+          paid_at?: string | null;
+          paid_by?: string | null;
+          paid_method?: Enums<"payment_method"> | null;
+          cancelled_by?: string | null;
+          paid_cents?: number;
+          refunded_cents?: number;
+          manual_discount_cents?: number;
+          discount_reason?: string | null;
+          discount_by?: string | null;
+          delivery_failed_at?: string | null;
+          delivery_failed_reason?: string | null;
         };
         Relationships: [];
       };
@@ -1549,6 +1639,7 @@ export type Database = {
           p_notes?: string | null;
           p_tip_cents?: number;
           p_coupon_code?: string | null;
+          p_table_session?: string | null;
         };
         Returns: Json;
       };
@@ -1560,7 +1651,6 @@ export type Database = {
       home_banners: { Args: { p_city_slug?: string | null; p_limit?: number }; Returns: { id: string; title: string | null; subtitle: string | null; image_url: string; link_url: string | null; restaurant_id: string; restaurant_name: string; restaurant_slug: string }[] };
       active_notifications: { Args: { p_city_slug?: string | null }; Returns: { id: string; title: string; body: string | null; image_url: string | null; link_url: string | null; link_label: string | null }[] };
       courier_take_order: { Args: { p_order_id: string }; Returns: Json };
-      courier_complete_order: { Args: { p_order_id: string }; Returns: Json };
       courier_stats: { Args: { [_ in never]: never }; Returns: Json };
       my_courier_id: { Args: { [_ in never]: never }; Returns: string | null };
       validate_coupon: {
@@ -1602,7 +1692,18 @@ export type Database = {
       courier_picked_up: { Args: { p_order_id: string }; Returns: Json };
       courier_deliver_order: { Args: { p_order_id: string }; Returns: Json };
       courier_cash_due: { Args: { p_courier_id?: string | null }; Returns: Json };
-      settle_courier_cash: { Args: { p_courier_id: string }; Returns: Json };
+      settle_courier_cash: { Args: { p_courier_id: string; p_restaurant_id: string }; Returns: Json };
+      mark_order_paid: { Args: { p_order_id: string; p_method?: Enums<'payment_method'> }; Returns: Json };
+      cancel_order: { Args: { p_order_id: string; p_reason: string }; Returns: Json };
+      can_charge: { Args: { rid: string }; Returns: boolean };
+      can_cancel_orders: { Args: { rid: string }; Returns: boolean };
+      add_order_payment: { Args: { p_order_id: string; p_method?: Enums<'payment_method'>; p_amount_cents?: number | null; p_note?: string | null }; Returns: Json };
+      pay_table_bill: { Args: { p_table_id: string; p_method?: Enums<'payment_method'>; p_amount_cents?: number | null; p_note?: string | null }; Returns: Json };
+      refund_order: { Args: { p_order_id: string; p_reason: string; p_amount_cents?: number | null; p_method?: Enums<'payment_method'> }; Returns: Json };
+      void_order_item: { Args: { p_item_id: string; p_reason: string }; Returns: Json };
+      apply_manual_discount: { Args: { p_order_id: string; p_cents: number; p_reason: string }; Returns: Json };
+      courier_fail_delivery: { Args: { p_order_id: string; p_reason: string }; Returns: Json };
+      restaurant_cash_due: { Args: { p_restaurant_id: string }; Returns: Json };
       is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };
       is_staff_of: { Args: { rid: string }; Returns: boolean };
     };
@@ -1617,6 +1718,7 @@ export type Database = {
       order_item_status: "queued" | "preparing" | "ready" | "served";
       order_status: "pending" | "confirmed" | "preparing" | "ready" | "served" | "delivering" | "completed" | "cancelled";
       order_type: "dine_in" | "delivery" | "pickup";
+      payment_entry_kind: "charge" | "refund";
       payment_method: "cash" | "card" | "tpv" | "stripe";
       payment_status: "pending" | "paid" | "failed" | "refunded";
       plan_interval: "month" | "year";

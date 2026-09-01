@@ -61,3 +61,35 @@ export function canAccessSection(section: DashboardSection, role: Enums<'staff_r
 export function canManageSettings(role: Enums<'staff_role'>): boolean {
   return canAccessSection('settings', role);
 }
+
+/**
+ * Quién puede cobrar una cuenta.
+ *
+ * Cobrar mueve dinero y hasta ahora lo podía hacer cualquiera con sesión de
+ * equipo, cocina incluida. Se deja en manos de quien atiende al cliente o
+ * lleva la caja; la cocina no toca el dinero.
+ *
+ * Estas dos listas tienen su gemela en la base de datos (`can_charge` y
+ * `can_cancel_orders`, migración 0035). Aquí sirven para no ofrecer botones
+ * que la base va a rechazar; la barrera de verdad es la de allí.
+ */
+export function canChargeOrders(role: Enums<'staff_role'>): boolean {
+  return ['owner', 'admin', 'manager', 'cashier', 'waiter'].includes(role);
+}
+
+/**
+ * Quién puede anular un pedido.
+ *
+ * Más restrictivo que cobrar: anular borra una venta de las cuentas del día,
+ * así que responde quien dirige el local. La misma lista gobierna todo lo que
+ * reduce la venta —devolver dinero, anular una línea, invitar a un plato—,
+ * porque son la misma decisión con distinta forma.
+ */
+export function canCancelOrders(role: Enums<'staff_role'>): boolean {
+  return ['owner', 'admin', 'manager'].includes(role);
+}
+
+/** Devolver dinero, anular líneas e invitar: quien responde de la caja. */
+export const canRefund = canCancelOrders;
+export const canVoidItems = canCancelOrders;
+export const canDiscount = canCancelOrders;

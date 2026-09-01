@@ -142,6 +142,7 @@ export type Database = {
           p_notes?: string | null;
           p_tip_cents?: number;
           p_coupon_code?: string | null;
+          p_table_session?: string | null;
         };
         Returns: Json;
       };""")
@@ -153,7 +154,6 @@ export type Database = {
     out.append("      home_banners: { Args: { p_city_slug?: string | null; p_limit?: number }; Returns: { id: string; title: string | null; subtitle: string | null; image_url: string; link_url: string | null; restaurant_id: string; restaurant_name: string; restaurant_slug: string }[] };")
     out.append("      active_notifications: { Args: { p_city_slug?: string | null }; Returns: { id: string; title: string; body: string | null; image_url: string | null; link_url: string | null; link_label: string | null }[] };")
     out.append("      courier_take_order: { Args: { p_order_id: string }; Returns: Json };")
-    out.append("      courier_complete_order: { Args: { p_order_id: string }; Returns: Json };")
     out.append("      courier_stats: { Args: { [_ in never]: never }; Returns: Json };")
     out.append("      my_courier_id: { Args: { [_ in never]: never }; Returns: string | null };")
     out.append("""      validate_coupon: {
@@ -195,7 +195,18 @@ export type Database = {
     out.append("      courier_picked_up: { Args: { p_order_id: string }; Returns: Json };")
     out.append("      courier_deliver_order: { Args: { p_order_id: string }; Returns: Json };")
     out.append("      courier_cash_due: { Args: { p_courier_id?: string | null }; Returns: Json };")
-    out.append("      settle_courier_cash: { Args: { p_courier_id: string }; Returns: Json };")
+    out.append("      settle_courier_cash: { Args: { p_courier_id: string; p_restaurant_id: string }; Returns: Json };")
+    out.append("      mark_order_paid: { Args: { p_order_id: string; p_method?: Enums<'payment_method'> }; Returns: Json };")
+    out.append("      cancel_order: { Args: { p_order_id: string; p_reason: string }; Returns: Json };")
+    out.append("      can_charge: { Args: { rid: string }; Returns: boolean };")
+    out.append("      can_cancel_orders: { Args: { rid: string }; Returns: boolean };")
+    out.append("      add_order_payment: { Args: { p_order_id: string; p_method?: Enums<'payment_method'>; p_amount_cents?: number | null; p_note?: string | null }; Returns: Json };")
+    out.append("      pay_table_bill: { Args: { p_table_id: string; p_method?: Enums<'payment_method'>; p_amount_cents?: number | null; p_note?: string | null }; Returns: Json };")
+    out.append("      refund_order: { Args: { p_order_id: string; p_reason: string; p_amount_cents?: number | null; p_method?: Enums<'payment_method'> }; Returns: Json };")
+    out.append("      void_order_item: { Args: { p_item_id: string; p_reason: string }; Returns: Json };")
+    out.append("      apply_manual_discount: { Args: { p_order_id: string; p_cents: number; p_reason: string }; Returns: Json };")
+    out.append("      courier_fail_delivery: { Args: { p_order_id: string; p_reason: string }; Returns: Json };")
+    out.append("      restaurant_cash_due: { Args: { p_restaurant_id: string }; Returns: Json };")
     out.append("      is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };")
     out.append("      is_staff_of: { Args: { rid: string }; Returns: boolean };")
     out.append("    };")

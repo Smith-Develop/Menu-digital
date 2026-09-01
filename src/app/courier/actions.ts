@@ -160,29 +160,10 @@ export async function removeCourierFromRestaurant(linkId: string): Promise<Resul
   return { ok: true };
 }
 
-/** El restaurante asigna un pedido concreto a uno de sus repartidores. */
-export async function assignOrderToCourier(orderId: string, courierId: string): Promise<Result> {
-  const context = await requireStaffContext();
-  const supabase = await createServerSupabase();
-
-  const { data: link } = await supabase
-    .from('restaurant_couriers')
-    .select('id')
-    .eq('restaurant_id', context.restaurant.id)
-    .eq('courier_id', courierId)
-    .eq('is_active', true)
-    .maybeSingle();
-
-  if (!link) return { ok: false, error: 'COURIER_NOT_IN_TEAM' };
-
-  const { error } = await supabase
-    .from('orders')
-    .update({ courier_id: courierId })
-    .eq('id', orderId)
-    .eq('restaurant_id', context.restaurant.id);
-
-  if (error) return { ok: false, error: error.message };
-
-  revalidatePath('/dashboard/orders');
-  return { ok: true };
-}
+// La asignación de pedidos vive en `dashboard/actions.ts` (`assignCourier`).
+//
+// Aquí había una segunda copia que hacía lo mismo sin comprobar el rol y sin
+// avisar al repartidor: según por dónde se asignara, el repartidor se enteraba
+// o no se enteraba. Se retira en lugar de dejarla ahí sin usar, porque una
+// acción de servidor sigue siendo alcanzable desde la red aunque ninguna
+// pantalla la invoque.

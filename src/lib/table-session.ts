@@ -26,11 +26,42 @@ export function tableCookieValue(code: string, sessionId: string): string {
 }
 
 /**
- * Código de mesa vigente para ese restaurante, o null si el turno ya cerró.
+ * Mesa y turno vigentes para ese restaurante, o null si el turno ya cerró.
+ *
+ * El turno hay que pasárselo a `place_order`, que desde la migración 0035 lo
+ * exige: la comprobación vivía sólo aquí, mientras que la función aceptaba
+ * cualquier código de mesa activa, así que un enlace guardado podía añadir
+ * comandas a la cuenta de quien estuviera sentado en ese momento.
  *
  * `cache` evita repetir la comprobación en cada componente de una misma
  * pantalla: la carta la consulta varias veces por petición.
  */
+export const getTableSessionFor = cache(
+  async (slug: string): Promise<{ code: string; sessionId: string } | null> => {
+    const store = await cookies();
+    const raw = store.get(tableCookieName(slug))?.value;
+    if (!raw) return null;
+
+    const separador = raw.lastIndexOf('.');
+    if (separador < 0) return null;
+
+    const code = raw.slice(0, separador);
+    const sessionId = raw.slice(separador + 1);
+    if (!code || !sessionId) return null;
+
+    try {
+      const supabase = createPublicSupabase();
+      const { data } = await supabase.rpc('table_session_alive', {
+        p_code: code,
+        p_session: sessionId,
+      });
+      return data ? { code, sessionId } : null;
+    } catch {
+      return null;
+    }
+  },
+);
+
 export const getTableCodeFor = cache(async (slug: string): Promise<string | null> => {
   const store = await cookies();
   const raw = store.get(tableCookieName(slug))?.value;

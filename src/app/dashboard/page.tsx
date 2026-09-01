@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { resolveSounds, type SoundSettings } from '@/lib/sounds';
-import { BellRing, Receipt, TrendingUp, Utensils } from 'lucide-react';
+import { BellRing, Receipt, TrendingUp, Utensils, Wallet } from 'lucide-react';
 import { getI18n } from '@/i18n';
 import { requireStaffContext } from '@/lib/auth';
 import { createServerSupabase } from '@/lib/supabase/server';
@@ -17,7 +17,13 @@ export const metadata = { title: 'Panel' };
 
 type Stats = {
   orders_today: number;
+  /** Lo entregado hoy, cobrado o no. */
   revenue_today_cents: number;
+  /** Lo que ha entrado en caja hoy. */
+  collected_today_cents: number;
+  /** Lo que queda por cobrar, sin límite de fecha. */
+  pending_cents: number;
+  pending_orders: number;
   active_orders: number;
   pending_calls: number;
   revenue_series: { day: string; cents: number }[];
@@ -61,6 +67,9 @@ export default async function DashboardOverview({
   const stats = (statsRaw as unknown as Stats | null) ?? {
     orders_today: 0,
     revenue_today_cents: 0,
+    collected_today_cents: 0,
+    pending_cents: 0,
+    pending_orders: 0,
     active_orders: 0,
     pending_calls: 0,
     revenue_series: [],
@@ -139,14 +148,22 @@ export default async function DashboardOverview({
           label={t.dashboard.ordersToday}
           value={String(stats.orders_today)}
         />
+        {/* La cifra que manda es la caja: lo que se ha cobrado de verdad. Antes
+            aquí salía lo entregado, cobrado o no, así que un pedido que nadie
+            había pagado engordaba los ingresos del día. */}
         <StatCard
           icon={<TrendingUp className="h-5 w-5" />}
-          label={t.dashboard.revenueToday}
+          label={t.dashboard.collectedToday}
           value={formatMoney(
-            stats.revenue_today_cents,
+            stats.collected_today_cents,
             restaurant.currency,
             restaurant.currency_decimals,
           )}
+          hint={`${t.dashboard.soldToday}: ${formatMoney(
+            stats.revenue_today_cents,
+            restaurant.currency,
+            restaurant.currency_decimals,
+          )}`}
           tone="success"
         />
         <StatCard
@@ -155,12 +172,28 @@ export default async function DashboardOverview({
           value={String(stats.active_orders)}
           tone="brand"
         />
-        <StatCard
-          icon={<BellRing className="h-5 w-5" />}
-          label={t.dashboard.pendingCalls}
-          value={String(stats.pending_calls)}
-          tone={stats.pending_calls > 0 ? 'warning' : 'neutral'}
-        />
+        {/* Lo que falta por cobrar sólo se enseña si lo hay: en un local al día
+            esta tarjeta no aparece, y cuando aparece es porque hay que actuar. */}
+        {stats.pending_cents > 0 ? (
+          <StatCard
+            icon={<Wallet className="h-5 w-5" />}
+            label={t.dashboard.pendingPayment}
+            value={formatMoney(
+              stats.pending_cents,
+              restaurant.currency,
+              restaurant.currency_decimals,
+            )}
+            hint={`${stats.pending_orders} ${t.analytics.ordersShort}`}
+            tone="warning"
+          />
+        ) : (
+          <StatCard
+            icon={<BellRing className="h-5 w-5" />}
+            label={t.dashboard.pendingCalls}
+            value={String(stats.pending_calls)}
+            tone={stats.pending_calls > 0 ? 'warning' : 'neutral'}
+          />
+        )}
       </div>
 
       {/* Las mismas cifras que tenía la pantalla de Analítica, ahora aquí: eran

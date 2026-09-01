@@ -12,6 +12,7 @@ import {
   TrendingDown,
   TrendingUp,
   UtensilsCrossed,
+  Wallet,
 } from 'lucide-react';
 import { MetricTile, GrowBar } from '@/components/dashboard/metric-tile';
 import { EmptyState } from '@/components/ui/misc';
@@ -23,13 +24,19 @@ import type { Enums } from '@/types/database';
 export type AnalyticsData = {
   orders: number;
   completed: number;
+  /** Venta entregada en el periodo, cobrada o no. */
   revenue_cents: number;
+  /** Lo realmente cobrado: la caja. */
+  collected_cents: number;
+  pending_cents: number;
+  pending_orders: number;
   avg_ticket_cents: number;
   units: number;
   by_type: { type: Enums<'order_type'>; orders: number; cents: number }[];
+  by_method: { method: Enums<'payment_method'>; orders: number; cents: number }[];
   top_products: { name: string; image: string | null; units: number; revenue_cents: number }[];
   worst_products: { name: string; image: string | null; units: number; revenue_cents: number }[];
-  series: { i: number; cents: number; orders: number }[];
+  series: { i: number; cents: number; paid_cents: number; orders: number }[];
 };
 
 const PRESETS = [1, 7, 30, 90] as const;
@@ -136,10 +143,14 @@ export function RestaurantAnalytics({
 
       {/* Métricas */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {/* La caja va primero. Antes esta tarjeta enseñaba lo entregado sin
+            mirar si estaba cobrado, así que un pedido que nadie había pagado
+            contaba como ingreso. */}
         <MetricTile
-          label={t.analytics.revenue}
-          value={data.revenue_cents}
+          label={t.dashboard.collected}
+          value={data.collected_cents ?? 0}
           format={money}
+          hint={`${t.dashboard.delivered}: ${money(data.revenue_cents)}`}
           tone="success"
           icon={<TrendingUp className="h-4 w-4" />}
           delay={0}
@@ -160,13 +171,25 @@ export function RestaurantAnalytics({
           icon={<Package className="h-4 w-4" />}
           delay={120}
         />
-        <MetricTile
-          label={t.analytics.units}
-          value={data.units}
-          tone="accent"
-          icon={<UtensilsCrossed className="h-4 w-4" />}
-          delay={180}
-        />
+        {(data.pending_cents ?? 0) > 0 ? (
+          <MetricTile
+            label={t.dashboard.pendingPayment}
+            value={data.pending_cents ?? 0}
+            format={money}
+            hint={`${data.pending_orders ?? 0} ${t.analytics.ordersShort}`}
+            tone="warning"
+            icon={<Wallet className="h-4 w-4" />}
+            delay={180}
+          />
+        ) : (
+          <MetricTile
+            label={t.analytics.units}
+            value={data.units}
+            tone="accent"
+            icon={<UtensilsCrossed className="h-4 w-4" />}
+            delay={180}
+          />
+        )}
       </div>
 
       {/* Evolución */}
@@ -182,23 +205,47 @@ export function RestaurantAnalytics({
             <ul className="flex h-40 items-end gap-1">
               {data.series.map((point, index) => {
                 const height = Math.max((point.cents / maxDay) * 100, point.cents > 0 ? 4 : 1.5);
+                const cobrado = point.paid_cents ?? 0;
+                // La parte cobrada se dibuja dentro de la barra entregada. Lo
+                // que queda claro arriba es exactamente el dinero que todavía
+                // no ha entrado en caja ese día.
+                const relleno = point.cents > 0 ? Math.min((cobrado / point.cents) * 100, 100) : 0;
                 return (
                   // El <li> necesita alto propio: sin él, el porcentaje de la
                   // barra se calcula sobre una caja de cero píxeles y no se ve nada.
                   <li key={point.i} className="group relative flex h-full flex-1 items-end">
                     <span
-                      className="block w-full rounded-t bg-gradient-to-t from-brand-700 to-brand transition-[height] duration-700 ease-out"
+                      className="relative block w-full overflow-hidden rounded-t bg-brand/25 transition-[height] duration-700 ease-out"
                       style={{ height: `${height}%`, transitionDelay: `${Math.min(index * 12, 300)}ms` }}
-                    />
-                    <span className="pointer-events-none absolute -top-8 left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded-lg bg-ink px-2 py-1 text-[10px] font-bold text-white group-hover:block">
-                      {dayLabel(point.i)} · {money(point.cents)}
+                    >
+                      <span
+                        className="absolute inset-x-0 bottom-0 block bg-gradient-to-t from-brand-700 to-brand"
+                        style={{ height: `${relleno}%` }}
+                      />
+                    </span>
+                    <span className="pointer-events-none absolute -top-12 left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded-lg bg-ink px-2 py-1 text-[10px] font-bold leading-relaxed text-white group-hover:block">
+                      {dayLabel(point.i)}
+                      <br />
+                      {t.dashboard.collected}: {money(cobrado)}
+                      <br />
+                      {t.dashboard.delivered}: {money(point.cents)}
                     </span>
                   </li>
                 );
               })}
             </ul>
-            <div className="mt-2 flex justify-between text-[11px] text-ink-300">
+            <div className="mt-2 flex items-center justify-between text-[11px] text-ink-300">
               <span>{dayLabel(data.series[0].i)}</span>
+              <span className="flex items-center gap-3">
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-sm bg-brand" />
+                  {t.dashboard.collected}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-sm bg-brand/25" />
+                  {t.dashboard.pendingPayment}
+                </span>
+              </span>
               <span>{dayLabel(data.series[data.series.length - 1].i)}</span>
             </div>
           </>

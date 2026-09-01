@@ -3,12 +3,13 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { BellRing, LogOut, Plus, UserRound, Users } from 'lucide-react';
+import { BellRing, LogOut, Plus, UserRound, Users, Wallet } from 'lucide-react';
 import { Select } from '@/components/ui/input';
 import { Badge, EmptyState } from '@/components/ui/misc';
 import { ConfirmDialog } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
-import { assignTableWaiter, endTableSession } from '@/app/dashboard/actions';
+import { assignTableWaiter, endTableSession, payTableBill } from '@/app/dashboard/actions';
+import { ChargeDialog, type Method } from '@/components/dashboard/money-dialogs';
 import { formatMoney } from '@/lib/money';
 import { useI18n } from '@/i18n/provider';
 import { cn } from '@/lib/utils';
@@ -23,12 +24,15 @@ export type FloorTable = {
   assigned_at: string | null;
   pending_calls: number;
   total_cents: number;
+  /** Lo que queda por cobrar: el total menos lo ya entregado a cuenta. */
+  due_cents: number;
   orders: {
     id: string;
     code: string;
     status: string;
     payment_status: string;
     total_cents: number;
+    paid_cents: number;
     created_at: string;
   }[];
 };
@@ -50,6 +54,7 @@ export function FloorView({
   currentUserId,
   compact = false,
   canEndSessions = false,
+  canCharge = false,
 }: {
   tables: FloorTable[];
   waiters: { id: string; name: string }[];
@@ -62,12 +67,45 @@ export function FloorView({
   compact?: boolean;
   /** Cerrar la sesión de una mesa echa al cliente que la tuviera abierta. */
   canEndSessions?: boolean;
+  /** Cobrar la cuenta: quien atiende y quien lleva la caja. */
+  canCharge?: boolean;
 }) {
   const { t } = useI18n();
   const toast = useToast();
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmarLiberar, setConfirmarLiberar] = useState<FloorTable | 'todas' | null>(null);
+  const [cobrarMesa, setCobrarMesa] = useState<FloorTable | null>(null);
+
+  /**
+   * Cobra la cuenta de la mesa, entera o a trozos.
+   *
+   * El importe se reparte entre las comandas abiertas de la más antigua a la
+   * más nueva, así que dividir entre comensales funciona igual con una comanda
+   * que con cinco: el comensal paga su parte y la mesa va bajando.
+   */
+  async function cobrar(method: Method, amountCents: number | null, note: string | null) {
+    const mesa = cobrarMesa;
+    if (!mesa) return;
+    setCobrarMesa(null);
+
+    setBusy(mesa.id);
+    const result = await payTableBill(mesa.id, method, amountCents, note);
+    setBusy(null);
+
+    if (!result.ok) {
+      toast(result.error === 'FORBIDDEN' ? t.common.forbidden : t.common.error, 'error');
+      return;
+    }
+
+    toast(
+      result.data.dueCents === 0
+        ? t.dashboard.tableSettled
+        : `${t.dashboard.dueNow}: ${formatMoney(result.data.dueCents, currency, currencyDecimals)}`,
+      result.data.dueCents === 0 ? 'success' : 'info',
+    );
+    router.refresh();
+  }
 
   // La sala cambia sin que nadie toque esta pantalla: entran pedidos y avisos.
   useEffect(() => {
@@ -187,11 +225,19 @@ export function FloorView({
                     </div>
                   ))}
                   <div className="flex items-center justify-between border-t border-surface-line pt-1.5 text-sm">
-                    <span className="font-semibold text-ink-500">{t.common.total}</span>
+                    <span className="font-semibold text-ink-500">
+                      {mesa.due_cents < mesa.total_cents ? t.dashboard.dueNow : t.common.total}
+                    </span>
                     <span className="font-bold text-ink">
-                      {formatMoney(mesa.total_cents, currency, currencyDecimals)}
+                      {formatMoney(mesa.due_cents, currency, currencyDecimals)}
                     </span>
                   </div>
+                  {mesa.due_cents < mesa.total_cents && (
+                    <p className="text-right text-[11px] text-ink-300">
+                      {t.dashboard.partialPaid}:{' '}
+                      {formatMoney(mesa.total_cents - mesa.due_cents, currency, currencyDecimals)}
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -222,6 +268,18 @@ export function FloorView({
                     Quien lo hace se queda con la mesa, que es lo que ocurre en
                     la práctica —quien toma la comanda la atiende— y así sus
                     avisos le llegan sin tener que asignarse a mano. */}
+                {canCharge && mesa.due_cents > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setCobrarMesa(mesa)}
+                    disabled={busy === mesa.id}
+                    className="btn w-full border border-emerald-300 text-xs text-emerald-700 hover:bg-emerald-50"
+                  >
+                    <Wallet className="h-3.5 w-3.5" />
+                    {t.dashboard.payTable}
+                  </button>
+                )}
+
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -251,6 +309,43 @@ export function FloorView({
           );
         })}
       </ul>
+
+      <ChargeDialog
+
+        open={cobrarMesa !== null}
+
+        order={
+
+          cobrarMesa
+
+            ? {
+
+                code: cobrarMesa.name,
+
+                totalCents: cobrarMesa.total_cents,
+
+                paidCents: cobrarMesa.total_cents - cobrarMesa.due_cents,
+
+                paymentMethod: 'cash' as const,
+
+              }
+
+            : null
+
+        }
+
+        currency={currency}
+
+        currencyDecimals={currencyDecimals}
+
+        loading={busy === cobrarMesa?.id}
+
+        onClose={() => setCobrarMesa(null)}
+
+        onConfirm={cobrar}
+
+      />
+
 
       <ConfirmDialog
         open={confirmarLiberar !== null}

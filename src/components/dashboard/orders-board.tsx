@@ -37,6 +37,8 @@ export function OrdersBoard({
   slug,
   currentUserId,
   canManageFloor,
+  canCharge = false,
+  staffRole = 'owner',
 }: {
   restaurantId: string;
   currency: string;
@@ -51,6 +53,8 @@ export function OrdersBoard({
   slug: string;
   currentUserId: string;
   canManageFloor: boolean;
+  /** Cobrar la cuenta de una mesa: quien atiende y quien lleva la caja. */
+  canCharge?: boolean;
   staffRole?: Enums<'staff_role'>;
 }) {
   const { t, locale } = useI18n();
@@ -113,6 +117,7 @@ export function OrdersBoard({
               slug={slug}
               canAssign={canManageFloor}
               canEndSessions={canManageFloor}
+              canCharge={canCharge}
               currentUserId={currentUserId}
               compact={vista === 'todo'}
             />
@@ -126,6 +131,7 @@ export function OrdersBoard({
               sounds={sounds}
               initialOrders={visibles}
               initialCalls={calls}
+              staffRole={staffRole}
             />
           )}
         </>

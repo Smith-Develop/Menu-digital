@@ -13,7 +13,9 @@ import {
   Printer,
   Smartphone,
   Truck,
+  Percent,
   Store,
+  Undo2,
   UtensilsCrossed,
   XCircle,
 } from 'lucide-react';
@@ -23,8 +25,13 @@ import { createClient } from '@/lib/supabase/client';
 import { playSound, unlockAudio, type SoundSettings } from '@/lib/sounds';
 import {
   updateOrderStatus,
-  updateOrderPaymentStatus,
+  cancelOrder,
   markPickedUp,
+  addOrderPayment,
+  refundOrder,
+  voidOrderItem,
+  applyManualDiscount,
+  failDelivery,
 } from '@/app/dashboard/actions';
 import { formatMoney } from '@/lib/money';
 import { formatTime, cn } from '@/lib/utils';
@@ -34,7 +41,16 @@ import { usePrint } from '@/components/dashboard/print/print-provider';
 import type { TicketOrder } from '@/components/dashboard/print/ticket';
 import { mapOrderRow } from '@/lib/queries/orders';
 import { CourierPicker } from '@/components/dashboard/courier-picker';
-import { ConfirmDialog } from '@/components/ui/sheet';
+import {
+  ChargeDialog,
+  RefundDialog,
+  DiscountDialog,
+  ReasonDialog,
+  MOTIVOS_QUITAR,
+  MOTIVOS_FALLIDA,
+  type Method,
+} from '@/components/dashboard/money-dialogs';
+import { canChargeOrders, canCancelOrders } from '@/lib/auth-permissions';
 import type { Enums } from '@/types/database';
 
 export type OrderRow = {
@@ -45,8 +61,12 @@ export type OrderRow = {
   paymentMethod: Enums<'payment_method'>;
   paymentStatus: Enums<'payment_status'>;
   totalCents: number;
+  /** Neto cobrado según el libro de movimientos: cobros menos devoluciones. */
+  paidCents: number;
+  refundedCents: number;
   subtotalCents: number;
   discountCents: number;
+  manualDiscountCents: number;
   couponCode: string | null;
   deliveryFeeCents: number;
   taxCents: number;
@@ -59,6 +79,8 @@ export type OrderRow = {
   courierId: string | null;
   courierName: string | null;
   completedAt: string | null;
+  deliveryFailedAt: string | null;
+  deliveryFailedReason: string | null;
   notes: string | null;
   createdAt: string;
   items: {
@@ -69,6 +91,8 @@ export type OrderRow = {
     options: string[];
     notes: string | null;
     status: Enums<'order_item_status'>;
+    voidedAt: string | null;
+    voidReason: string | null;
   }[];
 };
 
@@ -85,6 +109,8 @@ export type CallRow = {
  * A partir de "preparando" hay comida hecha y la cancelación deja de ser
  * una decisión de pantalla.
  */
+const MOTIVOS_ANULAR = ['customer', 'unreachable', 'outOfStock', 'mistake', 'duplicate', 'other'] as const;
+
 function canCancel(status: Enums<'order_status'>): boolean {
   return status === 'pending' || status === 'confirmed';
 }
@@ -168,6 +194,7 @@ export function LiveOrdersPanel({
   sounds,
   initialOrders,
   initialCalls,
+  staffRole = 'owner',
 }: {
   restaurantId: string;
   currency: string;
@@ -202,7 +229,20 @@ export function LiveOrdersPanel({
   const [busy, setBusy] = useState<string | null>(null);
   const [assignFor, setAssignFor] = useState<OrderRow | null>(null);
   const [chargeFor, setChargeFor] = useState<OrderRow | null>(null);
+  // Cobrar y cerrar son dos cosas: a veces se cobra un pedido que sigue en
+  // marcha (la mesa paga antes de irse) y a veces el cobro es el último paso.
+  const [chargeCloses, setChargeCloses] = useState(false);
+  const [cancelFor, setCancelFor] = useState<OrderRow | null>(null);
+  const [refundFor, setRefundFor] = useState<OrderRow | null>(null);
+  const [discountFor, setDiscountFor] = useState<OrderRow | null>(null);
+  const [failFor, setFailFor] = useState<OrderRow | null>(null);
+  const [voidItem, setVoidItem] = useState<{ order: OrderRow; itemId: string; name: string } | null>(null);
   const vistos = useRef(new Set(initialCalls.map((c) => c.id)));
+
+  const puedeCobrar = canChargeOrders(staffRole);
+  // Anular, devolver, invitar y quitar líneas son la misma atribución: todo lo
+  // que reduce la venta responde ante quien dirige el local.
+  const puedeAnular = canCancelOrders(staffRole);
 
   useEffect(() => setOrders(initialOrders), [initialOrders]);
   useEffect(() => setCalls(initialCalls), [initialCalls]);
@@ -347,12 +387,15 @@ export function LiveOrdersPanel({
     const target = nextStatus(order);
     if (!target) return;
 
-    // Un pedido de mesa no puede darse por servido sin cobrarlo. Cerrarlo antes
-    // lo deja fuera de los pedidos activos pero dentro de la cuenta de la mesa,
-    // que sólo se vacía al cobrar: por eso el comensal veía ahí lo que pidió
-    // hace días. Se pregunta antes de cerrar, y si aún no ha pagado, no se
-    // cierra.
-    if (target === 'completed' && order.type === 'dine_in' && order.paymentStatus !== 'paid') {
+    // Ningún pedido se cierra sin cobrar, sea del tipo que sea. Antes esta
+    // pregunta sólo saltaba en mesa, así que un pedido de recogida —o uno de
+    // domicilio que repartía el propio local— llegaba a "completado" con el
+    // cobro en pendiente y desaparecía del panel sin que nadie lo revisara.
+    //
+    // Los que lleva un repartidor son la excepción: allí el cobro y la entrega
+    // ocurren a la vez, en la puerta del cliente, y los registra él.
+    if (target === 'completed' && order.paymentStatus !== 'paid' && !order.courierId) {
+      setChargeCloses(true);
       setChargeFor(order);
       return;
     }
@@ -380,6 +423,15 @@ export function LiveOrdersPanel({
     setBusy(null);
 
     if (!result.ok) {
+      // La base rechaza cerrar lo que nadie ha cobrado. Si se llega aquí es
+      // porque el pedido se cobró en otra pantalla mientras tanto: se ofrece
+      // el cobro en vez de un error que no dice qué hacer.
+      if (result.error === 'PAYMENT_REQUIRED') {
+        toast(t.dashboard.paymentRequired, 'error');
+        setChargeCloses(true);
+        setChargeFor(order);
+        return;
+      }
       toast(t.common.error, 'error');
       return;
     }
@@ -397,38 +449,154 @@ export function LiveOrdersPanel({
     if (target === 'completed') router.refresh();
   }
 
-  /** Cobrar deja la mesa libre: el pedido sale de la cuenta del comensal. */
-  async function markPaid(order: OrderRow): Promise<boolean> {
-    setBusy(order.id);
-    const result = await updateOrderPaymentStatus(order.id, 'paid');
-    setBusy(null);
-
-    if (!result.ok) {
-      toast(t.common.error, 'error');
-      return false;
-    }
-    toast(t.dashboard.markedPaid, 'success');
-    await refetchOrder(order.id);
-    router.refresh();
-    return true;
-  }
-
-  /** Cobrar y cerrar de una vez, que es lo que ocurre al servir en mesa. */
-  async function chargeAndClose() {
+  /**
+   * Registra el cobro con el medio realmente empleado.
+   *
+   * Cobrar deja además la mesa libre: el pedido sale de la cuenta del comensal.
+   */
+  /**
+   * Confirmación del diálogo de cobro.
+   *
+   * Un cobro parcial —la cuenta dividida— no cierra el pedido aunque se hubiera
+   * llegado aquí para cerrarlo: queda a medias hasta que entre el resto.
+   */
+  async function confirmCharge(method: Method, amountCents: number | null, note: string | null) {
     const order = chargeFor;
+    const cerrar = chargeCloses;
     if (!order) return;
     setChargeFor(null);
-    if (await markPaid(order)) await applyStatus(order, 'completed');
-  }
 
-  async function cancel(order: OrderRow) {
     setBusy(order.id);
-    const result = await updateOrderStatus(order.id, 'cancelled');
+    const result = await addOrderPayment(order.id, method, amountCents, note);
     setBusy(null);
+
     if (!result.ok) {
-      toast(t.common.error, 'error');
+      toast(result.error === 'FORBIDDEN' ? t.common.forbidden : t.common.error, 'error');
       return;
     }
+
+    if (result.data.fullyPaid) {
+      toast(t.dashboard.markedPaid, 'success');
+    } else {
+      toast(
+        `${t.dashboard.dueNow}: ${formatMoney(result.data.dueCents, currency, currencyDecimals)}`,
+        'info',
+      );
+    }
+
+    await refetchOrder(order.id);
+    router.refresh();
+
+    if (cerrar && result.data.fullyPaid) await applyStatus(order, 'completed');
+  }
+
+  async function confirmRefund(reason: string, amountCents: number | null, method: Method) {
+    const order = refundFor;
+    if (!order) return;
+    setRefundFor(null);
+
+    setBusy(order.id);
+    const result = await refundOrder(order.id, reason, amountCents, method);
+    setBusy(null);
+
+    if (!result.ok) {
+      toast(result.error === 'FORBIDDEN' ? t.common.forbidden : t.common.error, 'error');
+      return;
+    }
+    toast(
+      `${t.dashboard.refundDone}: ${formatMoney(result.data.refundedCents, currency, currencyDecimals)}`,
+      'success',
+    );
+    await refetchOrder(order.id);
+    router.refresh();
+  }
+
+  async function confirmDiscount(cents: number, reason: string) {
+    const order = discountFor;
+    if (!order) return;
+    setDiscountFor(null);
+
+    setBusy(order.id);
+    const result = await applyManualDiscount(order.id, cents, reason);
+    setBusy(null);
+
+    if (!result.ok) {
+      toast(result.error === 'FORBIDDEN' ? t.common.forbidden : t.common.error, 'error');
+      return;
+    }
+    toast(t.dashboard.discountDone, 'success');
+    await refetchOrder(order.id);
+    router.refresh();
+  }
+
+  async function confirmVoid(reason: string) {
+    const target = voidItem;
+    if (!target) return;
+    setVoidItem(null);
+
+    setBusy(target.order.id);
+    const result = await voidOrderItem(target.itemId, reason);
+    setBusy(null);
+
+    if (!result.ok) {
+      toast(
+        result.error === 'LAST_ITEM'
+          ? t.dashboard.cannotVoidLast
+          : result.error === 'ALREADY_PAID'
+            ? t.dashboard.cannotCancelPaid
+            : result.error === 'FORBIDDEN'
+              ? t.common.forbidden
+              : t.common.error,
+        'error',
+      );
+      return;
+    }
+    toast(t.dashboard.voidDone, 'success');
+    await refetchOrder(target.order.id);
+    router.refresh();
+  }
+
+  async function confirmFail(reason: string) {
+    const order = failFor;
+    if (!order) return;
+    setFailFor(null);
+
+    setBusy(order.id);
+    const result = await failDelivery(order.id, reason);
+    setBusy(null);
+
+    if (!result.ok) {
+      toast(result.error === 'FORBIDDEN' ? t.common.forbidden : t.common.error, 'error');
+      return;
+    }
+    toast(t.dashboard.failDone, 'success');
+    await refetchOrder(order.id);
+    router.refresh();
+  }
+
+  /** Anula el pedido dejando dicho por qué y devolviendo el cupón. */
+  async function confirmCancel(reason: string) {
+    const order = cancelFor;
+    if (!order) return;
+    setCancelFor(null);
+
+    setBusy(order.id);
+    const result = await cancelOrder(order.id, reason);
+    setBusy(null);
+
+    if (!result.ok) {
+      toast(
+        result.error === 'ALREADY_PAID'
+          ? t.dashboard.cannotCancelPaid
+          : result.error === 'FORBIDDEN'
+            ? t.common.forbidden
+            : t.common.error,
+        'error',
+      );
+      return;
+    }
+
+    toast(result.data.couponFreed ? t.dashboard.couponFreed : t.dashboard.cancelled, 'success');
     setOrders((current) => current.filter((o) => o.id !== order.id));
     router.refresh();
   }
@@ -489,19 +657,75 @@ export function LiveOrdersPanel({
         </section>
       )}
 
-      <ConfirmDialog
+      <ChargeDialog
         open={chargeFor !== null}
-        onClose={() => setChargeFor(null)}
-        onConfirm={chargeAndClose}
-        title={t.dashboard.chargeBeforeClosing}
-        message={
-          chargeFor
-            ? `${t.dashboard.chargeQuestion} (#${chargeFor.code} · ${formatMoney(chargeFor.totalCents, currency, currencyDecimals)})`
-            : ''
-        }
-        confirmLabel={t.dashboard.alreadyCharged}
-        cancelLabel={t.dashboard.notChargedYet}
+        order={chargeFor}
+        currency={currency}
+        currencyDecimals={currencyDecimals}
+        closing={chargeCloses}
         loading={busy === chargeFor?.id}
+        onClose={() => setChargeFor(null)}
+        onConfirm={confirmCharge}
+      />
+
+      <ReasonDialog
+        open={cancelFor !== null}
+        title={`${t.dashboard.cancelTitle} #${cancelFor?.code ?? ''}`}
+        question={t.dashboard.cancelWhy}
+        confirmLabel={t.dashboard.cancelConfirm}
+        reasons={MOTIVOS_ANULAR}
+        labels={t.dashboard.cancelReasons}
+        loading={busy === cancelFor?.id}
+        danger
+        onClose={() => setCancelFor(null)}
+        onConfirm={confirmCancel}
+      />
+
+      <RefundDialog
+        open={refundFor !== null}
+        order={refundFor}
+        currency={currency}
+        currencyDecimals={currencyDecimals}
+        loading={busy === refundFor?.id}
+        onClose={() => setRefundFor(null)}
+        onConfirm={confirmRefund}
+      />
+
+      <DiscountDialog
+        open={discountFor !== null}
+        order={discountFor}
+        currency={currency}
+        currencyDecimals={currencyDecimals}
+        loading={busy === discountFor?.id}
+        onClose={() => setDiscountFor(null)}
+        onConfirm={confirmDiscount}
+      />
+
+      <ReasonDialog
+        open={voidItem !== null}
+        title={`${t.dashboard.voidTitle}: ${voidItem?.name ?? ''}`}
+        question={t.dashboard.voidWhy}
+        confirmLabel={t.dashboard.voidItem}
+        reasons={MOTIVOS_QUITAR}
+        labels={t.dashboard.voidReasons}
+        loading={busy === voidItem?.order.id}
+        danger
+        onClose={() => setVoidItem(null)}
+        onConfirm={confirmVoid}
+      />
+
+      <ReasonDialog
+        open={failFor !== null}
+        title={t.dashboard.failTitle}
+        hint={t.dashboard.failHint}
+        question={t.dashboard.failWhy}
+        confirmLabel={t.dashboard.failDelivery}
+        reasons={MOTIVOS_FALLIDA}
+        labels={t.dashboard.failReasons}
+        loading={busy === failFor?.id}
+        danger
+        onClose={() => setFailFor(null)}
+        onConfirm={confirmFail}
       />
 
       <CourierPicker
@@ -546,20 +770,48 @@ export function LiveOrdersPanel({
                 </div>
 
                 <ul className="mt-4 flex-1 space-y-2">
-                  {order.items.map((item) => (
-                    <li key={item.id} className="flex gap-2 text-sm">
-                      <span className="font-bold text-brand">{item.quantity}×</span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block font-semibold text-ink-700">{item.name}</span>
-                        {item.options.length > 0 && (
-                          <span className="block text-xs text-ink-300">{item.options.join(' · ')}</span>
+                  {order.items.map((item) => {
+                    const quitado = Boolean(item.voidedAt);
+                    // Una línea quitada no desaparece de la comanda: se tacha.
+                    // Borrarla escondería que alguien retiró un plato.
+                    return (
+                      <li key={item.id} className={cn('group flex gap-2 text-sm', quitado && 'opacity-50')}>
+                        <span className={cn('font-bold text-brand', quitado && 'line-through')}>
+                          {item.quantity}×
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span
+                            className={cn('block font-semibold text-ink-700', quitado && 'line-through')}
+                          >
+                            {item.name}
+                          </span>
+                          {item.options.length > 0 && (
+                            <span className="block text-xs text-ink-300">{item.options.join(' · ')}</span>
+                          )}
+                          {item.notes && (
+                            <span className="block text-xs italic text-amber-700">“{item.notes}”</span>
+                          )}
+                          {quitado && (
+                            <span className="block text-xs font-semibold text-state-danger">
+                              {t.dashboard.voided}
+                              {item.voidReason ? ` · ${item.voidReason}` : ''}
+                            </span>
+                          )}
+                        </span>
+                        {puedeAnular && !quitado && order.paidCents === 0 && order.status !== 'completed' && (
+                          <button
+                            type="button"
+                            onClick={() => setVoidItem({ order, itemId: item.id, name: item.name })}
+                            aria-label={`${t.dashboard.voidItem}: ${item.name}`}
+                            title={t.dashboard.voidItem}
+                            className="shrink-0 rounded-md p-1 text-ink-200 opacity-0 transition-colors hover:bg-red-50 hover:text-state-danger focus-visible:opacity-100 group-hover:opacity-100"
+                          >
+                            <XCircle className="h-4 w-4" />
+                          </button>
                         )}
-                        {item.notes && (
-                          <span className="block text-xs italic text-amber-700">“{item.notes}”</span>
-                        )}
-                      </span>
-                    </li>
-                  ))}
+                      </li>
+                    );
+                  })}
                 </ul>
 
                 {order.courierName && (
@@ -572,6 +824,13 @@ export function LiveOrdersPanel({
                     <span className="min-w-0 flex-1 truncate font-semibold">{order.courierName}</span>
                     <span className="shrink-0 opacity-70">{t.courier.changeCourier}</span>
                   </button>
+                )}
+
+                {order.deliveryFailedAt && (
+                  <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-state-danger">
+                    {t.dashboard.failedBadge}
+                    {order.deliveryFailedReason ? ` · ${order.deliveryFailedReason}` : ''}
+                  </p>
                 )}
 
                 {order.notes && (
@@ -649,21 +908,37 @@ export function LiveOrdersPanel({
                   </div>
 
                   <div className="flex gap-2">
-                    {order.type === 'dine_in' && order.paymentStatus !== 'paid' && (
+                    {puedeCobrar && order.paidCents < order.totalCents && !order.courierId && (
                       <button
                         type="button"
-                        onClick={() => markPaid(order)}
+                        onClick={() => {
+                          setChargeCloses(false);
+                          setChargeFor(order);
+                        }}
                         disabled={busy === order.id}
                         className="btn flex-1 border border-emerald-300 text-emerald-700 hover:bg-emerald-50"
                       >
-                        {t.dashboard.markPaid}
+                        {order.paidCents > 0
+                          ? `${t.dashboard.dueNow} ${formatMoney(order.totalCents - order.paidCents, currency, currencyDecimals)}`
+                          : t.dashboard.markPaid}
                       </button>
                     )}
 
-                    {canCancel(order.status) && (
+                    {puedeAnular && order.paidCents > 0 && (
                       <button
                         type="button"
-                        onClick={() => cancel(order)}
+                        onClick={() => setRefundFor(order)}
+                        disabled={busy === order.id}
+                        className="btn flex-1 border border-state-danger/40 text-state-danger hover:bg-red-50"
+                      >
+                        {t.dashboard.refund}
+                      </button>
+                    )}
+
+                    {puedeAnular && canCancel(order.status) && (
+                      <button
+                        type="button"
+                        onClick={() => setCancelFor(order)}
                         disabled={busy === order.id}
                         className="btn flex-1 border border-state-danger/40 text-state-danger hover:bg-red-50"
                       >
@@ -673,7 +948,37 @@ export function LiveOrdersPanel({
                     )}
                   </div>
 
-                  {!canCancel(order.status) && order.status !== 'completed' && (
+                  <div className="flex flex-wrap gap-2">
+                    {puedeAnular && order.paidCents === 0 && order.status !== 'completed' && (
+                      <button
+                        type="button"
+                        onClick={() => setDiscountFor(order)}
+                        disabled={busy === order.id}
+                        className="btn flex-1 border border-surface-line text-ink-500 hover:bg-surface-field"
+                      >
+                        <Percent className="h-3.5 w-3.5" />
+                        {order.manualDiscountCents > 0
+                          ? formatMoney(order.manualDiscountCents, currency, currencyDecimals)
+                          : t.dashboard.discount}
+                      </button>
+                    )}
+
+                    {/* La entrega fallida sólo tiene sentido con la comida ya
+                        en la calle: antes de eso no hay nada que devolver. */}
+                    {puedeCobrar && order.status === 'delivering' && (
+                      <button
+                        type="button"
+                        onClick={() => setFailFor(order)}
+                        disabled={busy === order.id}
+                        className="btn flex-1 border border-amber-300 text-amber-700 hover:bg-amber-50"
+                      >
+                        <Undo2 className="h-3.5 w-3.5" />
+                        {t.dashboard.failDelivery}
+                      </button>
+                    )}
+                  </div>
+
+                  {puedeAnular && !canCancel(order.status) && order.status !== 'completed' && (
                     <p className="text-center text-[11px] text-ink-300">
                       {t.dashboard.cannotCancelInKitchen}
                     </p>

@@ -10,7 +10,13 @@ import {
   canManageStaff,
   canManageSettings,
   canAccessSection,
+  canChargeOrders,
+  canCancelOrders,
+  canRefund,
+  canVoidItems,
+  canDiscount,
 } from '@/lib/auth-permissions';
+import type { Enums } from '@/types/database';
 import { tableCode as makeTableCode } from '@/lib/utils';
 import { getCurrency } from '@/lib/money';
 import { sendMail } from '@/lib/mailer';
@@ -451,12 +457,19 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus): P
   const context = await requireStaffContext();
   const supabase = await createServerSupabase();
 
+  // Anular tiene su propia acción porque exige motivo y devuelve el cupón.
+  // Llegar aquí con 'cancelled' sería saltarse las dos cosas.
+  if (status === 'cancelled') return fail('USE_CANCEL_ORDER');
+
   const { error: dbError } = await supabase
     .from('orders')
     .update({ status })
     .eq('id', orderId)
     .eq('restaurant_id', context.restaurant.id);
 
+  // La base rechaza cerrar un pedido que nadie ha cobrado. Se traduce aquí para
+  // que el panel pueda ofrecer el cobro en lugar de enseñar un error opaco.
+  if (dbError?.message.includes('PAYMENT_REQUIRED')) return fail('PAYMENT_REQUIRED');
   if (dbError) return fail(dbError.message);
 
   // Aviso al móvil del cliente. Se espera —tarda unos cientos de milisegundos—
@@ -496,22 +509,100 @@ async function notifyOrderStatus(orderId: string, status: OrderStatus, restauran
   }
 }
 
-export async function updateOrderPaymentStatus(
+/**
+ * Registra el cobro de una cuenta.
+ *
+ * Antes esto escribía una palabra en el pedido y nada más: no quedaba ni la
+ * hora, ni quién cobró, ni con qué se pagó de verdad. Ahora pasa por una
+ * función de la base que sella las tres cosas, y que además comprueba el rol
+ * —cocina no toca el dinero—.
+ *
+ * `method` es el medio realmente empleado, que no tiene por qué ser el que el
+ * cliente eligió al pedir: se encarga en efectivo y se paga con tarjeta en la
+ * puerta más a menudo de lo que parece. Sin ese dato, ese importe se le seguía
+ * reclamando al repartidor.
+ */
+export async function markOrderPaid(
   orderId: string,
-  paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded',
-): Promise<Result> {
+  method?: Enums<'payment_method'>,
+): Promise<Result<{ alreadyPaid: boolean }>> {
   const context = await requireStaffContext();
+  if (!canChargeOrders(context.staffRole)) return fail('FORBIDDEN');
+
   const supabase = await createServerSupabase();
+  const { data, error: rpcError } = await supabase.rpc('mark_order_paid', {
+    p_order_id: orderId,
+    p_method: method ?? undefined,
+  });
 
-  const { error: dbError } = await supabase
-    .from('orders')
-    .update({ payment_status: paymentStatus })
-    .eq('id', orderId)
-    .eq('restaurant_id', context.restaurant.id);
+  if (rpcError) return fail(errorCode(rpcError.message));
 
-  if (dbError) return fail(dbError.message);
+  revalidatePath('/dashboard');
   revalidatePath('/dashboard/orders');
-  return { ok: true };
+  return { ok: true, data: { alreadyPaid: Boolean((data as { already?: boolean })?.already) } };
+}
+
+/**
+ * Anula un pedido dejando constancia del porqué.
+ *
+ * El motivo es obligatorio: sin él no hay forma de distinguir un cliente que se
+ * arrepiente de una cocina saturada, y no queda nada que analizar después. La
+ * función de la base devuelve además el cupón, que hasta ahora se quedaba
+ * consumido por un pedido que nunca existió.
+ */
+export async function cancelOrder(
+  orderId: string,
+  reason: string,
+): Promise<Result<{ couponFreed: boolean }>> {
+  const context = await requireStaffContext();
+  if (!canCancelOrders(context.staffRole)) return fail('FORBIDDEN');
+  if (!reason.trim()) return fail('CANCEL_REASON_REQUIRED');
+
+  const supabase = await createServerSupabase();
+  const { data, error: rpcError } = await supabase.rpc('cancel_order', {
+    p_order_id: orderId,
+    p_reason: reason.trim().slice(0, 300),
+  });
+
+  if (rpcError) return fail(errorCode(rpcError.message));
+
+  revalidatePath('/dashboard');
+  revalidatePath('/dashboard/orders');
+  return { ok: true, data: { couponFreed: Boolean((data as { coupon_freed?: boolean })?.coupon_freed) } };
+}
+
+/**
+ * Rescata el código de error que lanza la base.
+ *
+ * Postgres devuelve el mensaje entero, y el panel necesita la palabra suelta
+ * para traducirla al idioma del usuario en lugar de enseñar el texto crudo.
+ */
+function errorCode(message: string): string {
+  const known = [
+    'FORBIDDEN_CHARGE',
+    'FORBIDDEN_CANCEL',
+    'FORBIDDEN_SETTLE',
+    'CANCEL_REASON_REQUIRED',
+    'ALREADY_PAID',
+    'ORDER_CANCELLED',
+    'ORDER_NOT_FOUND',
+    'PAYMENT_REQUIRED',
+    'FORBIDDEN_REFUND',
+    'FORBIDDEN_VOID',
+    'FORBIDDEN_DISCOUNT',
+    'REFUND_REASON_REQUIRED',
+    'REFUND_EXCEEDS_PAID',
+    'NOTHING_TO_REFUND',
+    'VOID_REASON_REQUIRED',
+    'DISCOUNT_REASON_REQUIRED',
+    'DISCOUNT_EXCEEDS_ORDER',
+    'FAIL_REASON_REQUIRED',
+    'ORDER_NOT_IN_DELIVERY',
+    'LAST_ITEM',
+    'OVERPAYMENT',
+    'INVALID_AMOUNT',
+  ];
+  return known.find((code) => message.includes(code)) ?? message;
 }
 
 // =============================== Banners ================================
@@ -1148,16 +1239,207 @@ export async function markPickedUp(orderId: string): Promise<Result> {
 }
 
 /** El restaurante da por recibido el efectivo que traía un repartidor. */
-export async function settleCourierCash(courierId: string): Promise<Result> {
-  const { context, error } = await guard('menu');
-  if (!context) return fail(error);
+export async function settleCourierCash(
+  courierId: string,
+): Promise<Result<{ orders: number; cents: number }>> {
+  const context = await requireStaffContext();
+  if (!canChargeOrders(context.staffRole)) return fail('FORBIDDEN');
 
   const supabase = await createServerSupabase();
-  const { error: rpcError } = await supabase.rpc('settle_courier_cash', {
+  // El local va explícito. La función lo resolvía tomando la primera fila de
+  // equipo del usuario con un `limit 1` sin ordenar, así que quien trabaja en
+  // dos locales de la plataforma liquidaba en el que devolviera la base
+  // primero: el dinero se daba por recibido en la caja equivocada.
+  const { data, error: rpcError } = await supabase.rpc('settle_courier_cash', {
     p_courier_id: courierId,
+    p_restaurant_id: context.restaurant.id,
   });
-  if (rpcError) return fail(rpcError.message);
+  if (rpcError) return fail(errorCode(rpcError.message));
 
+  const result = data as { orders?: number; cents?: number } | null;
+  revalidatePath('/dashboard');
+  revalidatePath('/dashboard/orders');
+  return { ok: true, data: { orders: result?.orders ?? 0, cents: result?.cents ?? 0 } };
+}
+
+// ===================== Cobros, devoluciones y ajustes =====================
+//
+// Todo lo de aquí abajo es la fase 1 de la auditoría: el dinero deja de ser una
+// columna del pedido y pasa a ser un libro de apuntes. Ninguna de estas
+// acciones escribe en `orders` directamente; todas pasan por funciones de la
+// base que comprueban el permiso y recalculan el saldo.
+
+/**
+ * Añade un cobro a una cuenta.
+ *
+ * Sin importe cobra lo que falte, que es el caso normal. Con importe cobra una
+ * parte: es lo que permite dividir la cuenta entre comensales o pagar la mitad
+ * en efectivo y la otra mitad con tarjeta.
+ */
+export async function addOrderPayment(
+  orderId: string,
+  method: Enums<'payment_method'>,
+  amountCents?: number | null,
+  note?: string | null,
+): Promise<Result<{ paidCents: number; dueCents: number; fullyPaid: boolean }>> {
+  const context = await requireStaffContext();
+  if (!canChargeOrders(context.staffRole)) return fail('FORBIDDEN');
+
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase.rpc('add_order_payment', {
+    p_order_id: orderId,
+    p_method: method,
+    p_amount_cents: amountCents ?? null,
+    p_note: note ?? null,
+  });
+
+  if (error) return fail(errorCode(error.message));
+
+  const r = data as { paid_cents?: number; due_cents?: number; fully_paid?: boolean } | null;
+  revalidatePath('/dashboard');
+  revalidatePath('/dashboard/orders');
+  return {
+    ok: true,
+    data: {
+      paidCents: r?.paid_cents ?? 0,
+      dueCents: r?.due_cents ?? 0,
+      fullyPaid: Boolean(r?.fully_paid),
+    },
+  };
+}
+
+/** Cobra de una vez todo lo que debe una mesa, repartiéndolo entre sus comandas. */
+export async function payTableBill(
+  tableId: string,
+  method: Enums<'payment_method'>,
+  amountCents?: number | null,
+  note?: string | null,
+): Promise<Result<{ orders: number; chargedCents: number; dueCents: number }>> {
+  const context = await requireStaffContext();
+  if (!canChargeOrders(context.staffRole)) return fail('FORBIDDEN');
+
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase.rpc('pay_table_bill', {
+    p_table_id: tableId,
+    p_method: method,
+    p_amount_cents: amountCents ?? null,
+    p_note: note ?? null,
+  });
+
+  if (error) return fail(errorCode(error.message));
+
+  const r = data as { orders?: number; charged_cents?: number; due_cents?: number } | null;
+  revalidatePath('/dashboard');
+  revalidatePath('/dashboard/floor');
+  revalidatePath('/dashboard/orders');
+  return {
+    ok: true,
+    data: {
+      orders: r?.orders ?? 0,
+      chargedCents: r?.charged_cents ?? 0,
+      dueCents: r?.due_cents ?? 0,
+    },
+  };
+}
+
+/**
+ * Devuelve dinero de una cuenta ya cobrada.
+ *
+ * Nunca toca el cobro original: añade un apunte negativo enlazado a la misma
+ * venta, que es lo que permite que lo que entró y lo que salió sigan siendo
+ * ciertos a la vez. Sin importe devuelve todo lo cobrado.
+ */
+export async function refundOrder(
+  orderId: string,
+  reason: string,
+  amountCents?: number | null,
+  method?: Enums<'payment_method'>,
+): Promise<Result<{ refundedCents: number; paidCents: number }>> {
+  const context = await requireStaffContext();
+  if (!canRefund(context.staffRole)) return fail('FORBIDDEN');
+  if (!reason.trim()) return fail('REFUND_REASON_REQUIRED');
+
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase.rpc('refund_order', {
+    p_order_id: orderId,
+    p_reason: reason.trim().slice(0, 300),
+    p_amount_cents: amountCents ?? null,
+    p_method: method ?? undefined,
+  });
+
+  if (error) return fail(errorCode(error.message));
+
+  const r = data as { refunded_cents?: number; paid_cents?: number } | null;
+  revalidatePath('/dashboard');
+  revalidatePath('/dashboard/orders');
+  return { ok: true, data: { refundedCents: r?.refunded_cents ?? 0, paidCents: r?.paid_cents ?? 0 } };
+}
+
+/** Quita una línea de una comanda ya enviada, dejando dicho por qué. */
+export async function voidOrderItem(
+  itemId: string,
+  reason: string,
+): Promise<Result<{ totalCents: number }>> {
+  const context = await requireStaffContext();
+  if (!canVoidItems(context.staffRole)) return fail('FORBIDDEN');
+  if (!reason.trim()) return fail('VOID_REASON_REQUIRED');
+
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase.rpc('void_order_item', {
+    p_item_id: itemId,
+    p_reason: reason.trim().slice(0, 300),
+  });
+
+  if (error) return fail(errorCode(error.message));
+
+  revalidatePath('/dashboard');
+  revalidatePath('/dashboard/orders');
+  return { ok: true, data: { totalCents: (data as { total_cents?: number })?.total_cents ?? 0 } };
+}
+
+/** Descuento de la casa: la invitación, el plato que salió mal, la compensación. */
+export async function applyManualDiscount(
+  orderId: string,
+  cents: number,
+  reason: string,
+): Promise<Result<{ totalCents: number }>> {
+  const context = await requireStaffContext();
+  if (!canDiscount(context.staffRole)) return fail('FORBIDDEN');
+  if (!reason.trim()) return fail('DISCOUNT_REASON_REQUIRED');
+
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase.rpc('apply_manual_discount', {
+    p_order_id: orderId,
+    p_cents: Math.max(0, Math.round(cents)),
+    p_reason: reason.trim().slice(0, 300),
+  });
+
+  if (error) return fail(errorCode(error.message));
+
+  revalidatePath('/dashboard');
+  revalidatePath('/dashboard/orders');
+  return { ok: true, data: { totalCents: (data as { total_cents?: number })?.total_cents ?? 0 } };
+}
+
+/**
+ * Entrega fallida: la comida vuelve al local.
+ *
+ * El pedido regresa a "listo" y se suelta al repartidor. Desde ahí decide el
+ * restaurante —reintentar con otro, o anular—, que es una decisión suya y no
+ * del repartidor parado en un portal.
+ */
+export async function failDelivery(orderId: string, reason: string): Promise<Result> {
+  const context = await requireStaffContext();
+  if (!canChargeOrders(context.staffRole)) return fail('FORBIDDEN');
+  if (!reason.trim()) return fail('FAIL_REASON_REQUIRED');
+
+  const supabase = await createServerSupabase();
+  const { error } = await supabase.rpc('courier_fail_delivery', {
+    p_order_id: orderId,
+    p_reason: reason.trim().slice(0, 300),
+  });
+
+  if (error) return fail(errorCode(error.message));
   revalidatePath('/dashboard/orders');
   return { ok: true };
 }
