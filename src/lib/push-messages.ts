@@ -13,8 +13,9 @@ type Status =
 /**
  * Texto del aviso para cada estado del pedido.
  *
- * No todos los estados merecen molestar al cliente: `confirmed` ocurre a la vez
- * que el pedido se hace, y él está mirando la pantalla, así que no se avisa.
+ * `pending` no avisa: es el instante en que el cliente pulsa el botón y ya está
+ * mirando la pantalla. El resto sí, incluido `confirmed`, porque entre pedir y
+ * que el local acepte pueden pasar minutos y es justo lo que se quiere saber.
  */
 export function orderPushMessage(
   status: Status,
@@ -24,6 +25,8 @@ export function orderPushMessage(
 ): { title: string; body: string } | null {
   const push = t.push;
   switch (status) {
+    case 'confirmed':
+      return { title: push.confirmedTitle, body: push.confirmedBody.replace('{restaurant}', restaurantName) };
     case 'preparing':
       return { title: push.preparingTitle, body: push.preparingBody.replace('{restaurant}', restaurantName) };
     case 'ready':

@@ -98,6 +98,12 @@ self.addEventListener('push', (event) => {
     icon: data.icon || '/icon-192.png',
     badge: '/icon-192.png',
     tag: data.tag || undefined,
+    // Todos los avisos de un pedido comparten etiqueta para que no se apilen
+    // cinco tarjetas del mismo encargo. Sin `renotify`, el navegador sustituye
+    // la anterior EN SILENCIO: sin sonido ni vibración. Los avisos llegaban,
+    // pero el cliente sólo se enteraba del último que mirase.
+    renotify: Boolean(data.tag),
+    vibrate: [80, 40, 80],
     data: { url: data.url || '/' },
   };
 

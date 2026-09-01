@@ -7,6 +7,7 @@ import {
   Bike,
   Minus,
   Plus,
+  ChevronDown,
   Search,
   ShoppingBag,
   Store,
@@ -124,6 +125,15 @@ export function PosView({
   const [enviando, setEnviando] = useState(false);
   /** El carrito desplegado. Sólo se usa en móvil; en escritorio va en columna. */
   const [verTicket, setVerTicket] = useState(false);
+  /**
+   * Los datos del cliente, plegados o no.
+   *
+   * Se rellenan una vez al principio y después estorban: en una pantalla de
+   * portátil ocupaban casi un tercio de la columna y empujaban el botón de
+   * enviar fuera de la vista. Plegarlos deja ese alto para la lista, que es lo
+   * que crece.
+   */
+  const [verDatos, setVerDatos] = useState(true);
 
   const money = (c: number) => formatMoney(c, currency, currencyDecimals);
 
@@ -339,7 +349,7 @@ export function PosView({
         ))}
       </div>
 
-      <div className="mt-4 space-y-3">
+      <div className="mt-3 space-y-2.5">
         {tipo === 'dine_in' && (
           <div className="grid grid-cols-2 gap-3">
             <Select value={mesa} onChange={(e) => setMesa(e.target.value)} label={t.pos.table}>
@@ -383,12 +393,25 @@ export function PosView({
     </>
   );
 
-  const lineas = (
+  /**
+   * Las líneas del ticket.
+   *
+   * En la columna de escritorio la lista se desplaza por dentro: una comanda
+   * larga empujaba el método de pago y el botón de enviar fuera de la pantalla,
+   * y había que bajar toda la página para cerrar el pedido. En el móvil no hace
+   * falta, porque la hoja del carrito ya se desplaza entera.
+   */
+  const lineas = (propio: boolean) => (
     <>
       {lines.length === 0 ? (
         <p className="py-6 text-center text-sm text-ink-300">{t.pos.emptyTicket}</p>
       ) : (
-        <ul className="divide-y divide-surface-line">
+        <ul
+          className={cn(
+            'divide-y divide-surface-line',
+            propio && 'min-h-0 flex-1 overflow-y-auto',
+          )}
+        >
           {lines.map((l) => (
             <li key={l.key} className="flex items-start gap-2 py-2.5">
               <span className="min-w-0 flex-1">
@@ -431,35 +454,43 @@ export function PosView({
         </ul>
       )}
 
-      {lines.length > 0 && (
-        <dl className="mt-4 space-y-1.5 border-t border-surface-line pt-4 text-sm">
-          <div className="flex justify-between">
-            <dt className="text-ink-400">{t.common.subtotal}</dt>
-            <dd className="font-semibold tabular-nums text-ink-600">{money(subtotal)}</dd>
-          </div>
-          {envio > 0 && (
-            <div className="flex justify-between">
-              <dt className="text-ink-400">{t.common.delivery}</dt>
-              <dd className="font-semibold tabular-nums text-ink-600">{money(envio)}</dd>
-            </div>
-          )}
-          <div className="flex justify-between">
-            <dt className="text-ink-400">{t.common.taxes}</dt>
-            <dd className="font-semibold tabular-nums text-ink-600">{money(impuestos)}</dd>
-          </div>
-          {propina > 0 && (
-            <div className="flex justify-between">
-              <dt className="text-ink-400">{t.common.tip}</dt>
-              <dd className="font-semibold tabular-nums text-ink-600">{money(propina)}</dd>
-            </div>
-          )}
-          <div className="flex items-baseline justify-between border-t border-surface-line pt-2">
-            <dt className="font-bold text-ink-700">{t.common.total}</dt>
-            <dd className="font-display text-xl font-bold tabular-nums text-ink">{money(total)}</dd>
-          </div>
-        </dl>
-      )}
     </>
+  );
+
+  /**
+   * Subtotal, impuestos y total.
+   *
+   * Van con el pago y no con las líneas: es lo que se mira al cobrar, y dentro
+   * de la lista le robaban a ésta todo el alto disponible hasta dejarla en cero
+   * en una pantalla de portátil.
+   */
+  const totales = lines.length > 0 && (
+    <dl className="space-y-1.5 text-sm">
+      <div className="flex justify-between">
+        <dt className="text-ink-400">{t.common.subtotal}</dt>
+        <dd className="font-semibold tabular-nums text-ink-600">{money(subtotal)}</dd>
+      </div>
+      {envio > 0 && (
+        <div className="flex justify-between">
+          <dt className="text-ink-400">{t.common.delivery}</dt>
+          <dd className="font-semibold tabular-nums text-ink-600">{money(envio)}</dd>
+        </div>
+      )}
+      <div className="flex justify-between">
+        <dt className="text-ink-400">{t.common.taxes}</dt>
+        <dd className="font-semibold tabular-nums text-ink-600">{money(impuestos)}</dd>
+      </div>
+      {propina > 0 && (
+        <div className="flex justify-between">
+          <dt className="text-ink-400">{t.common.tip}</dt>
+          <dd className="font-semibold tabular-nums text-ink-600">{money(propina)}</dd>
+        </div>
+      )}
+      <div className="flex items-baseline justify-between border-t border-surface-line pt-2">
+        <dt className="font-bold text-ink-700">{t.common.total}</dt>
+        <dd className="font-display text-xl font-bold tabular-nums text-ink">{money(total)}</dd>
+      </div>
+    </dl>
   );
 
   const pago = (
@@ -484,28 +515,35 @@ export function PosView({
         ))}
       </div>
 
-      <label className="label mt-4 block" htmlFor="propina-caja">
-        {t.common.tip}
-      </label>
-      <MoneyInput
-        id="propina-caja"
-        value={propina}
-        decimals={currencyDecimals}
-        onChange={setPropina}
-        className="text-base"
-      />
-
-      {/* Cobrar al pedir es lo normal en el mostrador; en una mesa la cuenta se
+      {/* Propina y cobro comparten fila: los dos son decisiones del momento de
+          pagar y separarlos gastaba alto que le hace falta al ticket.
+          Cobrar al pedir es lo normal en el mostrador; en una mesa la cuenta se
           queda abierta hasta que el comensal se va. */}
-      <label className="mt-4 flex items-center gap-3 rounded-xl bg-surface-field px-4 py-3.5">
-        <input
-          type="checkbox"
-          checked={cobrarYa}
-          onChange={(e) => setCobrarYa(e.target.checked)}
-          className="h-5 w-5 accent-brand"
-        />
-        <span className="text-sm font-semibold text-ink-600">{t.pos.chargeNow}</span>
-      </label>
+      <div className="mt-3 flex items-end gap-3">
+        <div className="min-w-0 flex-1">
+          <label className="label block" htmlFor="propina-caja">
+            {t.common.tip}
+          </label>
+          <MoneyInput
+            id="propina-caja"
+            value={propina}
+            decimals={currencyDecimals}
+            onChange={setPropina}
+            className="text-base"
+          />
+        </div>
+        <label className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl bg-surface-field px-3 py-3.5">
+          <input
+            type="checkbox"
+            checked={cobrarYa}
+            onChange={(e) => setCobrarYa(e.target.checked)}
+            className="h-5 w-5 shrink-0 accent-brand"
+          />
+          <span className="text-xs font-semibold leading-tight text-ink-600">
+            {t.pos.chargeNow}
+          </span>
+        </label>
+      </div>
     </>
   );
 
@@ -532,10 +570,12 @@ export function PosView({
   );
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
+    // En escritorio la pantalla no se desplaza: lo hacen la carta y el ticket,
+    // cada uno por su lado. `100dvh` menos el relleno vertical del marco.
+    <div className="grid gap-6 xl:h-[calc(100dvh-3rem)] xl:grid-cols-[1fr_380px] xl:overflow-hidden">
       {/* ─────────── Carta ─────────── */}
-      <div className="min-w-0 space-y-4">
-        <div>
+      <div className="flex min-h-0 min-w-0 flex-col gap-4">
+        <div className="shrink-0">
           <h1 className="font-display text-2xl font-bold text-ink">{t.pos.title}</h1>
           <p className="mt-1 hidden text-sm text-ink-300 sm:block">{t.pos.subtitle}</p>
         </div>
@@ -546,7 +586,7 @@ export function PosView({
           // Justo debajo de la cabecera del panel, no encima ni tapada por
           // ella: el alto lo publica el propio marco al medirse.
           style={{ top: 'var(--dash-header-h, 0px)' }}
-          className="sticky z-20 -mx-4 space-y-3 bg-surface-soft px-4 py-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 xl:static xl:mx-0 xl:bg-transparent xl:p-0"
+          className="sticky z-20 -mx-4 shrink-0 space-y-3 bg-surface-soft px-4 py-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 xl:static xl:mx-0 xl:bg-transparent xl:p-0"
         >
           <div className="relative">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-300" />
@@ -600,7 +640,7 @@ export function PosView({
           />
         ) : (
           // El hueco de abajo deja sitio a la barra fija del carrito.
-          <ul className="grid grid-cols-2 gap-3 pb-28 sm:grid-cols-3 xl:pb-0 2xl:grid-cols-4">
+          <ul className="grid grid-cols-2 gap-3 pb-28 sm:grid-cols-3 xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:pb-2 2xl:grid-cols-4">
             {visibles.map((p) => {
               const agotado = !p.isAvailable || (p.trackStock && p.stockQty <= 0);
               const enTicket = lines
@@ -655,20 +695,63 @@ export function PosView({
       </div>
 
       {/* ─────────── Ticket: columna en escritorio ─────────── */}
-      <aside className="hidden space-y-4 xl:block xl:sticky xl:top-6 xl:self-start">
-        {bloque(datos, false)}
-        {bloque(
-          lineas,
-          false,
-          `${t.pos.ticket}${lines.length > 0 ? ` (${lines.length})` : ''}`,
-        )}
-        {bloque(
-          <>
-            {pago}
-            <div className="mt-4">{botones}</div>
-          </>,
-          false,
-        )}
+      {/*
+        Columna de alto fijo con una sola zona que crece: el ticket. Los datos y
+        el pago se quedan quietos, que es lo que se pedía —una comanda larga ya
+        no empuja el botón de enviar fuera de la pantalla—.
+
+        El `overflow-y-auto` de la columna es la última red: en una pantalla muy
+        baja, donde ni con el mínimo caben los tres bloques, es preferible poder
+        desplazar la columna a que el botón quede inalcanzable.
+      */}
+      <aside
+        aria-label={t.pos.ticket}
+        className="hidden min-h-0 xl:flex xl:flex-col xl:gap-3 xl:overflow-y-auto"
+      >
+        <section className="shrink-0 rounded-2xl bg-white p-4 shadow-chip">
+          <button
+            type="button"
+            onClick={() => setVerDatos((v) => !v)}
+            aria-expanded={verDatos}
+            className="flex w-full items-center gap-2 text-left"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="block font-display text-base font-bold text-ink-700">
+                {t.pos.orderDetails}
+              </span>
+              {!verDatos && (
+                <span className="block truncate text-xs text-ink-300">
+                  {TIPOS.find((x) => x.id === tipo)?.label}
+                  {nombre.trim() ? ` · ${nombre.trim()}` : ''}
+                  {tipo === 'dine_in' && mesa
+                    ? ` · ${tables.find((m) => m.code === mesa)?.name ?? ''}`
+                    : ''}
+                </span>
+              )}
+            </span>
+            <ChevronDown
+              className={cn(
+                'h-4 w-4 shrink-0 text-ink-300 transition-transform',
+                verDatos && 'rotate-180',
+              )}
+            />
+          </button>
+          {verDatos && <div className="mt-3">{datos}</div>}
+        </section>
+
+        <section className="flex min-h-[10rem] flex-1 flex-col rounded-2xl bg-white p-4 shadow-chip">
+          <h2 className="mb-3 shrink-0 font-display text-base font-bold text-ink-700">
+            {t.pos.ticket}
+            {lines.length > 0 && <span className="ml-2 text-sm text-ink-300">({lines.length})</span>}
+          </h2>
+          {lineas(true)}
+        </section>
+
+        <section className="shrink-0 space-y-3 rounded-2xl bg-white p-4 shadow-chip">
+          {totales}
+          {pago}
+          {botones}
+        </section>
       </aside>
 
       {/* ─────────── Ticket: carrito en móvil ─────────── */}
@@ -709,7 +792,13 @@ export function PosView({
         size="md"
         footer={botones}
       >
-        {bloque(lineas, true)}
+        {bloque(
+          <>
+            {lineas(false)}
+            {totales && <div className="mt-4 border-t border-surface-line pt-4">{totales}</div>}
+          </>,
+          true,
+        )}
         {bloque(datos, true, t.pos.orderDetails)}
         {bloque(pago, true, t.checkout.paymentMethod)}
       </Sheet>

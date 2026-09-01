@@ -59,3 +59,39 @@ export async function listCashDue(): Promise<CashDue[]> {
   const { data } = await supabase.rpc('courier_cash_due', {});
   return (data as unknown as CashDue[] | null) ?? [];
 }
+
+/**
+ * El repartidor coge un pedido de la bolsa común.
+ *
+ * Pasa por el servidor y no por una llamada directa desde el navegador porque
+ * el pedido entra en reparto, y eso el cliente tiene que saberlo: llamando a la
+ * base a pelo el estado cambiaba y el aviso no salía nunca.
+ */
+export async function takeOrder(orderId: string): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createServerSupabase();
+  const { error } = await supabase.rpc('courier_take_order', { p_order_id: orderId });
+
+  if (error) return { ok: false, error: error.message };
+
+  void avisarEnReparto(orderId).catch(() => undefined);
+
+  revalidatePath('/courier');
+  return { ok: true };
+}
+
+async function avisarEnReparto(orderId: string) {
+  const service = createAdminSupabase();
+  const { data: order } = await service
+    .from('orders')
+    .select('public_token')
+    .eq('id', orderId)
+    .maybeSingle();
+
+  const { t } = await getI18n();
+  await sendOrderPush(orderId, {
+    title: t.push.deliveringTitle,
+    body: t.push.deliveringBody,
+    url: order?.public_token ? `/order/${order.public_token}` : '/orders',
+    tag: `order-${orderId}`,
+  });
+}

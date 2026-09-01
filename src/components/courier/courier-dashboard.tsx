@@ -20,7 +20,7 @@ import { Badge, EmptyState } from '@/components/ui/misc';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { createClient } from '@/lib/supabase/client';
-import { deliverOrder } from '@/app/actions/delivery';
+import { deliverOrder, takeOrder } from '@/app/actions/delivery';
 import { CashDuePanel } from '@/components/courier/cash-due';
 import { PushPrompt } from '@/components/pwa/push-prompt';
 import { setCourierStatus } from '@/app/courier/actions';
@@ -128,13 +128,14 @@ export function CourierDashboard({
 
   async function take(order: DeliveryOrder) {
     setBusy(order.id);
-    const supabase = createClient();
-    const { error } = await supabase.rpc('courier_take_order', { p_order_id: order.id });
+    // Por la acción de servidor, no llamando a la base desde aquí: es la que
+    // avisa al cliente de que su pedido ha salido.
+    const result = await takeOrder(order.id);
     setBusy(null);
 
-    if (error) {
+    if (!result.ok) {
       toast(
-        error.message.includes('ORDER_NOT_AVAILABLE') ? t.courier.orderTaken : t.common.error,
+        result.error?.includes('ORDER_NOT_AVAILABLE') ? t.courier.orderTaken : t.common.error,
         'error',
       );
       router.refresh();

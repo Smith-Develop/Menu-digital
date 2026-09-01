@@ -173,13 +173,24 @@ export function KitchenDisplay({
     };
   }, [restaurantId, refetch, notify]);
 
+  /**
+   * Siguiente paso de la comanda dentro de la cocina.
+   *
+   * La cocina termina en "listo". Antes el botón de la tercera columna decía
+   * "Servido" pero escribía "completado", así que cerraba el pedido antes de
+   * que el camarero lo llevara a la mesa o el repartidor saliera con él: el
+   * cliente lo veía entregado con la comida aún en el pase. Servir y entregar
+   * son de quien lo hace, y se marcan desde la sala o desde el reparto.
+   */
+  function siguiente(ticket: KitchenTicket): Enums<'order_status'> | null {
+    if (ticket.status === 'pending' || ticket.status === 'confirmed') return 'preparing';
+    if (ticket.status === 'preparing') return 'ready';
+    return null;
+  }
+
   async function advance(ticket: KitchenTicket) {
-    const next: Enums<'order_status'> =
-      ticket.status === 'pending' || ticket.status === 'confirmed'
-        ? 'preparing'
-        : ticket.status === 'preparing'
-          ? 'ready'
-          : 'completed';
+    const next = siguiente(ticket);
+    if (!next) return;
 
     // Por la acción de servidor, no escribiendo la tabla desde aquí: es la que
     // avisa al móvil del cliente del cambio de estado. Actualizar en directo se
@@ -195,10 +206,11 @@ export function KitchenDisplay({
     ready: t.kitchen.ready,
   };
 
-  const ACTION: Record<'queue' | 'preparing' | 'ready', string> = {
+  // La columna de listos no lleva acción: la comanda sale sola del tablero
+  // cuando el camarero la sirve o el repartidor la recoge.
+  const ACTION: Record<'queue' | 'preparing', string> = {
     queue: t.kitchen.startPreparing,
     preparing: t.kitchen.markReady,
-    ready: t.kitchen.markServed,
   };
 
   return (
@@ -335,19 +347,24 @@ export function KitchenDisplay({
                           </p>
                         )}
 
-                        <button
-                          type="button"
-                          onClick={() => advance(ticket)}
-                          className={cn(
-                            'mt-4 flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold uppercase tracking-wide transition-transform active:scale-[0.98]',
-                            column.key === 'ready'
-                              ? 'bg-state-success text-white'
-                              : 'bg-brand text-white',
-                          )}
-                        >
-                          <Check className="h-4 w-4" />
-                          {ACTION[column.key]}
-                        </button>
+                        {/* Una comanda lista ya no tiene botón: la cocina ha
+                            terminado y quien la sirve o la reparte es quien la
+                            cierra desde su pantalla. */}
+                        {column.key === 'ready' ? (
+                          <p className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-white/10 py-3.5 text-sm font-bold uppercase tracking-wide text-white/60">
+                            <Check className="h-4 w-4" />
+                            {t.kitchen.waitingPickup}
+                          </p>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => advance(ticket)}
+                            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-brand py-3.5 text-sm font-bold uppercase tracking-wide text-white transition-transform active:scale-[0.98]"
+                          >
+                            <Check className="h-4 w-4" />
+                            {ACTION[column.key]}
+                          </button>
+                        )}
                       </li>
                     );
                   })}
