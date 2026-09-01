@@ -58,6 +58,8 @@ export const DASHBOARD_SECTIONS = {
   staff: ['owner', 'admin'],
   settings: ['owner', 'admin'],
   subscription: ['owner'],
+  // Contratar un destacado es gastar dinero del negocio.
+  promote: ['owner', 'admin'],
 } satisfies Record<string, Enums<'staff_role'>[]>;
 
 export type DashboardSection = keyof typeof DASHBOARD_SECTIONS;

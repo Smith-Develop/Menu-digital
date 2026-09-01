@@ -3,6 +3,11 @@ import { requireSuperadmin } from '@/lib/auth';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { PlatformRevenuePanel, type PlatformRevenue } from '@/components/admin/platform-revenue';
 import { PlatformBilling, type SettlementRow } from '@/components/admin/platform-billing';
+import {
+  SponsorshipsAdmin,
+  type Offer,
+  type Reserved,
+} from '@/components/admin/sponsorships-admin';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Ingresos' };
@@ -30,6 +35,16 @@ export default async function RevenuePage({
       .select('*')
       .order('settled_at', { ascending: false })
       .limit(20),
+  ]);
+
+  // Lo que se vende en la portada y en qué ciudades se puede vender.
+  const [{ data: ofertas }, { data: ciudades }] = await Promise.all([
+    supabase
+      .from('sponsorship_offers')
+      .select('id, city_slug, kind, price_cents, currency, slots, is_active')
+      .order('city_slug', { nullsFirst: true })
+      .order('kind'),
+    supabase.rpc('list_cities'),
   ]);
 
   // Nombre del sujeto y factura de cada liquidación: dos consultas más porque
@@ -90,6 +105,9 @@ export default async function RevenuePage({
     paying_couriers: 0,
     top_restaurants: [],
     pending_by_subject: [],
+    sponsorship_cents: 0,
+    sponsorship_count: 0,
+    sponsorships_reserved: [],
   };
 
   return (
@@ -104,6 +122,24 @@ export default async function RevenuePage({
         // La plataforma factura en una sola divisa; la de cada local es asunto
         // suyo y no se mezcla con esto.
         currency="EUR"
+      />
+
+      <SponsorshipsAdmin
+        offers={
+          (ofertas ?? []).map((o) => ({
+            id: o.id,
+            citySlug: o.city_slug,
+            kind: o.kind,
+            priceCents: o.price_cents,
+            currency: o.currency,
+            slots: o.slots,
+            isActive: o.is_active,
+          })) satisfies Offer[]
+        }
+        reserved={
+          ((data as unknown as PlatformRevenue | null)?.sponsorships_reserved ?? []) as Reserved[]
+        }
+        cities={(ciudades ?? []).map((c) => ({ slug: c.city_slug, name: c.city }))}
       />
 
       <PlatformBilling

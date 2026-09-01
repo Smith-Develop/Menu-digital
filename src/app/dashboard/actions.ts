@@ -1943,3 +1943,49 @@ export async function importProducts(
   }
   return { ok: true, data: report };
 }
+
+// ============================ Destacados de pago ============================
+
+/**
+ * Aparta un sitio destacado para el local.
+ *
+ * Reservar no es aparecer: queda a nombre del local mientras se paga, y sólo la
+ * plataforma lo enciende al confirmar el cobro. Es la misma regla que gobierna
+ * las suscripciones —se ve lo pagado— y evita el caso desagradable de un
+ * destacado gratis que nadie recuerda haber regalado.
+ */
+export async function reserveSponsorship(
+  kind: 'listing' | 'banner',
+  startsOn: string,
+  endsOn: string,
+): Promise<Result<{ id: string; days: number; totalCents: number }>> {
+  const { context, error: denied } = await guard('settings');
+  if (!context) return fail(denied);
+
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase.rpc('reserve_sponsorship', {
+    p_restaurant_id: context.restaurant.id,
+    p_kind: kind,
+    p_starts_on: startsOn,
+    p_ends_on: endsOn,
+  });
+
+  if (error) return fail(errorCode(error.message));
+
+  const r = data as { id: string; days: number; total_cents: number };
+  revalidatePath('/dashboard/promote');
+  return { ok: true, data: { id: r.id, days: r.days, totalCents: r.total_cents } };
+}
+
+export async function cancelSponsorship(id: string): Promise<Result> {
+  const { context, error: denied } = await guard('settings');
+  if (!context) return fail(denied);
+
+  const supabase = await createServerSupabase();
+  const { error } = await supabase.rpc('cancel_sponsorship', { p_id: id });
+
+  if (error) return fail(errorCode(error.message));
+
+  revalidatePath('/dashboard/promote');
+  return { ok: true };
+}

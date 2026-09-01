@@ -2065,6 +2065,96 @@ export type Database = {
         };
         Relationships: [];
       };
+      sponsorship_offers: {
+        Row: {
+          id: string;
+          city_slug: string | null;
+          kind: Enums<"sponsorship_kind">;
+          price_cents: number;
+          currency: string;
+          slots: number;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          city_slug?: string | null;
+          kind: Enums<"sponsorship_kind">;
+          price_cents?: number;
+          currency?: string;
+          slots?: number;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          city_slug?: string | null;
+          kind?: Enums<"sponsorship_kind">;
+          price_cents?: number;
+          currency?: string;
+          slots?: number;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      sponsorships: {
+        Row: {
+          id: string;
+          restaurant_id: string;
+          offer_id: string | null;
+          kind: Enums<"sponsorship_kind">;
+          city_slug: string | null;
+          starts_on: string;
+          ends_on: string;
+          price_cents: number;
+          currency: string;
+          days: number;
+          total_cents: number;
+          status: Enums<"sponsorship_status">;
+          paid_at: string | null;
+          paid_by: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          restaurant_id: string;
+          offer_id?: string | null;
+          kind: Enums<"sponsorship_kind">;
+          city_slug?: string | null;
+          starts_on: string;
+          ends_on: string;
+          price_cents?: number;
+          currency?: string;
+          days?: number;
+          total_cents?: number;
+          status?: Enums<"sponsorship_status">;
+          paid_at?: string | null;
+          paid_by?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          restaurant_id?: string;
+          offer_id?: string | null;
+          kind?: Enums<"sponsorship_kind">;
+          city_slug?: string | null;
+          starts_on?: string;
+          ends_on?: string;
+          price_cents?: number;
+          currency?: string;
+          days?: number;
+          total_cents?: number;
+          status?: Enums<"sponsorship_status">;
+          paid_at?: string | null;
+          paid_by?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       staff_invitations: {
         Row: {
           id: string;
@@ -2317,7 +2407,7 @@ export type Database = {
       restaurant_stats: { Args: { p_restaurant_id: string; p_days?: number }; Returns: Json };
       list_cities: { Args: { [_ in never]: never }; Returns: { city: string; city_slug: string; restaurants: number }[] };
       nearest_city: { Args: { p_lat: number; p_lng: number }; Returns: { city: string; city_slug: string; distance_km: number }[] };
-      home_banners: { Args: { p_city_slug?: string | null; p_limit?: number }; Returns: { id: string; title: string | null; subtitle: string | null; image_url: string; link_url: string | null; restaurant_id: string; restaurant_name: string; restaurant_slug: string }[] };
+      home_banners: { Args: { p_city_slug?: string | null; p_limit?: number }; Returns: { id: string; title: string | null; subtitle: string | null; image_url: string; link_url: string | null; restaurant_id: string; restaurant_name: string; restaurant_slug: string; sponsored: boolean }[] };
       active_notifications: { Args: { p_city_slug?: string | null }; Returns: { id: string; title: string; body: string | null; image_url: string | null; link_url: string | null; link_label: string | null }[] };
       courier_take_order: { Args: { p_order_id: string }; Returns: Json };
       courier_stats: { Args: { [_ in never]: never }; Returns: Json };
@@ -2406,6 +2496,11 @@ export type Database = {
       replace_order_item: { Args: { p_item_id: string; p_product_id: string; p_qty?: number | null; p_note?: string | null }; Returns: Json };
       available_delivery_slots: { Args: { p_restaurant_id: string; p_days?: number }; Returns: Json };
       import_products: { Args: { p_restaurant_id: string; p_rows: Json; p_dry_run?: boolean }; Returns: Json };
+      reserve_sponsorship: { Args: { p_restaurant_id: string; p_kind: Enums<'sponsorship_kind'>; p_starts_on: string; p_ends_on: string }; Returns: Json };
+      activate_sponsorship: { Args: { p_id: string }; Returns: Json };
+      cancel_sponsorship: { Args: { p_id: string }; Returns: Json };
+      sponsorship_availability: { Args: { p_city_slug: string | null; p_kind: Enums<'sponsorship_kind'>; p_from: string; p_to: string }; Returns: Json };
+      sponsored_restaurants: { Args: { p_city_slug?: string | null; p_kind?: Enums<'sponsorship_kind'> }; Returns: { restaurant_id: string; sponsorship_id: string }[] };
       is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };
       is_staff_of: { Args: { rid: string }; Returns: boolean };
     };
@@ -2431,6 +2526,8 @@ export type Database = {
       plan_interval: "month" | "year";
       rating_target: "restaurant" | "product" | "courier" | "waiter";
       sale_unit: "unit" | "kg" | "g" | "l" | "ml";
+      sponsorship_kind: "listing" | "banner";
+      sponsorship_status: "reserved" | "active" | "cancelled";
       staff_role: "owner" | "admin" | "manager" | "waiter" | "kitchen" | "cashier";
       stock_movement_kind: "sale" | "return" | "restock" | "adjustment" | "waste";
       subscription_status: "trialing" | "active" | "past_due" | "canceled" | "expired";

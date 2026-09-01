@@ -932,3 +932,70 @@ export async function issuePlatformInvoice(
   revalidatePath('/admin/revenue');
   return { ok: true, data: { fullNumber: r.full_number, already: Boolean(r.already) } };
 }
+
+// ========================= Destacados de la portada =========================
+
+const sponsorshipOfferSchema = z.object({
+  id: z.string().uuid().optional(),
+  // Vacío es "toda la aplicación": la portada de quien no ha elegido ciudad.
+  city_slug: z.string().max(80).nullable().optional(),
+  kind: z.enum(['listing', 'banner']),
+  price_cents: z.coerce.number().int().min(0),
+  currency: z.string().length(3).default('EUR'),
+  slots: z.coerce.number().int().min(1).max(50),
+  is_active: z.boolean().default(true),
+});
+
+/**
+ * Qué se pone a la venta en cada ciudad.
+ *
+ * El número de sitios es la decisión importante y por eso está aquí y no en un
+ * ajuste general: cuantos más se vendan, menos vale cada uno y peor queda la
+ * lista para quien la usa. Diez destacados en una ciudad de treinta locales no
+ * son diez ingresos, son una lista rota.
+ */
+export async function saveSponsorshipOffer(input: unknown): Promise<Result> {
+  if (!(await requireAdmin())) return { ok: false, error: 'FORBIDDEN' };
+
+  const parsed = sponsorshipOfferSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'INVALID_INPUT' };
+
+  const supabase = await createServerSupabase();
+  const { id, ...values } = parsed.data;
+  const fila = { ...values, city_slug: values.city_slug?.trim() || null };
+
+  const { error } = id
+    ? await supabase.from('sponsorship_offers').update(fila).eq('id', id)
+    : await supabase.from('sponsorship_offers').insert(fila);
+
+  if (error) {
+    return { ok: false, error: error.code === '23505' ? 'OFFER_DUPLICATE' : error.message };
+  }
+
+  revalidatePath('/admin/revenue');
+  return { ok: true };
+}
+
+export async function deleteSponsorshipOffer(id: string): Promise<Result> {
+  if (!(await requireAdmin())) return { ok: false, error: 'FORBIDDEN' };
+
+  const supabase = await createServerSupabase();
+  const { error } = await supabase.from('sponsorship_offers').delete().eq('id', id);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath('/admin/revenue');
+  return { ok: true };
+}
+
+/** Confirmar el cobro es lo que enciende el destacado. */
+export async function activateSponsorship(id: string): Promise<Result<{ totalCents: number }>> {
+  if (!(await requireAdmin())) return { ok: false, error: 'FORBIDDEN' };
+
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase.rpc('activate_sponsorship', { p_id: id });
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath('/admin/revenue');
+  revalidatePath('/');
+  return { ok: true, data: { totalCents: (data as { total_cents?: number })?.total_cents ?? 0 } };
+}

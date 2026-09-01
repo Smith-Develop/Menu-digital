@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { useT } from '@/i18n/provider';
 
 export type BannerItem = {
   id: string;
@@ -13,6 +14,8 @@ export type BannerItem = {
   link_url: string | null;
   restaurant_name?: string;
   restaurant_slug?: string;
+  /** Sitio contratado en la portada. Se dice; no se disimula. */
+  sponsored?: boolean;
 };
 
 /**
@@ -38,6 +41,7 @@ export function BannerCarousel({
    */
   fullBleed?: boolean;
 }) {
+  const t = useT();
   const trackRef = useRef<HTMLUListElement>(null);
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -126,6 +130,11 @@ export function BannerCarousel({
                   className="object-cover transition-transform duration-500 group-hover:scale-105"
                 />
                 <span className="absolute inset-0 bg-gradient-to-t from-ink/85 via-ink/25 to-transparent" />
+                {banner.sponsored && (
+                  <span className="absolute right-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-ink-500">
+                    {t.sponsor.label}
+                  </span>
+                )}
                 <span className="absolute inset-x-0 bottom-0 p-4 sm:p-5">
                   {banner.restaurant_name && (
                     <span className="mb-1.5 inline-block rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-ink">

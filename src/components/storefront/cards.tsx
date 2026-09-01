@@ -189,6 +189,7 @@ export function RestaurantCard({
   currencyDecimals,
   isOpen,
   cuisineTags,
+  sponsored = false,
 }: {
   slug: string;
   name: string;
@@ -202,6 +203,8 @@ export function RestaurantCard({
   currencyDecimals?: number;
   isOpen: boolean;
   cuisineTags?: string[];
+  /** Este sitio está pagado, y se dice. */
+  sponsored?: boolean;
 }) {
   const t = useT();
 
@@ -227,6 +230,14 @@ export function RestaurantCard({
               {t.storefront.closed}
             </span>
           </div>
+        )}
+        {/* La etiqueta va encima de la foto y no debajo del nombre: quien mira
+            la lista mira las fotos, y ahí es donde tiene que enterarse de que
+            este sitio está comprado. */}
+        {sponsored && (
+          <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-ink-500 shadow-chip">
+            {t.sponsor.label}
+          </span>
         )}
       </div>
 

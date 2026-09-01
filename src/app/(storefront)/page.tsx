@@ -8,6 +8,7 @@ import {
   listHomeCategories,
   listFeaturedProducts,
   listHomeBanners,
+  listSponsored,
 } from '@/lib/queries/public';
 import { createPublicSupabase } from '@/lib/supabase/server';
 import { PushPrompt } from '@/components/pwa/push-prompt';
@@ -46,7 +47,7 @@ export default async function MarketplacePage() {
     .maybeSingle();
   const rotationSeconds = ajustes?.banner_rotation_seconds ?? 6;
 
-  const [profile, restaurants, categories, featured, banners, notifications] =
+  const [profile, sinOrdenar, categories, featured, banners, notifications, patrocinados] =
     await Promise.all([
       getSessionProfile(),
       listRestaurants({ limit: 24, citySlug }),
@@ -56,7 +57,16 @@ export default async function MarketplacePage() {
       createPublicSupabase()
         .rpc('active_notifications', { p_city_slug: citySlug })
         .then(({ data }) => (data as PopupNotification[] | null) ?? []),
+      listSponsored(citySlug),
     ]);
+
+  // Lo contratado abre la lista, conservando entre sí el orden que traían —el
+  // que se ganaron: abiertos primero y por valoración—. No se reordena dentro
+  // del grupo pagado para que pagar compre el sitio, no la posición exacta.
+  const restaurants = [
+    ...sinOrdenar.filter((r) => patrocinados.has(r.id)),
+    ...sinOrdenar.filter((r) => !patrocinados.has(r.id)),
+  ];
 
   const firstName = profile?.full_name?.split(' ')[0];
   const cityName = location?.city ?? cities.find((c) => c.city_slug === citySlug)?.city;
@@ -155,6 +165,7 @@ export default async function MarketplacePage() {
                 currencyDecimals={restaurant.currency_decimals}
                 isOpen={restaurant.is_open}
                 cuisineTags={restaurant.cuisine_tags}
+                sponsored={patrocinados.has(restaurant.id)}
               />
             ))}
           </div>

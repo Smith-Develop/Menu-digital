@@ -47,7 +47,26 @@ export type HomeBanner = {
   restaurant_id: string;
   restaurant_name: string;
   restaurant_slug: string;
+  /** Contratado. Se enseña con su etiqueta, nunca disimulado. */
+  sponsored: boolean;
 };
+
+/**
+ * Los locales que hoy tienen sitio comprado en esta ciudad.
+ *
+ * Se pide aparte en vez de ordenar en la propia consulta porque un destacado no
+ * es sólo un orden: la fila cambia de aspecto, y quien la pinta tiene que saber
+ * cuál es. Un resultado pagado que no se distingue de uno ganado engaña al
+ * cliente y termina quemando la lista entera.
+ */
+export async function listSponsored(citySlug: string | null): Promise<Set<string>> {
+  const supabase = createPublicSupabase();
+  const { data } = await supabase.rpc('sponsored_restaurants', {
+    p_city_slug: citySlug,
+    p_kind: 'listing',
+  });
+  return new Set((data ?? []).map((row) => row.restaurant_id));
+}
 
 /** Banners de la portada: aleatorios y solo de la ciudad del cliente. */
 export async function listHomeBanners(citySlug: string | null, limit = 6): Promise<HomeBanner[]> {

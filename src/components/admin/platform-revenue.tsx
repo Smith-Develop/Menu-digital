@@ -17,6 +17,18 @@ export type PlatformRevenue = {
   commission_base_cents: number;
   commission_restaurants_cents: number;
   commission_couriers_cents: number;
+  sponsorship_cents: number;
+  sponsorship_count: number;
+  sponsorships_reserved: {
+    id: string;
+    name: string;
+    kind: string;
+    city: string | null;
+    starts_on: string;
+    ends_on: string;
+    days: number;
+    cents: number;
+  }[];
   pending_cents: number;
   active_subscriptions: number;
   paying_restaurants: number;
@@ -89,7 +101,9 @@ export function PlatformRevenuePanel({
   const [guardando, setGuardando] = useState(false);
 
   const money = (c: number) => formatMoney(c, currency);
-  const total = data.fees_cents + data.commission_cents;
+  // Las tres vías juntas: la cuota, la comisión y lo que se vende en la
+  // portada. Separadas debajo, porque son decisiones distintas.
+  const total = data.fees_cents + data.commission_cents + data.sponsorship_cents;
 
   async function confirmar() {
     if (!liquidar) return;
@@ -113,7 +127,7 @@ export function PlatformRevenuePanel({
           icon={<TrendingUp className="h-5 w-5" />}
           label={t.admin.platformIncome}
           value={money(total)}
-          hint={`${t.admin.fees} ${money(data.fees_cents)} · ${t.admin.commissions} ${money(data.commission_cents)}`}
+          hint={`${t.admin.fees} ${money(data.fees_cents)} · ${t.admin.commissions} ${money(data.commission_cents)} · ${t.sponsor.income} ${money(data.sponsorship_cents)}`}
           tone="money"
         />
         <Tile
