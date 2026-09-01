@@ -40,6 +40,8 @@ export const DASHBOARD_SECTIONS = {
   orders: TODOS,
   // La caja la abre y la cierra quien cobra. La cocina no la ve.
   cash: ['owner', 'admin', 'manager', 'cashier', 'waiter'],
+  // Tomar pedidos por teléfono o en el mostrador: los mismos que cobran.
+  pos: ['owner', 'admin', 'manager', 'cashier', 'waiter'],
   // La sala es el sitio del camarero: mesas, quién las atiende y sus avisos.
   floor: ['owner', 'admin', 'manager', 'waiter'],
   kitchen: ['owner', 'admin', 'manager', 'kitchen'],

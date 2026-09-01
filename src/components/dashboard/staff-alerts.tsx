@@ -50,8 +50,12 @@ export function StaffAlerts({
   userId: string;
 }) {
   const t = useT();
-  useLockScroll(true);
   const [avisos, setAvisos] = useState<Aviso[]>([]);
+  // Sólo mientras hay un aviso en pantalla. Estaba puesto a `true` fijo, y como
+  // este componente vive en el layout del panel, bloqueaba el desplazamiento de
+  // todas las pantallas todo el rato: el `return null` de más abajo no evita
+  // que el hook se ejecute.
+  useLockScroll(avisos.length > 0);
   const [cerrando, setCerrando] = useState<string | null>(null);
   const vistos = useRef<Set<string>>(new Set());
   const primeraLectura = useRef(true);

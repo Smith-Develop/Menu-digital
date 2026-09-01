@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import {
   AlertTriangle,
+  Calculator,
   ChefHat,
   CreditCard,
   ExternalLink,
@@ -67,6 +68,9 @@ export function DashboardShell({
     { href: '/dashboard/orders', icon: Receipt, label: t.dashboard.floorAndOrders, show: puede('orders') },
     // La caja va junto a los pedidos: se abre al empezar el turno y se cierra
     // al acabarlo, que es el mismo momento en que se mira la sala.
+    // Tomar pedidos por teléfono va antes que la caja del turno: es lo que se
+    // usa a cada rato, y la caja sólo al abrir y al cerrar.
+    { href: '/dashboard/pos', icon: Calculator, label: t.pos.title, show: puede('pos') },
     { href: '/dashboard/cash', icon: Wallet, label: t.cash.title, show: puede('cash') },
     { href: '/dashboard/menu', icon: UtensilsCrossed, label: t.dashboard.menu, show: puede('menu') },
     { href: '/dashboard/tables', icon: QrCode, label: t.dashboard.tables, show: puede('tables') },

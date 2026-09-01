@@ -35,8 +35,10 @@ function readSeen(): string[] {
  */
 export function NotificationPopup({ notifications }: { notifications: PopupNotification[] }) {
   const t = useT();
-  useLockScroll(true);
   const [current, setCurrent] = useState<PopupNotification | null>(null);
+  // Igual que en los avisos del panel: bloquear siempre dejaba la tienda sin
+  // desplazamiento aunque no hubiera ningún aviso que enseñar.
+  useLockScroll(current !== null);
 
   useEffect(() => {
     if (notifications.length === 0) return;

@@ -81,7 +81,7 @@ export function MoneyInput({
         onChange(cents);
       }}
       onBlur={() => setTexto(formatear(value))}
-      className={cn('input w-full text-right font-display tabular-nums', className)}
+      className={cn('field w-full text-right font-display tabular-nums', className)}
     />
   );
 }

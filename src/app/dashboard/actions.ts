@@ -1682,3 +1682,81 @@ export async function adjustStock(
   revalidatePath('/dashboard/menu');
   return { ok: true, data: { stock: (data as { stock?: number })?.stock ?? 0 } };
 }
+
+// ======================== Pedido desde la caja ========================
+
+/**
+ * Toma un pedido en el mostrador o por teléfono.
+ *
+ * Existe para no obligar a quien coge el teléfono a abrir la tienda del
+ * cliente, buscar los platos como si fuera un comensal y rellenar un pago que
+ * no le corresponde. Pasa por la misma función que el pedido del cliente —los
+ * precios, el cupón y las existencias se comprueban igual—, pero el turno de
+ * mesa no hace falta: quien lo levanta es del equipo del local.
+ *
+ * Si se indica el medio de pago, el cobro se registra en el acto: en el
+ * mostrador se paga al pedir, y obligar a ir después al panel de pedidos para
+ * marcarlo sería un paso de más en la operación más frecuente del día.
+ */
+export async function createCounterOrder(input: {
+  items: { product_id: string; quantity: number; option_ids?: string[]; notes?: string | null }[];
+  type: Enums<'order_type'>;
+  paymentMethod: Enums<'payment_method'>;
+  tableCode?: string | null;
+  customerName?: string | null;
+  customerPhone?: string | null;
+  address?: string | null;
+  addressNotes?: string | null;
+  notes?: string | null;
+  covers?: number | null;
+  couponCode?: string | null;
+  tipCents?: number;
+  /** Cobrar en el acto. Falso deja la cuenta abierta, como una mesa. */
+  chargeNow?: boolean;
+}): Promise<Result<{ id: string; code: string; totalCents: number; charged: boolean }>> {
+  const context = await requireStaffContext();
+  if (!canChargeOrders(context.staffRole)) return fail('FORBIDDEN');
+  if (input.items.length === 0) return fail('EMPTY_CART');
+
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase.rpc('place_order', {
+    p_restaurant_slug: context.restaurant.slug,
+    p_items: input.items,
+    p_type: input.type,
+    p_payment_method: input.paymentMethod,
+    p_table_code: input.tableCode ?? null,
+    p_customer_name: input.customerName?.trim() || null,
+    p_customer_phone: input.customerPhone?.trim() || null,
+    p_address: input.address?.trim() || null,
+    p_address_notes: input.addressNotes?.trim() || null,
+    p_notes: input.notes?.trim() || null,
+    p_tip_cents: Math.max(0, Math.round(input.tipCents ?? 0)),
+    p_coupon_code: input.couponCode?.trim() || null,
+    p_covers: input.covers ?? null,
+  });
+
+  if (error) return fail(errorCode(error.message));
+
+  const order = data as { id: string; code: string; total_cents: number };
+
+  let charged = false;
+  if (input.chargeNow) {
+    const { error: payError } = await supabase.rpc('add_order_payment', {
+      p_order_id: order.id,
+      p_method: input.paymentMethod,
+      p_amount_cents: null,
+      p_note: null,
+    });
+    // Si el cobro falla el pedido ya existe y no se pierde: se queda pendiente
+    // y se cobra desde el panel. Decírselo es mejor que deshacer una comanda
+    // que la cocina puede tener ya delante.
+    charged = !payError;
+  }
+
+  revalidatePath('/dashboard');
+  revalidatePath('/dashboard/orders');
+  return {
+    ok: true,
+    data: { id: order.id, code: order.code, totalCents: order.total_cents, charged },
+  };
+}

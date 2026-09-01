@@ -131,7 +131,7 @@ function ReasonPicker<T extends string>({
         onChange={(e) => onDetail(e.target.value)}
         rows={2}
         maxLength={200}
-        className="input w-full resize-none"
+        className="field w-full resize-none"
       />
     </>
   );
@@ -315,7 +315,7 @@ export function ChargeDialog({
             onChange={(e) => setNota(e.target.value)}
             maxLength={80}
             placeholder="Comensal 2"
-            className="input w-full"
+            className="field w-full"
           />
 
           <p className="mt-2 text-xs text-ink-300">
@@ -672,7 +672,7 @@ export function InvoiceDialog({
         onChange={(e) => setNif(e.target.value)}
         maxLength={30}
         autoComplete="off"
-        className="input w-full"
+        className="field w-full"
       />
 
       {esFactura && (
@@ -685,7 +685,7 @@ export function InvoiceDialog({
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
             maxLength={120}
-            className="input w-full"
+            className="field w-full"
           />
 
           <label className="label mt-4 block" htmlFor="factura-direccion">
@@ -696,7 +696,7 @@ export function InvoiceDialog({
             value={direccion}
             onChange={(e) => setDireccion(e.target.value)}
             maxLength={200}
-            className="input w-full"
+            className="field w-full"
           />
         </>
       )}

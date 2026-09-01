@@ -591,7 +591,7 @@ export function CashView({
           value={nota}
           onChange={(e) => setNota(e.target.value)}
           maxLength={120}
-          className="input w-full"
+          className="field w-full"
         />
         <div className="mt-6 flex gap-3">
           <button type="button" onClick={() => setAbriendo(false)} className="btn-ghost flex-1">
@@ -647,7 +647,7 @@ export function CashView({
           value={nota}
           onChange={(e) => setNota(e.target.value)}
           maxLength={120}
-          className="input w-full"
+          className="field w-full"
         />
 
         <div className="mt-6 flex gap-3">
@@ -696,7 +696,7 @@ export function CashView({
           onChange={(e) => setConcepto(e.target.value)}
           maxLength={120}
           placeholder="Hielo y servilletas"
-          className="input w-full"
+          className="field w-full"
         />
 
         <div className="mt-6 flex gap-3">
