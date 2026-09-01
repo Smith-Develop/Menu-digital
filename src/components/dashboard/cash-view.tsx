@@ -18,7 +18,7 @@ import { EmptyState } from '@/components/ui/misc';
 import { useToast } from '@/components/ui/toast';
 import { openCashSession, closeCashSession, addCashMovement } from '@/app/dashboard/actions';
 import { formatMoney } from '@/lib/money';
-import { formatDateTime, cn } from '@/lib/utils';
+import { formatDateTime, formatTime, cn } from '@/lib/utils';
 import { useI18n } from '@/i18n/provider';
 import type { Enums } from '@/types/database';
 
@@ -50,6 +50,23 @@ export type CashReport = {
   }[];
   by_staff: { name: string; charges: number; cents: number }[];
   courier_cash_cents: number;
+  /** Todo lo que movió dinero en el turno, en orden: ventas y caja juntas. */
+  entries: {
+    id: string;
+    at: string;
+    source: 'sale' | 'movement';
+    kind: string;
+    amount_cents: number;
+    method: Enums<'payment_method'>;
+    order_code: string | null;
+    order_type: Enums<'order_type'> | null;
+    label: string | null;
+    by: string | null;
+    by_courier: boolean;
+    /** Si ese dinero está de verdad en el cajón: la tarjeta y lo que lleva
+     *  encima un repartidor, no. */
+    in_drawer: boolean;
+  }[];
   movements: {
     id: string;
     kind: Enums<'cash_movement_kind'>;
@@ -439,17 +456,24 @@ export function CashView({
           </div>
 
           <section className="rounded-2xl bg-white p-5 shadow-chip">
-            <h2 className="mb-3 font-display text-base font-bold text-ink-700">
-              {t.cash.movements}
-            </h2>
-            {report.movements.length === 0 ? (
+            <h2 className="font-display text-base font-bold text-ink-700">{t.cash.movements}</h2>
+            <p className="mb-3 mt-1 text-xs text-ink-300">{t.cash.movementsHint}</p>
+
+            {(report.entries ?? []).length === 0 ? (
               <p className="py-4 text-center text-sm text-ink-300">{t.cash.noMovements}</p>
             ) : (
               <ul className="divide-y divide-surface-line">
-                {report.movements.map((m) => {
-                  const entra = m.amount_cents > 0;
+                {(report.entries ?? []).map((e) => {
+                  const entra = e.amount_cents > 0;
+                  const etiqueta =
+                    e.source === 'sale'
+                      ? e.kind === 'refund'
+                        ? t.cash.refunds
+                        : `${t.cash.sale} · ${METHOD_LABEL[e.method] ?? e.method}`
+                      : (t.cash.kinds[e.kind as keyof typeof t.cash.kinds] ?? e.kind);
+
                   return (
-                    <li key={m.id} className="flex items-center gap-3 py-2.5">
+                    <li key={e.id} className="flex items-center gap-3 py-2.5">
                       <span
                         className={cn(
                           'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
@@ -462,15 +486,26 @@ export function CashView({
                           <ArrowUpRight className="h-4 w-4" />
                         )}
                       </span>
+
                       <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-semibold text-ink-700">
-                          {t.cash.kinds[m.kind]}
+                        <span className="flex flex-wrap items-baseline gap-x-2">
+                          <span className="text-sm font-semibold text-ink-700">{etiqueta}</span>
+                          {e.order_code && (
+                            <span className="text-xs text-ink-300">#{e.order_code}</span>
+                          )}
+                          {/* Lo que no está en el cajón se dice, o al contar el
+                              efectivo del cierre parecería que falta dinero. */}
+                          {!e.in_drawer && (
+                            <span className="rounded-md bg-surface-field px-1.5 py-0.5 text-[10px] font-bold uppercase text-ink-300">
+                              {e.by_courier ? t.cash.onTheRoad : t.cash.notInDrawer}
+                            </span>
+                          )}
                         </span>
                         <span className="block truncate text-xs text-ink-300">
-                          {m.reason}
-                          {m.by ? ` · ${m.by}` : ''}
+                          {[e.label, e.by, formatTime(e.at, locale)].filter(Boolean).join(' · ')}
                         </span>
                       </span>
+
                       <span
                         className={cn(
                           'shrink-0 font-display text-sm font-bold tabular-nums',
@@ -478,7 +513,7 @@ export function CashView({
                         )}
                       >
                         {entra ? '+' : '−'}
-                        {money(Math.abs(m.amount_cents))}
+                        {money(Math.abs(e.amount_cents))}
                       </span>
                     </li>
                   );
@@ -500,22 +535,55 @@ export function CashView({
           <p className="py-4 text-center text-sm text-ink-300">{t.cash.noAudit}</p>
         ) : (
           <ul className="divide-y divide-surface-line">
-            {audit.map((a) => (
-              <li key={a.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2.5 text-sm">
-                <span className="font-semibold text-ink-700">
-                  {t.cash.actions[a.action as keyof typeof t.cash.actions] ?? a.action}
-                </span>
-                {a.order_code && <span className="text-xs text-ink-300">#{a.order_code}</span>}
-                {a.reason && <span className="min-w-0 flex-1 truncate text-xs text-ink-400">{a.reason}</span>}
-                <span className="ml-auto shrink-0 text-xs text-ink-300">
-                  {a.actor}
-                  {a.actor_role ? ` · ${a.actor_role}` : ''}
-                </span>
-                <span className="shrink-0 text-xs tabular-nums text-ink-300">
-                  {formatDateTime(a.created_at, locale)}
-                </span>
-              </li>
-            ))}
+            {audit.map((a) => {
+              // El importe de un rastro no siempre se lee igual: en un
+              // descuento es cuánto se invitó, en una anulación lo que se dejó
+              // de cobrar, en una apertura el fondo y en un cierre el
+              // descuadre. Con una resta genérica el número no diría nada.
+              const antes = a.before_cents ?? 0;
+              const despues = a.after_cents ?? 0;
+              // Una anulación o una línea retirada valen lo que se dejó de
+              // cobrar; el resto son diferencias. Poner el importe anterior en
+              // un cambio de total hacía leer "se quitaron 29,70" cuando lo que
+              // pasó fue que 29,70 se quedaron en 24,20.
+              const importe =
+                a.action === 'cancel' || a.action === 'void_item' ? -antes
+                : a.action === 'open' ? despues
+                : despues - antes;
+              const resta = importe < 0;
+
+              return (
+                <li key={a.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2.5 text-sm">
+                  <span className="font-semibold text-ink-700">
+                    {t.cash.actions[a.action as keyof typeof t.cash.actions] ?? a.action}
+                  </span>
+                  {a.order_code && <span className="text-xs text-ink-300">#{a.order_code}</span>}
+                  {a.reason && (
+                    <span className="min-w-0 flex-1 truncate text-xs text-ink-400">{a.reason}</span>
+                  )}
+
+                  {importe !== 0 && (
+                    <span
+                      className={cn(
+                        'ml-auto shrink-0 font-display text-sm font-bold tabular-nums',
+                        resta ? 'text-state-danger' : 'text-ink-600',
+                      )}
+                    >
+                      {resta ? '−' : ''}
+                      {money(Math.abs(importe))}
+                    </span>
+                  )}
+
+                  <span className={cn('shrink-0 text-xs text-ink-300', importe === 0 && 'ml-auto')}>
+                    {a.actor}
+                    {a.actor_role ? ` · ${a.actor_role}` : ''}
+                  </span>
+                  <span className="shrink-0 text-xs tabular-nums text-ink-300">
+                    {formatDateTime(a.created_at, locale)}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
