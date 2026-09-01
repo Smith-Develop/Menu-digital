@@ -12,7 +12,11 @@ import { sendBroadcastPush } from '@/lib/push';
 import { getSessionProfile } from '@/lib/auth';
 import { periodEnd } from '@/lib/stripe';
 
-export type Result = { ok: true } | { ok: false; error: string };
+// Genérico como el del panel: hay acciones que ya devuelven datos y tener dos
+// convenciones distintas para lo mismo obliga a recordar cuál usa cada fichero.
+export type Result<T = undefined> =
+  | ({ ok: true } & (T extends undefined ? { data?: never } : { data: T }))
+  | { ok: false; error: string };
 
 async function requireAdmin() {
   const profile = await getSessionProfile();
@@ -41,6 +45,8 @@ const planSchema = z.object({
   max_restaurants: z.coerce.number().int().min(0).nullable().optional(),
   allows_pool: z.boolean().default(true),
   pool_priority: z.coerce.number().int().min(0).max(100).default(0),
+  // Comisión sobre lo cobrado. Cero deja el plan a cuota fija.
+  commission_rate: z.coerce.number().min(0).max(1).default(0),
   features: z.array(z.string()).default([]),
   stripe_price_id: z.string().max(120).nullable().optional(),
   is_active: z.boolean(),
@@ -802,4 +808,35 @@ export async function deleteOnboardingSlide(id: string): Promise<Result> {
   revalidatePath('/admin/branding');
   revalidatePath('/welcome');
   return { ok: true };
+}
+
+// ========================= Comisiones de la plataforma =========================
+
+/**
+ * Cierra lo devengado de un local o de un repartidor.
+ *
+ * Agrupa las líneas pendientes en una liquidación con su importe y su fecha. No
+ * borra nada: las líneas quedan marcadas, que es lo que permite reconstruir
+ * después de dónde salió cada euro.
+ */
+export async function settlePlatformCommissions(
+  subjectType: 'restaurant' | 'courier',
+  subjectId: string,
+  note?: string | null,
+): Promise<Result<{ amountCents: number; lines: number }>> {
+  if (!(await requireAdmin())) return { ok: false, error: 'FORBIDDEN' };
+
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase.rpc('settle_platform_commissions', {
+    p_subject_type: subjectType,
+    p_subject_id: subjectId,
+    p_note: note?.trim() || null,
+  });
+
+  if (error) return { ok: false, error: error.message };
+
+  const r = data as { amount_cents?: number; lines?: number } | null;
+  revalidatePath('/admin');
+  revalidatePath('/admin/revenue');
+  return { ok: true, data: { amountCents: r?.amount_cents ?? 0, lines: r?.lines ?? 0 } };
 }

@@ -31,6 +31,7 @@ export type PlanRow = {
   maxRestaurants: number | null;
   allowsPool: boolean;
   poolPriority: number;
+  commissionRate: number;
   features: string[];
   stripePriceId: string | null;
   isActive: boolean;
@@ -57,6 +58,7 @@ function emptyDraft(position: number): Draft {
     maxRestaurants: null,
     allowsPool: true,
     poolPriority: 0,
+    commissionRate: 0,
     features: [],
     stripePriceId: null,
     isActive: true,
@@ -100,6 +102,7 @@ export function PlansManager({ plans }: { plans: PlanRow[] }) {
       max_restaurants: draft.maxRestaurants,
       allows_pool: draft.allowsPool,
       pool_priority: draft.poolPriority,
+      commission_rate: draft.commissionRate,
       features: draft.features,
       stripe_price_id: draft.stripePriceId || null,
       is_active: draft.isActive,
@@ -306,6 +309,21 @@ export function PlansManager({ plans }: { plans: PlanRow[] }) {
                 hint="Opcional: si lo dejas vacío se crea el precio al vuelo."
               />
             </div>
+
+            {/* Cuota y comisión son vasos comunicantes: quien no quiere pagar
+                cuota paga por pedido, y quien vende mucho prefiere la cuota. */}
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              step={0.5}
+              label={t.admin.commission}
+              hint={t.admin.commissionHint}
+              value={draft.commissionRate * 100}
+              onChange={(e) =>
+                setDraft({ ...draft, commissionRate: Number(e.target.value) / 100 })
+              }
+            />
 
             {/* La audiencia va primero porque decide qué límites se enseñan:
                 el "máximo de mesas" no significa nada para quien reparte. */}

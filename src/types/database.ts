@@ -7,7 +7,7 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type Database = {
   public: {
     Tables: {
-      _b: {
+      _c: {
         Row: {
           n: number | null;
           prueba: string | null;
@@ -1313,6 +1313,7 @@ export type Database = {
           max_restaurants: number | null;
           allows_pool: boolean;
           pool_priority: number;
+          commission_rate: number;
         };
         Insert: {
           id?: string;
@@ -1338,6 +1339,7 @@ export type Database = {
           max_restaurants?: number | null;
           allows_pool?: boolean;
           pool_priority?: number;
+          commission_rate?: number;
         };
         Update: {
           id?: string;
@@ -1363,6 +1365,88 @@ export type Database = {
           max_restaurants?: number | null;
           allows_pool?: boolean;
           pool_priority?: number;
+          commission_rate?: number;
+        };
+        Relationships: [];
+      };
+      platform_commissions: {
+        Row: {
+          id: string;
+          subject_type: Enums<"subscription_subject">;
+          subject_id: string;
+          restaurant_id: string | null;
+          order_id: string | null;
+          payment_id: string | null;
+          base_cents: number;
+          rate: number;
+          amount_cents: number;
+          currency: string;
+          settlement_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          subject_type: Enums<"subscription_subject">;
+          subject_id: string;
+          restaurant_id?: string | null;
+          order_id?: string | null;
+          payment_id?: string | null;
+          base_cents: number;
+          rate: number;
+          amount_cents: number;
+          currency?: string;
+          settlement_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          subject_type?: Enums<"subscription_subject">;
+          subject_id?: string;
+          restaurant_id?: string | null;
+          order_id?: string | null;
+          payment_id?: string | null;
+          base_cents?: number;
+          rate?: number;
+          amount_cents?: number;
+          currency?: string;
+          settlement_id?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      platform_settlements: {
+        Row: {
+          id: string;
+          subject_type: Enums<"subscription_subject">;
+          subject_id: string;
+          lines: number;
+          amount_cents: number;
+          currency: string;
+          note: string | null;
+          settled_at: string;
+          settled_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          subject_type: Enums<"subscription_subject">;
+          subject_id: string;
+          lines?: number;
+          amount_cents?: number;
+          currency?: string;
+          note?: string | null;
+          settled_at?: string;
+          settled_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          subject_type?: Enums<"subscription_subject">;
+          subject_id?: string;
+          lines?: number;
+          amount_cents?: number;
+          currency?: string;
+          note?: string | null;
+          settled_at?: string;
+          settled_by?: string | null;
         };
         Relationships: [];
       };
@@ -2133,6 +2217,10 @@ export type Database = {
       restaurant_is_open_now: { Args: { p_restaurant_id: string }; Returns: boolean };
       courier_plan: { Args: { p_courier_id?: string | null }; Returns: Json };
       courier_can_use_pool: { Args: { p_courier_id?: string | null }; Returns: boolean };
+      commission_rate_for: { Args: { p_subject_type: string; p_subject_id: string }; Returns: number };
+      platform_account: { Args: { p_subject_type: string; p_subject_id: string }; Returns: Json };
+      settle_platform_commissions: { Args: { p_subject_type: string; p_subject_id: string; p_note?: string | null }; Returns: Json };
+      platform_revenue: { Args: { p_days?: number }; Returns: Json };
       is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };
       is_staff_of: { Args: { rid: string }; Returns: boolean };
     };

@@ -45,6 +45,7 @@ export default async function AdminPlansPage() {
           maxRestaurants: plan.max_restaurants,
           allowsPool: plan.allows_pool,
           poolPriority: plan.pool_priority,
+          commissionRate: Number(plan.commission_rate ?? 0),
           features: Array.isArray(plan.features) ? (plan.features as string[]) : [],
           stripePriceId: plan.stripe_price_id,
           isActive: plan.is_active,

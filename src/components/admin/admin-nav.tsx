@@ -17,6 +17,7 @@ import {
   UserCog,
   Store,
   Ticket,
+  TrendingUp,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { LocaleSwitcher } from '@/components/locale-switcher';
@@ -40,6 +41,9 @@ export function AdminNav({ userName }: { userName: string }) {
     { href: '/admin', icon: LayoutDashboard, label: t.dashboard.overview, exact: true },
     { href: '/admin/restaurants', icon: Store, label: t.admin.restaurants },
     { href: '/admin/plans', icon: Package, label: t.admin.plans },
+    // Los ingresos van junto a los planes: son las dos caras de lo mismo, lo
+    // que se vende y lo que entra.
+    { href: '/admin/revenue', icon: TrendingUp, label: t.admin.revenue },
     { href: '/admin/categories', icon: LayoutGrid, label: t.catalog.title },
     { href: '/admin/couriers', icon: Bike, label: t.courier.couriers },
     { href: '/admin/coupons', icon: Ticket, label: t.coupon.coupons },
