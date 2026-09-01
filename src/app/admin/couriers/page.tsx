@@ -32,6 +32,32 @@ export default async function AdminCouriersPage() {
         .in('courier_id', courierIds)
     : { data: [] };
 
+  // Plan vigente de cada uno. La suscripción dejó de ser de un restaurante en
+  // la fase B, así que se busca por sujeto.
+  const { data: subs } = courierIds.length
+    ? await supabase
+        .from('subscriptions')
+        .select('subject_id, plan_id, current_period_end, status')
+        .eq('subject_type', 'courier')
+        .in('subject_id', courierIds)
+        .in('status', ['trialing', 'active', 'past_due'])
+    : { data: [] };
+
+  const { data: courierPlans } = await supabase
+    .from('plans')
+    .select('id, name, price_cents, currency, interval')
+    .eq('audience', 'courier')
+    .eq('is_active', true)
+    .order('position');
+
+  const planName = new Map((courierPlans ?? []).map((pl) => [pl.id, pl.name]));
+  const subByCourier = new Map(
+    (subs ?? []).map((sub) => [
+      sub.subject_id,
+      { plan: sub.plan_id ? (planName.get(sub.plan_id) ?? null) : null, until: sub.current_period_end },
+    ]),
+  );
+
   const restaurantsByCourier = new Map<string, string[]>();
   for (const link of links ?? []) {
     const name = (link as { restaurants?: { name?: string } }).restaurants?.name;
@@ -65,8 +91,17 @@ export default async function AdminCouriersPage() {
             rating: courier.rating,
             city: courier.city,
             restaurants: restaurantsByCourier.get(courier.id) ?? [],
+            plan: subByCourier.get(courier.id)?.plan ?? null,
+            planUntil: subByCourier.get(courier.id)?.until ?? null,
           };
         })}
+        plans={(courierPlans ?? []).map((pl) => ({
+          id: pl.id,
+          name: pl.name,
+          priceCents: pl.price_cents,
+          currency: pl.currency,
+          interval: pl.interval,
+        }))}
       />
     </div>
   );

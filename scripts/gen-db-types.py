@@ -229,6 +229,8 @@ export type Database = {
     out.append('      low_stock: { Args: { p_restaurant_id: string }; Returns: Json };')
     out.append('      delivery_allowed: { Args: { p_restaurant_id: string }; Returns: boolean };')
     out.append('      restaurant_is_open_now: { Args: { p_restaurant_id: string }; Returns: boolean };')
+    out.append('      courier_plan: { Args: { p_courier_id?: string | null }; Returns: Json };')
+    out.append('      courier_can_use_pool: { Args: { p_courier_id?: string | null }; Returns: boolean };')
     out.append("      is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };")
     out.append("      is_staff_of: { Args: { rid: string }; Returns: boolean };")
     out.append("    };")

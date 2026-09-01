@@ -179,7 +179,7 @@ export function CourierDashboard({
   };
 
   return (
-    <div className="min-h-dvh bg-surface-soft">
+    <div className="bg-surface-soft">
       <header className="bg-ink px-5 pb-8 pt-6 text-white">
         <div className="mx-auto max-w-3xl">
           <div className="flex items-center gap-3">

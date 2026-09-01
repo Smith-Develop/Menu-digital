@@ -35,6 +35,12 @@ const planSchema = z.object({
   max_staff: z.coerce.number().int().min(0).nullable(),
   allows_3d: z.boolean(),
   allows_delivery: z.boolean(),
+  // A quién va dirigido. Los límites de un negocio y los de un repartidor no
+  // se parecen: al primero se le vende capacidad, al segundo acceso al trabajo.
+  audience: z.enum(['restaurant', 'courier']).default('restaurant'),
+  max_restaurants: z.coerce.number().int().min(0).nullable().optional(),
+  allows_pool: z.boolean().default(true),
+  pool_priority: z.coerce.number().int().min(0).max(100).default(0),
   features: z.array(z.string()).default([]),
   stripe_price_id: z.string().max(120).nullable().optional(),
   is_active: z.boolean(),
@@ -76,17 +82,27 @@ export async function deletePlan(id: string): Promise<Result> {
  * Asigna un plan a un restaurante y abre un periodo nuevo.
  * Es la vía manual, para altas fuera de Stripe (transferencia, acuerdo, prueba).
  */
+/**
+ * Asigna un plan a un sujeto: un negocio o un repartidor.
+ *
+ * La suscripción dejó de pertenecer a un restaurante en la fase B, así que
+ * esta acción sirve para las dos audiencias. Se comprueba que el plan sea de
+ * la que toca: un plan con "máximo de mesas" no significa nada para quien
+ * reparte.
+ */
 export async function assignPlan(
-  restaurantId: string,
+  subjectId: string,
   planId: string,
-  options?: { months?: number },
+  options?: { months?: number; subjectType?: 'restaurant' | 'courier' },
 ): Promise<Result> {
   const admin = await requireAdmin();
   if (!admin) return { ok: false, error: 'FORBIDDEN' };
 
+  const subjectType = options?.subjectType ?? 'restaurant';
   const supabase = await createServerSupabase();
   const { data: plan } = await supabase.from('plans').select('*').eq('id', planId).maybeSingle();
   if (!plan) return { ok: false, error: 'PLAN_NOT_FOUND' };
+  if ((plan.audience ?? 'restaurant') !== subjectType) return { ok: false, error: 'PLAN_WRONG_AUDIENCE' };
 
   const start = new Date();
   let end = periodEnd(start, plan.interval);
@@ -95,15 +111,17 @@ export async function assignPlan(
     end.setMonth(end.getMonth() + options.months);
   }
 
-  // Sólo puede haber una suscripción viva por restaurante (índice único parcial).
+  // Sólo puede haber una viva por sujeto (índice único parcial).
   await supabase
     .from('subscriptions')
     .update({ status: 'canceled' })
-    .eq('restaurant_id', restaurantId)
+    .eq('subject_type', subjectType)
+    .eq('subject_id', subjectId)
     .in('status', ['trialing', 'active', 'past_due']);
 
   const { error } = await supabase.from('subscriptions').insert({
-    restaurant_id: restaurantId,
+    subject_type: subjectType,
+    subject_id: subjectId,
     plan_id: planId,
     status: 'active',
     current_period_start: start.toISOString(),
@@ -115,6 +133,7 @@ export async function assignPlan(
 
   revalidatePath('/admin');
   revalidatePath('/admin/restaurants');
+  revalidatePath('/admin/couriers');
   return { ok: true };
 }
 

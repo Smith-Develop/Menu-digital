@@ -35,8 +35,11 @@ export default async function AdminOverview({
   const [restaurants, activeSubs, payments] = await Promise.all([
     supabase.from('restaurants').select('id, is_active', { count: 'exact' }),
     supabase
+      // Sólo las de negocio: las de repartidor tienen su propia pantalla y
+      // mezclarlas aquí daría un "caducan pronto" con dos cosas distintas.
       .from('subscriptions')
       .select('*')
+      .eq('subject_type', 'restaurant')
       .in('status', ['trialing', 'active', 'past_due'])
       .order('current_period_end'),
     supabase
@@ -52,7 +55,7 @@ export default async function AdminOverview({
     return left >= 0 && left <= 7;
   });
 
-  const restaurantIds = [...new Set(expiringSoon.map((s) => s.restaurant_id))];
+  const restaurantIds = [...new Set(expiringSoon.map((s) => s.subject_id))];
   const { data: expiringRestaurants } = restaurantIds.length
     ? await supabase.from('restaurants').select('id, name, slug').in('id', restaurantIds)
     : { data: [] };
@@ -108,7 +111,7 @@ export default async function AdminOverview({
           </h2>
           <ul className="space-y-2">
             {expiringSoon.map((subscription) => {
-              const restaurant = byId.get(subscription.restaurant_id);
+              const restaurant = byId.get(subscription.subject_id);
               const left = daysUntil(subscription.current_period_end);
               return (
                 <li

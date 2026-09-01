@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet } from '@/components/ui/sheet';
 import { Badge, EmptyState } from '@/components/ui/misc';
 import { useToast } from '@/components/ui/toast';
-import { updateCourier, sendPasswordReset } from '@/app/admin/actions';
+import { updateCourier, sendPasswordReset, assignPlan } from '@/app/admin/actions';
 import { useT } from '@/i18n/provider';
 import { VEHICLES } from '@/lib/courier-vehicles';
 import { cn, initials } from '@/lib/utils';
@@ -28,9 +28,26 @@ type Courier = {
   rating: number | null;
   city: string | null;
   restaurants: string[];
+  /** Plan vigente, si lo tiene. Sin plan se le deja trabajar igual. */
+  plan: string | null;
+  planUntil: string | null;
 };
 
-export function CouriersAdmin({ couriers }: { couriers: Courier[] }) {
+type CourierPlan = {
+  id: string;
+  name: string;
+  priceCents: number;
+  currency: string;
+  interval: string;
+};
+
+export function CouriersAdmin({
+  couriers,
+  plans,
+}: {
+  couriers: Courier[];
+  plans: CourierPlan[];
+}) {
   const t = useT();
   const toast = useToast();
   const router = useRouter();
@@ -40,6 +57,27 @@ export function CouriersAdmin({ couriers }: { couriers: Courier[] }) {
   const [form, setForm] = useState({ name: '', email: '', phone: '', vehicle: '', active: true });
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [assigning, setAssigning] = useState<string | null>(null);
+
+  /**
+   * Asigna un plan de repartidor.
+   *
+   * Cierra el anterior y abre el nuevo: sólo puede haber una suscripción viva
+   * por sujeto, y eso lo garantiza un índice de la base.
+   */
+  async function asignar(courier: Courier, planId: string) {
+    if (!planId) return;
+    setAssigning(courier.id);
+    const result = await assignPlan(courier.id, planId, { subjectType: 'courier' });
+    setAssigning(null);
+
+    if (!result.ok) {
+      toast(result.error === 'PLAN_WRONG_AUDIENCE' ? t.admin.wrongAudience : t.common.error, 'error');
+      return;
+    }
+    toast(t.admin.planAssigned, 'success');
+    router.refresh();
+  }
 
   const term = query.trim().toLowerCase();
   const visible = term
@@ -142,6 +180,24 @@ export function CouriersAdmin({ couriers }: { couriers: Courier[] }) {
                 </span>
                 <span>{courier.deliveries}</span>
               </div>
+
+              {/* El plan se cambia desde la propia fila: es una acción de un
+                  toque y meterla en la ficha obligaría a abrirla para algo que
+                  se hace de pasada. */}
+              <select
+                value=""
+                onChange={(e) => asignar(courier, e.target.value)}
+                disabled={assigning === courier.id || plans.length === 0}
+                aria-label={t.admin.courierPlan}
+                className="field w-40 shrink-0 py-2 text-xs"
+              >
+                <option value="">{courier.plan ?? t.admin.noPlan}</option>
+                {plans.map((pl) => (
+                  <option key={pl.id} value={pl.id}>
+                    {pl.name}
+                  </option>
+                ))}
+              </select>
 
               <Badge tone={courier.isActive ? 'success' : 'neutral'}>
                 {courier.isActive ? t.common.active : t.common.inactive}

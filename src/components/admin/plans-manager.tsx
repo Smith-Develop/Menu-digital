@@ -27,6 +27,10 @@ export type PlanRow = {
   maxStaff: number | null;
   allows3d: boolean;
   allowsDelivery: boolean;
+  audience: 'restaurant' | 'courier';
+  maxRestaurants: number | null;
+  allowsPool: boolean;
+  poolPriority: number;
   features: string[];
   stripePriceId: string | null;
   isActive: boolean;
@@ -49,6 +53,10 @@ function emptyDraft(position: number): Draft {
     maxStaff: null,
     allows3d: true,
     allowsDelivery: true,
+    audience: 'restaurant',
+    maxRestaurants: null,
+    allowsPool: true,
+    poolPriority: 0,
     features: [],
     stripePriceId: null,
     isActive: true,
@@ -88,6 +96,10 @@ export function PlansManager({ plans }: { plans: PlanRow[] }) {
       max_staff: draft.maxStaff,
       allows_3d: draft.allows3d,
       allows_delivery: draft.allowsDelivery,
+      audience: draft.audience,
+      max_restaurants: draft.maxRestaurants,
+      allows_pool: draft.allowsPool,
+      pool_priority: draft.poolPriority,
       features: draft.features,
       stripe_price_id: draft.stripePriceId || null,
       is_active: draft.isActive,
@@ -295,6 +307,38 @@ export function PlansManager({ plans }: { plans: PlanRow[] }) {
               />
             </div>
 
+            {/* La audiencia va primero porque decide qué límites se enseñan:
+                el "máximo de mesas" no significa nada para quien reparte. */}
+            <Select
+              label={t.admin.planAudience}
+              value={draft.audience}
+              onChange={(e) =>
+                setDraft({ ...draft, audience: e.target.value as 'restaurant' | 'courier' })
+              }
+            >
+              <option value="restaurant">{t.admin.planForBusiness}</option>
+              <option value="courier">{t.admin.planForCourier}</option>
+            </Select>
+
+            {draft.audience === 'courier' ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <LimitInput
+                  label={t.admin.maxRestaurants}
+                  value={draft.maxRestaurants}
+                  unlimited={t.admin.unlimited}
+                  onChange={(v) => setDraft({ ...draft, maxRestaurants: v })}
+                />
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  label={t.admin.poolPriority}
+                  hint={t.admin.poolPriorityHint}
+                  value={draft.poolPriority}
+                  onChange={(e) => setDraft({ ...draft, poolPriority: Number(e.target.value) })}
+                />
+              </div>
+            ) : (
             <div className="grid gap-4 sm:grid-cols-3">
               <LimitInput
                 label={t.admin.maxTables}
@@ -315,6 +359,7 @@ export function PlansManager({ plans }: { plans: PlanRow[] }) {
                 onChange={(v) => setDraft({ ...draft, maxStaff: v })}
               />
             </div>
+            )}
 
             <div>
               <span className="label">{t.admin.features}</span>
@@ -372,16 +417,26 @@ export function PlansManager({ plans }: { plans: PlanRow[] }) {
             </div>
 
             <div className="space-y-3 rounded-xl bg-surface-field p-4">
-              <Switch
-                checked={draft.allows3d}
-                onChange={(v) => setDraft({ ...draft, allows3d: v })}
-                label={t.dashboard.model3d}
-              />
-              <Switch
-                checked={draft.allowsDelivery}
-                onChange={(v) => setDraft({ ...draft, allowsDelivery: v })}
-                label={t.cart.delivery}
-              />
+              {draft.audience === 'restaurant' && (
+                <Switch
+                  checked={draft.allows3d}
+                  onChange={(v) => setDraft({ ...draft, allows3d: v })}
+                  label={t.dashboard.model3d}
+                />
+              )}
+              {draft.audience === 'courier' ? (
+                <Switch
+                  checked={draft.allowsPool}
+                  onChange={(v) => setDraft({ ...draft, allowsPool: v })}
+                  label={t.admin.allowsPool}
+                />
+              ) : (
+                <Switch
+                  checked={draft.allowsDelivery}
+                  onChange={(v) => setDraft({ ...draft, allowsDelivery: v })}
+                  label={t.cart.delivery}
+                />
+              )}
               <Switch
                 checked={draft.isActive}
                 onChange={(v) => setDraft({ ...draft, isActive: v })}

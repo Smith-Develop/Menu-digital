@@ -7,7 +7,7 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type Database = {
   public: {
     Tables: {
-      _a: {
+      _b: {
         Row: {
           n: number | null;
           prueba: string | null;
@@ -1309,6 +1309,10 @@ export type Database = {
           position: number;
           created_at: string;
           updated_at: string;
+          audience: Enums<"plan_audience">;
+          max_restaurants: number | null;
+          allows_pool: boolean;
+          pool_priority: number;
         };
         Insert: {
           id?: string;
@@ -1330,6 +1334,10 @@ export type Database = {
           position?: number;
           created_at?: string;
           updated_at?: string;
+          audience?: Enums<"plan_audience">;
+          max_restaurants?: number | null;
+          allows_pool?: boolean;
+          pool_priority?: number;
         };
         Update: {
           id?: string;
@@ -1351,6 +1359,10 @@ export type Database = {
           position?: number;
           created_at?: string;
           updated_at?: string;
+          audience?: Enums<"plan_audience">;
+          max_restaurants?: number | null;
+          allows_pool?: boolean;
+          pool_priority?: number;
         };
         Relationships: [];
       };
@@ -1879,7 +1891,7 @@ export type Database = {
       subscriptions: {
         Row: {
           id: string;
-          restaurant_id: string;
+          restaurant_id: string | null;
           plan_id: string | null;
           status: Enums<"subscription_status">;
           current_period_start: string;
@@ -1891,10 +1903,12 @@ export type Database = {
           notes: string | null;
           created_at: string;
           updated_at: string;
+          subject_type: Enums<"subscription_subject">;
+          subject_id: string;
         };
         Insert: {
           id?: string;
-          restaurant_id: string;
+          restaurant_id?: string | null;
           plan_id?: string | null;
           status?: Enums<"subscription_status">;
           current_period_start?: string;
@@ -1906,10 +1920,12 @@ export type Database = {
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
+          subject_type?: Enums<"subscription_subject">;
+          subject_id: string;
         };
         Update: {
           id?: string;
-          restaurant_id?: string;
+          restaurant_id?: string | null;
           plan_id?: string | null;
           status?: Enums<"subscription_status">;
           current_period_start?: string;
@@ -1921,6 +1937,8 @@ export type Database = {
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
+          subject_type?: Enums<"subscription_subject">;
+          subject_id?: string;
         };
         Relationships: [];
       };
@@ -2113,6 +2131,8 @@ export type Database = {
       low_stock: { Args: { p_restaurant_id: string }; Returns: Json };
       delivery_allowed: { Args: { p_restaurant_id: string }; Returns: boolean };
       restaurant_is_open_now: { Args: { p_restaurant_id: string }; Returns: boolean };
+      courier_plan: { Args: { p_courier_id?: string | null }; Returns: Json };
+      courier_can_use_pool: { Args: { p_courier_id?: string | null }; Returns: boolean };
       is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };
       is_staff_of: { Args: { rid: string }; Returns: boolean };
     };
@@ -2133,11 +2153,13 @@ export type Database = {
       payment_entry_kind: "charge" | "refund";
       payment_method: "cash" | "card" | "tpv" | "stripe";
       payment_status: "pending" | "paid" | "failed" | "refunded";
+      plan_audience: "restaurant" | "courier";
       plan_interval: "month" | "year";
       rating_target: "restaurant" | "product" | "courier" | "waiter";
       staff_role: "owner" | "admin" | "manager" | "waiter" | "kitchen" | "cashier";
       stock_movement_kind: "sale" | "return" | "restock" | "adjustment" | "waste";
       subscription_status: "trialing" | "active" | "past_due" | "canceled" | "expired";
+      subscription_subject: "restaurant" | "courier";
     };
     CompositeTypes: { [_ in never]: never };
   };
