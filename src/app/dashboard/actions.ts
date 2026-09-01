@@ -349,6 +349,8 @@ const settingsSchema = z.object({
   accepts_card: z.boolean(),
   accepts_tpv: z.boolean(),
   is_open: z.boolean(),
+  // El horario se valida por forma, no por contenido: {"1": [["09:00","16:00"]]}
+  opening_hours: z.record(z.array(z.tuple([z.string(), z.string()]))).default({}),
 });
 
 export async function updateRestaurantSettings(input: unknown): Promise<Result> {

@@ -227,6 +227,8 @@ export type Database = {
     out.append('      set_order_covers: { Args: { p_order_id: string; p_covers: number }; Returns: Json };')
     out.append("      adjust_stock: { Args: { p_product_id: string; p_kind: Enums<'stock_movement_kind'>; p_qty: number; p_reason: string }; Returns: Json };")
     out.append('      low_stock: { Args: { p_restaurant_id: string }; Returns: Json };')
+    out.append('      delivery_allowed: { Args: { p_restaurant_id: string }; Returns: boolean };')
+    out.append('      restaurant_is_open_now: { Args: { p_restaurant_id: string }; Returns: boolean };')
     out.append("      is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };")
     out.append("      is_staff_of: { Args: { rid: string }; Returns: boolean };")
     out.append("    };")

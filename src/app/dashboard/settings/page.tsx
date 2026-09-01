@@ -63,6 +63,7 @@ export default async function SettingsPage() {
           acceptsCard: restaurant.accepts_card,
           acceptsTpv: restaurant.accepts_tpv,
           isOpen: restaurant.is_open,
+          openingHours: (restaurant.opening_hours ?? {}) as Record<string, [string, string][]>,
           primaryColor: restaurant.primary_color,
           accentColor: restaurant.accent_color,
           textColor: restaurant.text_color,

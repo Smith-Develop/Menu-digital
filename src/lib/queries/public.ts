@@ -235,3 +235,16 @@ export async function getRestaurantCategories(restaurantId: string) {
 
   return data ?? [];
 }
+
+/**
+ * ¿Puede este local repartir a domicilio?
+ *
+ * No basta con su propio interruptor: el plan contratado también decide. Se
+ * pregunta a la base y no se deduce aquí porque la misma regla la aplica
+ * `place_order`, y dos copias de una condición acaban discrepando.
+ */
+export async function deliveryAllowed(restaurantId: string): Promise<boolean> {
+  const supabase = createPublicSupabase();
+  const { data } = await supabase.rpc('delivery_allowed', { p_restaurant_id: restaurantId });
+  return data !== false;
+}

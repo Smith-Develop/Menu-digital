@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { getRestaurantBySlug } from '@/lib/queries/public';
+import { getRestaurantBySlug, deliveryAllowed } from '@/lib/queries/public';
 import { getSessionProfile } from '@/lib/auth';
 import { CartView } from '@/components/storefront/cart-view';
 
@@ -10,7 +10,13 @@ export default async function CartPage({ params }: { params: Promise<{ slug: str
   const restaurant = await getRestaurantBySlug(slug);
   if (!restaurant) notFound();
 
-  const profile = await getSessionProfile();
+  // El reparto depende del interruptor del local y del plan contratado. Sin
+  // esta comprobación el cliente elegía "a domicilio" y el pedido se rechazaba
+  // al final, que es la peor forma de enterarse.
+  const [profile, permiteReparto] = await Promise.all([
+    getSessionProfile(),
+    deliveryAllowed(restaurant.id),
+  ]);
 
   return (
     <CartView
@@ -23,7 +29,7 @@ export default async function CartPage({ params }: { params: Promise<{ slug: str
       isSignedIn={Boolean(profile)}
       allows={{
         dineIn: restaurant.dinein_enabled,
-        delivery: restaurant.delivery_enabled,
+        delivery: restaurant.delivery_enabled && permiteReparto,
         pickup: restaurant.pickup_enabled,
       }}
     />

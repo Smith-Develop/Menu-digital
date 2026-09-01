@@ -9,6 +9,7 @@ import { FileUpload } from '@/components/dashboard/file-upload';
 import { ImagePicker } from '@/components/ui/image-picker';
 import { updateRestaurantSettings, updateRestaurantTheme } from '@/app/dashboard/actions';
 import { ColorInput } from '@/components/ui/color-input';
+import { OpeningHoursEditor, type OpeningHours } from '@/components/dashboard/opening-hours';
 import { brandCssVariables } from '@/lib/brand-theme';
 import { CURRENCIES, formatAmount, parseAmount, getCurrency } from '@/lib/money';
 import { useT } from '@/i18n/provider';
@@ -39,6 +40,7 @@ export type SettingsValues = {
   acceptsCard: boolean;
   acceptsTpv: boolean;
   isOpen: boolean;
+  openingHours: OpeningHours;
   primaryColor: string;
   accentColor: string;
   textColor: string;
@@ -93,6 +95,7 @@ export function SettingsForm({
       accepts_card: values.acceptsCard,
       accepts_tpv: values.acceptsTpv,
       is_open: values.isOpen,
+      opening_hours: values.openingHours,
     });
 
     setSaving(false);
@@ -270,6 +273,13 @@ export function SettingsForm({
             label={values.isOpen ? t.storefront.open : t.storefront.closed}
           />
         </div>
+
+        {/* El horario decide por sí solo; el interruptor de arriba sirve para
+            cerrar antes de tiempo y manda siempre sobre él. */}
+        <OpeningHoursEditor
+          value={values.openingHours}
+          onChange={(v) => set('openingHours', v)}
+        />
       </section>
 
       <ThemeSection

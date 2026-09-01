@@ -7,6 +7,27 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type Database = {
   public: {
     Tables: {
+      _a: {
+        Row: {
+          n: number | null;
+          prueba: string | null;
+          esperado: string | null;
+          obtenido: string | null;
+        };
+        Insert: {
+          n?: number | null;
+          prueba?: string | null;
+          esperado?: string | null;
+          obtenido?: string | null;
+        };
+        Update: {
+          n?: number | null;
+          prueba?: string | null;
+          esperado?: string | null;
+          obtenido?: string | null;
+        };
+        Relationships: [];
+      };
       _f: {
         Row: {
           n: number | null;
@@ -1640,6 +1661,7 @@ export type Database = {
           sound_settings: Json | null;
           document_type: string | null;
           document_number: string | null;
+          order_counter: number;
         };
         Insert: {
           id?: string;
@@ -1686,6 +1708,7 @@ export type Database = {
           sound_settings?: Json | null;
           document_type?: string | null;
           document_number?: string | null;
+          order_counter?: number;
         };
         Update: {
           id?: string;
@@ -1732,6 +1755,7 @@ export type Database = {
           sound_settings?: Json | null;
           document_type?: string | null;
           document_number?: string | null;
+          order_counter?: number;
         };
         Relationships: [];
       };
@@ -2087,6 +2111,8 @@ export type Database = {
       set_order_covers: { Args: { p_order_id: string; p_covers: number }; Returns: Json };
       adjust_stock: { Args: { p_product_id: string; p_kind: Enums<'stock_movement_kind'>; p_qty: number; p_reason: string }; Returns: Json };
       low_stock: { Args: { p_restaurant_id: string }; Returns: Json };
+      delivery_allowed: { Args: { p_restaurant_id: string }; Returns: boolean };
+      restaurant_is_open_now: { Args: { p_restaurant_id: string }; Returns: boolean };
       is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };
       is_staff_of: { Args: { rid: string }; Returns: boolean };
     };
