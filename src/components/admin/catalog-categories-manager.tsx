@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { ArrowDown, ArrowUp, LayoutGrid, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Sheet, ConfirmDialog } from '@/components/ui/sheet';
-import { Input, Switch, Textarea } from '@/components/ui/input';
+import { Input, Select, Switch, Textarea } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge, EmptyState } from '@/components/ui/misc';
 import { useToast } from '@/components/ui/toast';
@@ -14,6 +14,7 @@ import { ImagePicker } from '@/components/ui/image-picker';
 import { slugify } from '@/lib/utils';
 import { useT } from '@/i18n/provider';
 import { cn } from '@/lib/utils';
+import type { Enums } from '@/types/database';
 
 export type CatalogCategory = {
   id: string;
@@ -23,6 +24,10 @@ export type CatalogCategory = {
   imageUrl: string | null;
   position: number;
   isActive: boolean;
+  /** Nulo es un pasillo de primer nivel. */
+  parentId: string | null;
+  /** Nulo se ofrece a los dos verticales. */
+  businessType: Enums<'business_type'> | null;
   products: number;
 };
 
@@ -54,6 +59,8 @@ export function CatalogCategoriesManager({ categories }: { categories: CatalogCa
       image_url: draft.imageUrl || null,
       position: draft.position,
       is_active: draft.isActive,
+      parent_id: draft.parentId,
+      business_type: draft.businessType,
     });
     setSaving(false);
 
@@ -79,6 +86,8 @@ export function CatalogCategoriesManager({ categories }: { categories: CatalogCa
       image_url: category.imageUrl,
       position: category.position + delta,
       is_active: category.isActive,
+      parent_id: category.parentId,
+      business_type: category.businessType,
     });
     if (target) {
       await saveCatalogCategory({
@@ -89,6 +98,8 @@ export function CatalogCategoriesManager({ categories }: { categories: CatalogCa
         image_url: target.imageUrl,
         position: category.position,
         is_active: target.isActive,
+        parent_id: target.parentId,
+        business_type: target.businessType,
       });
     }
     router.refresh();
@@ -123,6 +134,8 @@ export function CatalogCategoriesManager({ categories }: { categories: CatalogCa
               imageUrl: null,
               position: categories.length + 1,
               isActive: true,
+              parentId: null,
+              businessType: null,
             });
           }}
         >
@@ -268,6 +281,39 @@ export function CatalogCategoriesManager({ categories }: { categories: CatalogCa
               label={t.common.image}
               hint="Cuadrada. Es la que sale en los chips de la portada."
             />
+            {/* El árbol. Un supermercado necesita pasillo y familia; una carta
+                se apaña con un solo nivel y deja esto en blanco. */}
+            <Select
+              value={draft.parentId ?? ''}
+              onChange={(e) => setDraft({ ...draft, parentId: e.target.value || null })}
+              label={t.business.parentCategory}
+            >
+              <option value="">{t.business.topLevel}</option>
+              {categories
+                // Ni ella misma ni las que ya cuelgan de otra: dos niveles.
+                .filter((c) => c.id !== draft.id && c.parentId === null)
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+            </Select>
+
+            <Select
+              value={draft.businessType ?? ''}
+              onChange={(e) =>
+                setDraft({
+                  ...draft,
+                  businessType: (e.target.value || null) as Enums<'business_type'> | null,
+                })
+              }
+              label={t.business.type}
+            >
+              <option value="">{t.common.all}</option>
+              <option value="restaurant">{t.business.restaurant}</option>
+              <option value="grocery">{t.business.grocery}</option>
+            </Select>
+
             <Switch
               checked={draft.isActive}
               onChange={(v) => setDraft({ ...draft, isActive: v })}

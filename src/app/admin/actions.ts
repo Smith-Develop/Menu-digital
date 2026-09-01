@@ -11,6 +11,7 @@ import { sendPasswordResetFor } from '@/lib/password-reset';
 import { sendBroadcastPush } from '@/lib/push';
 import { getSessionProfile } from '@/lib/auth';
 import { periodEnd } from '@/lib/stripe';
+import type { Enums } from '@/types/database';
 
 // Genérico como el del panel: hay acciones que ya devuelven datos y tener dos
 // convenciones distintas para lo mismo obliga a recordar cuál usa cada fichero.
@@ -206,6 +207,34 @@ export async function setRestaurantActive(
   return { ok: true };
 }
 
+/**
+ * Cambia el tipo de negocio.
+ *
+ * No es un ajuste cosmético: enciende y apaga módulos enteros del panel, y
+ * pasar a supermercado apaga el servicio en mesa —lo hace la propia base, con
+ * un disparador, para que no dependa de que se acuerde el formulario—. Por eso
+ * lo cambia el superadministrador y no el local: normalmente va unido a lo que
+ * se le ha vendido.
+ */
+export async function setRestaurantBusinessType(
+  restaurantId: string,
+  businessType: Enums<'business_type'>,
+): Promise<Result> {
+  if (!(await requireAdmin())) return { ok: false, error: 'FORBIDDEN' };
+
+  const supabase = await createServerSupabase();
+  const { error } = await supabase
+    .from('restaurants')
+    .update({ business_type: businessType })
+    .eq('id', restaurantId);
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath('/admin/restaurants');
+  revalidatePath('/dashboard', 'layout');
+  return { ok: true };
+}
+
 /** Añade a alguien al equipo de un restaurante buscándolo por su correo. */
 export async function addStaffByEmail(
   restaurantId: string,
@@ -370,6 +399,11 @@ const catalogCategorySchema = z.object({
   image_url: z.string().url().nullable().optional(),
   position: z.coerce.number().int().min(0).default(0),
   is_active: z.boolean().default(true),
+  // Un pasillo dentro de otro. Dos niveles bastan para una compra; un tercero
+  // convierte la navegación en un laberinto y nadie llega al producto.
+  parent_id: z.string().uuid().nullable().optional(),
+  // Para qué vertical se ofrece. Nulo vale para las dos.
+  business_type: z.enum(['restaurant', 'grocery']).nullable().optional(),
 });
 
 /**

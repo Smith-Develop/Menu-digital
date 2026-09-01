@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { requireProfile, getStaffContext } from '@/lib/auth';
 import { canWorkKitchen } from '@/lib/auth-permissions';
+import { hasModule } from '@/lib/business-modules';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { KitchenDisplay, type KitchenTicket } from '@/components/kitchen/kitchen-display';
 import { resolveSounds, type SoundSettings } from '@/lib/sounds';
@@ -13,6 +14,8 @@ export default async function KitchenPage() {
   const context = await getStaffContext();
   if (!context) redirect('/onboarding');
   if (!canWorkKitchen(context.staffRole)) redirect('/dashboard');
+  // Un supermercado no cocina: prepara. Su pantalla es otra.
+  if (!hasModule(context.restaurant.business_type, 'kitchen')) redirect('/dashboard/picking');
 
   const supabase = await createServerSupabase();
 

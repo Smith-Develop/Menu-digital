@@ -19,6 +19,11 @@ export async function createRestaurant(formData: FormData): Promise<ActionResult
   const name = String(formData.get('name') ?? '').trim();
   if (!name) return { ok: false, error: 'NAME_REQUIRED' };
 
+  // Qué clase de negocio es. Decide qué módulos se encienden, y por eso se
+  // pregunta al principio y no en un ajuste escondido: un supermercado que
+  // empieza con pantalla de cocina y mesas ya empieza mal.
+  const businessType = formData.get('business_type') === 'grocery' ? 'grocery' : 'restaurant';
+
   const currencyCode = String(formData.get('currency') ?? 'EUR').toUpperCase();
   const currency = getCurrency(currencyCode);
 
@@ -48,7 +53,10 @@ export async function createRestaurant(formData: FormData): Promise<ActionResult
     currency: currency.code,
     currency_decimals: currency.decimals,
     timezone: String(formData.get('timezone') ?? 'Europe/Madrid'),
-    dinein_enabled: formData.get('dinein') === 'on',
+    business_type: businessType,
+    // Un supermercado no sirve en mesa. La base lo apaga igualmente, pero
+    // mandar el valor correcto evita que el formulario mienta.
+    dinein_enabled: businessType !== 'grocery' && formData.get('dinein') === 'on',
     delivery_enabled: formData.get('delivery') === 'on',
     pickup_enabled: formData.get('pickup') === 'on',
   });

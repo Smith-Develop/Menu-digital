@@ -5,9 +5,10 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { Box, Plus, Search } from 'lucide-react';
 import { formatMoney } from '@/lib/money';
+import { unitPrice } from '@/lib/business-modules';
 import { useActiveCart } from '@/components/storefront/cart-provider';
 import { useToast } from '@/components/ui/toast';
-import { useT } from '@/i18n/provider';
+import { useT, interpolate } from '@/i18n/provider';
 import { cn } from '@/lib/utils';
 
 type BrowserProduct = {
@@ -20,6 +21,11 @@ type BrowserProduct = {
   rating: number;
   has3d: boolean;
   available: boolean;
+  /** Ficha de estantería. En una carta llega toda a nulo y no se pinta nada. */
+  brand: string | null;
+  packSize: string | null;
+  unit: string;
+  netContent: number | null;
 };
 
 type BrowserCategory = { id: string; name: string; image: string | null };
@@ -153,12 +159,34 @@ export function MenuBrowser({
                   >
                     <p className="line-clamp-1 text-[15px] font-bold text-ink-700">{product.name}</p>
                     <p className="mt-0.5 line-clamp-1 text-xs text-ink-300">
-                      {product.description ?? ''}
+                      {/* En una tienda, la marca y el formato distinguen dos
+                          referencias que se llaman igual; la descripción no. */}
+                      {[product.brand, product.packSize].filter(Boolean).join(' · ') ||
+                        (product.description ?? '')}
                     </p>
-                    <div className="mt-2.5 flex items-center justify-between gap-2">
+                    {/* El botón redondo de añadir vive pegado a esta esquina:
+                        el hueco que se le deja a la derecha evita que el precio
+                        por kilo acabe debajo de él. */}
+                    <div className="mt-2.5 pr-11">
                       <span className="text-base font-bold text-ink">
                         {formatMoney(product.priceCents, currency, currencyDecimals)}
                       </span>
+                      {(() => {
+                        const porUnidad = unitPrice(
+                          product.priceCents,
+                          product.unit,
+                          product.netContent,
+                        );
+                        if (!porUnidad) return null;
+                        return (
+                          <span className="mt-0.5 block text-[11px] text-ink-300">
+                            {interpolate(t.business.pricePerUnit, {
+                              price: formatMoney(porUnidad.cents, currency, currencyDecimals),
+                              unit: porUnidad.unit === 'kg' ? 'kg' : 'l',
+                            })}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
                 </Link>

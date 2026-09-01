@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle,
   Calculator,
+  CalendarClock,
   ChefHat,
   CreditCard,
   ExternalLink,
@@ -14,6 +15,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu as MenuIcon,
+  PackageCheck,
   Image as ImageIcon,
   QrCode,
   Users,
@@ -30,6 +32,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { canAccessSection, type DashboardSection } from '@/lib/auth-permissions';
+import { hasModule } from '@/lib/business-modules';
 import { LocaleSwitcher } from '@/components/locale-switcher';
 import { useT } from '@/i18n/provider';
 import { staffRoleLabel } from '@/lib/staff-roles';
@@ -46,7 +49,14 @@ export function DashboardShell({
   subscriptionBanner,
   children,
 }: {
-  restaurant: { id: string; name: string; slug: string; logoUrl: string | null; isOpen: boolean };
+  restaurant: {
+    id: string;
+    name: string;
+    slug: string;
+    logoUrl: string | null;
+    isOpen: boolean;
+    businessType: Enums<'business_type'>;
+  };
   user: { name: string; avatar: string | null };
   staffRole: Enums<'staff_role'>;
   isSuperadmin: boolean;
@@ -59,14 +69,30 @@ export function DashboardShell({
   const [open, setOpen] = useState(false);
   const cabecera = useRef<HTMLElement>(null);
 
-  const puede = (seccion: DashboardSection) => canAccessSection(seccion, staffRole);
+  // Para entrar hacen falta las dos cosas: que el rol tenga la llave y que el
+  // negocio tenga la puerta. Un supermercado sin mesas no enseña la sala por
+  // mucho que quien mire sea el dueño.
+  const puede = (seccion: DashboardSection) =>
+    canAccessSection(seccion, staffRole) && hasModule(restaurant.businessType, seccion);
 
 
   const links = [
     // El menú enseña exactamente lo que cada rol puede abrir: la misma tabla que
     // usan las páginas para dejar entrar, así que nunca ofrecen sitios cerrados.
     { href: '/dashboard', icon: LayoutDashboard, label: t.dashboard.overview, exact: true, show: true },
-    { href: '/dashboard/orders', icon: Receipt, label: t.dashboard.floorAndOrders, show: puede('orders') },
+    // El nombre depende de si hay sala que atender: prometer "sala" a quien no
+    // tiene mesas es prometer una pantalla que no existe.
+    {
+      href: '/dashboard/orders',
+      icon: Receipt,
+      label: hasModule(restaurant.businessType, 'floor')
+        ? t.dashboard.floorAndOrders
+        : t.nav.orders,
+      show: puede('orders'),
+    },
+    // Preparar la compra sustituye a la pantalla de cocina, que no se abre
+    // desde aquí sino desde su propia ruta.
+    { href: '/dashboard/picking', icon: PackageCheck, label: t.picking.title, show: puede('picking') },
     // La caja va junto a los pedidos: se abre al empezar el turno y se cierra
     // al acabarlo, que es el mismo momento en que se mira la sala.
     // Tomar pedidos por teléfono va antes que la caja del turno: es lo que se
@@ -75,6 +101,7 @@ export function DashboardShell({
     { href: '/dashboard/cash', icon: Wallet, label: t.cash.title, show: puede('cash') },
     { href: '/dashboard/menu', icon: UtensilsCrossed, label: t.dashboard.menu, show: puede('menu') },
     { href: '/dashboard/tables', icon: QrCode, label: t.dashboard.tables, show: puede('tables') },
+    { href: '/dashboard/slots', icon: CalendarClock, label: t.slots.title, show: puede('slots') },
     { href: '/dashboard/banners', icon: ImageIcon, label: t.dashboard.banners, show: puede('banners') },
     { href: '/dashboard/coupons', icon: Ticket, label: t.coupon.coupons, show: puede('coupons') },
     { href: '/dashboard/staff', icon: UsersRound, label: t.dashboard.staff, show: puede('staff') },
@@ -153,16 +180,21 @@ export function DashboardShell({
           );
         })}
 
-        <li className="pt-3">
-          <Link
-            href="/kitchen"
-            onClick={() => setOpen(false)}
-            className="flex items-center gap-3 rounded-xl bg-ink px-4 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
-          >
-            <ChefHat className="h-[18px] w-[18px]" />
-            {t.kitchen.title}
-          </Link>
-        </li>
+        {/* La pantalla de cocina va aparte del menú porque no es una sección
+            del panel, pero se rige por lo mismo: quien puede trabajarla, y un
+            negocio que tenga cocina. */}
+        {puede('kitchen') && (
+          <li className="pt-3">
+            <Link
+              href="/kitchen"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-3 rounded-xl bg-ink px-4 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+            >
+              <ChefHat className="h-[18px] w-[18px]" />
+              {t.kitchen.title}
+            </Link>
+          </li>
+        )}
 
         <li>
           <Link

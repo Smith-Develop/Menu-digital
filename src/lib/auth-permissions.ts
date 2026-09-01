@@ -45,6 +45,11 @@ export const DASHBOARD_SECTIONS = {
   // La sala es el sitio del camarero: mesas, quién las atiende y sus avisos.
   floor: ['owner', 'admin', 'manager', 'waiter'],
   kitchen: ['owner', 'admin', 'manager', 'kitchen'],
+  // Preparar la compra es el trabajo que en un restaurante hace la cocina:
+  // misma gente, mismo momento del pedido, otra pantalla.
+  picking: ['owner', 'admin', 'manager', 'kitchen', 'waiter'],
+  // Las franjas de entrega son un ajuste del negocio, no del turno.
+  slots: ['owner', 'admin', 'manager'],
   menu: ['owner', 'admin', 'manager'],
   tables: ['owner', 'admin', 'manager'],
   banners: ['owner', 'admin', 'manager'],

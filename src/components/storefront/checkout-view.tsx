@@ -18,6 +18,35 @@ import type { Enums } from '@/types/database';
 
 type PayMethod = Extract<Enums<'payment_method'>, 'cash' | 'card' | 'tpv'>;
 
+export type DeliverySlot = {
+  slot_id: string;
+  /** Fecha en ISO corto, tal y como la espera `place_order`. */
+  date: string;
+  starts_at: string;
+  ends_at: string;
+  full: boolean;
+};
+
+/**
+ * "Hoy", "Mañana" o el día de la semana.
+ *
+ * Una fecha completa en un botón de dos centímetros no se lee, y el cliente no
+ * necesita el año para elegir entre esta tarde y mañana por la mañana.
+ */
+function diaCorto(iso: string, t: ReturnType<typeof useT>): string {
+  const hoy = new Date();
+  const fecha = new Date(`${iso}T12:00:00`);
+  const dias = Math.round(
+    (fecha.setHours(12, 0, 0, 0) - hoy.setHours(12, 0, 0, 0)) / 86_400_000,
+  );
+  if (dias === 0) return t.slots.today;
+  if (dias === 1) return t.slots.tomorrow;
+  return new Date(`${iso}T12:00:00`).toLocaleDateString(undefined, {
+    weekday: 'short',
+    day: 'numeric',
+  });
+}
+
 /** Traduce los códigos de error que lanza place_order a un mensaje legible. */
 function errorMessage(raw: string, t: ReturnType<typeof useT>): string {
   const code = raw.split(':')[0];
@@ -36,6 +65,9 @@ function errorMessage(raw: string, t: ReturnType<typeof useT>): string {
     COUPON_NOT_APPLICABLE: t.coupon.notApplicable,
     COUPON_MIN_ORDER: t.coupon.minOrder,
     LOGIN_REQUIRED: t.coupon.loginRequired,
+    SLOT_FULL: t.slots.full,
+    SLOT_IN_THE_PAST: t.slots.chooseSlot,
+    SLOT_WRONG_DAY: t.slots.chooseSlot,
   };
   return map[code] ?? t.common.error;
 }
@@ -53,6 +85,7 @@ export function CheckoutView({
   customer,
   isSignedIn,
   savedLocation,
+  slots,
 }: {
   slug: string;
   orderType: Enums<'order_type'>;
@@ -67,6 +100,8 @@ export function CheckoutView({
   customer: { name: string; phone: string; email: string };
   isSignedIn: boolean;
   savedLocation: { city: string; address: string | null } | null;
+  /** Franjas de entrega libres. Vacío significa que el local no las usa. */
+  slots: DeliverySlot[];
 }) {
   const t = useT();
   const toast = useToast();
@@ -152,6 +187,9 @@ export function CheckoutView({
   const [editingData, setEditingData] = useState(!isSignedIn);
 
   const [addressNotes, setAddressNotes] = useState('');
+  // Sin franjas, el pedido sale cuando esté listo, que es como funcionaba
+  // antes y como sigue funcionando un restaurante.
+  const [slot, setSlot] = useState<DeliverySlot | null>(null);
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   // `null` significa "importe a mano"; cualquier otro valor es un porcentaje.
@@ -204,6 +242,8 @@ export function CheckoutView({
         p_notes: notes.trim() || null,
         p_tip_cents: tip,
         p_coupon_code: coupon?.code ?? null,
+        p_slot_id: slot?.slot_id ?? null,
+        p_slot_date: slot?.date ?? null,
       });
 
       if (error) {
@@ -361,6 +401,48 @@ export function CheckoutView({
                 label={`${t.common.description} (${t.common.optional})`}
                 placeholder={t.checkout.orderNotesPlaceholder}
               />
+
+              {/* Cuándo. Una compra de la semana hay que estar en casa para
+                  recibirla, así que la hora se elige al pedir y no se descubre
+                  después. Lleno se ve, pero no se puede elegir. */}
+              {slots.length > 0 && (
+                <div>
+                  <p className="label">{t.slots.chooseSlot}</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSlot(null)}
+                      className={cn(
+                        'rounded-xl px-3 py-2 text-xs font-bold transition-colors',
+                        slot === null
+                          ? 'bg-brand text-white'
+                          : 'bg-surface-field text-ink-500 hover:bg-surface-muted',
+                      )}
+                    >
+                      {t.slots.asap}
+                    </button>
+                    {slots.map((s) => (
+                      <button
+                        key={`${s.slot_id}:${s.date}`}
+                        type="button"
+                        disabled={s.full}
+                        onClick={() => setSlot(s)}
+                        className={cn(
+                          'rounded-xl px-3 py-2 text-xs font-bold transition-colors disabled:opacity-40',
+                          slot?.slot_id === s.slot_id && slot?.date === s.date
+                            ? 'bg-brand text-white'
+                            : 'bg-surface-field text-ink-500 hover:bg-surface-muted',
+                        )}
+                      >
+                        <span className="block">{diaCorto(s.date, t)}</span>
+                        <span className="block font-normal tabular-nums opacity-80">
+                          {s.starts_at}–{s.ends_at}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           )}
 

@@ -55,6 +55,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         slug: restaurant.slug,
         logoUrl: restaurant.logo_url,
         isOpen: restaurant.is_open,
+        businessType: restaurant.business_type,
       }}
       user={{ name: profile.full_name ?? profile.email ?? '', avatar: profile.avatar_url }}
       staffRole={staffRole}

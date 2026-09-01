@@ -13,7 +13,15 @@ export default async function MenuPage() {
 
   const [{ data: categories }, { data: products }] = await Promise.all([
     // Catálogo de la plataforma: el restaurante elige de aquí, no crea categorías.
-    supabase.from('catalog_categories').select('*').eq('is_active', true).order('position'),
+    // El catálogo se filtra por vertical: los pasillos de un supermercado no
+    // son las categorías de una carta, y una lista con las dos cosas no es
+    // de nadie. Las que no declaran vertical valen para todos.
+    supabase
+      .from('catalog_categories')
+      .select('*')
+      .eq('is_active', true)
+      .or(`business_type.is.null,business_type.eq.${restaurant.business_type}`)
+      .order('position'),
     supabase.from('products').select('*').eq('restaurant_id', restaurant.id).order('position'),
   ]);
 
@@ -38,6 +46,7 @@ export default async function MenuPage() {
 
       <MenuManager
         restaurantId={restaurant.id}
+        businessType={restaurant.business_type}
         currency={restaurant.currency}
         currencyDecimals={restaurant.currency_decimals}
         allows3d={subscription?.plan?.allows_3d ?? true}
@@ -62,6 +71,12 @@ export default async function MenuPage() {
           trackStock: p.track_stock,
           stockQty: p.stock_qty,
           lowStockThreshold: p.low_stock_threshold,
+          unit: p.unit,
+          brand: p.brand,
+          packSize: p.pack_size,
+          barcode: p.barcode,
+          netContent: p.net_content === null ? null : Number(p.net_content),
+          soldByWeight: p.sold_by_weight,
           ingredients: p.ingredients,
           allergens: p.allergens,
           tags: p.tags,

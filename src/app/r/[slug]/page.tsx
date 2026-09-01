@@ -171,6 +171,10 @@ export default async function RestaurantMenuPage({
               rating: Number(p.rating),
               has3d: Boolean(p.model_3d_url),
               available: p.is_available,
+              brand: p.brand,
+              packSize: p.pack_size,
+              unit: p.unit,
+              netContent: p.net_content === null ? null : Number(p.net_content),
             }))}
             currency={restaurant.currency}
             currencyDecimals={restaurant.currency_decimals}

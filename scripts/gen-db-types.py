@@ -147,6 +147,8 @@ export type Database = {
           p_billing_name?: string | null;
           p_billing_tax_id?: string | null;
           p_billing_address?: string | null;
+          p_slot_id?: string | null;
+          p_slot_date?: string | null;
         };
         Returns: Json;
       };""")
@@ -236,6 +238,13 @@ export type Database = {
     out.append('      settle_platform_commissions: { Args: { p_subject_type: string; p_subject_id: string; p_note?: string | null }; Returns: Json };')
     out.append('      platform_revenue: { Args: { p_days?: number }; Returns: Json };')
     out.append('      issue_platform_invoice: { Args: { p_settlement_id: string; p_tax_rate?: number }; Returns: Json };')
+    out.append("      has_module: { Args: { p_restaurant_id: string; p_module: string }; Returns: boolean };")
+    out.append("      catalog_tree: { Args: { p_business_type?: Enums<'business_type'> | null }; Returns: Json };")
+    out.append('      unit_price_cents: { Args: { p_product_id: string }; Returns: number };')
+    out.append('      order_picking_list: { Args: { p_order_id: string }; Returns: Json };')
+    out.append('      pick_order_item: { Args: { p_item_id: string; p_qty: number; p_note?: string | null }; Returns: Json };')
+    out.append('      replace_order_item: { Args: { p_item_id: string; p_product_id: string; p_qty?: number | null; p_note?: string | null }; Returns: Json };')
+    out.append('      available_delivery_slots: { Args: { p_restaurant_id: string; p_days?: number }; Returns: Json };')
     out.append("      is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };")
     out.append("      is_staff_of: { Args: { rid: string }; Returns: boolean };")
     out.append("    };")

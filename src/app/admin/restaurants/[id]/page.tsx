@@ -71,6 +71,7 @@ export default async function AdminRestaurantPage({
           currencyDecimals: restaurant.currency_decimals,
           isActive: restaurant.is_active,
           isOpen: restaurant.is_open,
+          businessType: restaurant.business_type,
           createdAt: restaurant.created_at,
         }}
         owner={

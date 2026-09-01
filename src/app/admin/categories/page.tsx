@@ -45,6 +45,8 @@ export default async function AdminCategoriesPage() {
           imageUrl: category.image_url,
           position: category.position,
           isActive: category.is_active,
+          parentId: category.parent_id,
+          businessType: category.business_type,
           products: usage.get(category.id) ?? 0,
         }))}
       />

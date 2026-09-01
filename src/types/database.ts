@@ -196,6 +196,24 @@ export type Database = {
         };
         Relationships: [];
       };
+      business_modules: {
+        Row: {
+          business_type: Enums<"business_type">;
+          module: string;
+          enabled: boolean;
+        };
+        Insert: {
+          business_type: Enums<"business_type">;
+          module: string;
+          enabled?: boolean;
+        };
+        Update: {
+          business_type?: Enums<"business_type">;
+          module?: string;
+          enabled?: boolean;
+        };
+        Relationships: [];
+      };
       cash_movements: {
         Row: {
           id: string;
@@ -295,6 +313,8 @@ export type Database = {
           is_active: boolean;
           created_at: string;
           updated_at: string;
+          parent_id: string | null;
+          business_type: Enums<"business_type"> | null;
         };
         Insert: {
           id?: string;
@@ -307,6 +327,8 @@ export type Database = {
           is_active?: boolean;
           created_at?: string;
           updated_at?: string;
+          parent_id?: string | null;
+          business_type?: Enums<"business_type"> | null;
         };
         Update: {
           id?: string;
@@ -319,6 +341,8 @@ export type Database = {
           is_active?: boolean;
           created_at?: string;
           updated_at?: string;
+          parent_id?: string | null;
+          business_type?: Enums<"business_type"> | null;
         };
         Relationships: [];
       };
@@ -556,6 +580,39 @@ export type Database = {
           user_id?: string;
           coupon_id?: string;
           saved_at?: string;
+        };
+        Relationships: [];
+      };
+      delivery_slots: {
+        Row: {
+          id: string;
+          restaurant_id: string;
+          weekday: number;
+          starts_at: string;
+          ends_at: string;
+          capacity: number;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          restaurant_id: string;
+          weekday: number;
+          starts_at: string;
+          ends_at: string;
+          capacity?: number;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          restaurant_id?: string;
+          weekday?: number;
+          starts_at?: string;
+          ends_at?: string;
+          capacity?: number;
+          is_active?: boolean;
+          created_at?: string;
         };
         Relationships: [];
       };
@@ -929,6 +986,12 @@ export type Database = {
           discount_cents: number;
           taxable_base_cents: number;
           tax_cents: number;
+          ordered_qty: number | null;
+          picked_qty: number | null;
+          picked_at: string | null;
+          picked_by: string | null;
+          pick_note: string | null;
+          replaced_from: Json | null;
         };
         Insert: {
           id?: string;
@@ -951,6 +1014,12 @@ export type Database = {
           discount_cents?: number;
           taxable_base_cents?: number;
           tax_cents?: number;
+          ordered_qty?: number | null;
+          picked_qty?: number | null;
+          picked_at?: string | null;
+          picked_by?: string | null;
+          pick_note?: string | null;
+          replaced_from?: Json | null;
         };
         Update: {
           id?: string;
@@ -973,6 +1042,12 @@ export type Database = {
           discount_cents?: number;
           taxable_base_cents?: number;
           tax_cents?: number;
+          ordered_qty?: number | null;
+          picked_qty?: number | null;
+          picked_at?: string | null;
+          picked_by?: string | null;
+          pick_note?: string | null;
+          replaced_from?: Json | null;
         };
         Relationships: [];
       };
@@ -1121,6 +1196,7 @@ export type Database = {
           billing_name: string | null;
           billing_tax_id: string | null;
           billing_address: string | null;
+          delivery_slot_id: string | null;
         };
         Insert: {
           id?: string;
@@ -1179,6 +1255,7 @@ export type Database = {
           billing_name?: string | null;
           billing_tax_id?: string | null;
           billing_address?: string | null;
+          delivery_slot_id?: string | null;
         };
         Update: {
           id?: string;
@@ -1237,6 +1314,7 @@ export type Database = {
           billing_name?: string | null;
           billing_tax_id?: string | null;
           billing_address?: string | null;
+          delivery_slot_id?: string | null;
         };
         Relationships: [];
       };
@@ -1555,6 +1633,12 @@ export type Database = {
           track_stock: boolean;
           stock_qty: number;
           low_stock_threshold: number;
+          unit: Enums<"sale_unit">;
+          brand: string | null;
+          pack_size: string | null;
+          barcode: string | null;
+          net_content: number | null;
+          sold_by_weight: boolean;
         };
         Insert: {
           id?: string;
@@ -1585,6 +1669,12 @@ export type Database = {
           track_stock?: boolean;
           stock_qty?: number;
           low_stock_threshold?: number;
+          unit?: Enums<"sale_unit">;
+          brand?: string | null;
+          pack_size?: string | null;
+          barcode?: string | null;
+          net_content?: number | null;
+          sold_by_weight?: boolean;
         };
         Update: {
           id?: string;
@@ -1615,6 +1705,12 @@ export type Database = {
           track_stock?: boolean;
           stock_qty?: number;
           low_stock_threshold?: number;
+          unit?: Enums<"sale_unit">;
+          brand?: string | null;
+          pack_size?: string | null;
+          barcode?: string | null;
+          net_content?: number | null;
+          sold_by_weight?: boolean;
         };
         Relationships: [];
       };
@@ -1833,6 +1929,7 @@ export type Database = {
           document_type: string | null;
           document_number: string | null;
           order_counter: number;
+          business_type: Enums<"business_type">;
         };
         Insert: {
           id?: string;
@@ -1880,6 +1977,7 @@ export type Database = {
           document_type?: string | null;
           document_number?: string | null;
           order_counter?: number;
+          business_type?: Enums<"business_type">;
         };
         Update: {
           id?: string;
@@ -1927,6 +2025,7 @@ export type Database = {
           document_type?: string | null;
           document_number?: string | null;
           order_counter?: number;
+          business_type?: Enums<"business_type">;
         };
         Relationships: [];
       };
@@ -2208,6 +2307,8 @@ export type Database = {
           p_billing_name?: string | null;
           p_billing_tax_id?: string | null;
           p_billing_address?: string | null;
+          p_slot_id?: string | null;
+          p_slot_date?: string | null;
         };
         Returns: Json;
       };
@@ -2297,11 +2398,19 @@ export type Database = {
       settle_platform_commissions: { Args: { p_subject_type: string; p_subject_id: string; p_note?: string | null }; Returns: Json };
       platform_revenue: { Args: { p_days?: number }; Returns: Json };
       issue_platform_invoice: { Args: { p_settlement_id: string; p_tax_rate?: number }; Returns: Json };
+      has_module: { Args: { p_restaurant_id: string; p_module: string }; Returns: boolean };
+      catalog_tree: { Args: { p_business_type?: Enums<'business_type'> | null }; Returns: Json };
+      unit_price_cents: { Args: { p_product_id: string }; Returns: number };
+      order_picking_list: { Args: { p_order_id: string }; Returns: Json };
+      pick_order_item: { Args: { p_item_id: string; p_qty: number; p_note?: string | null }; Returns: Json };
+      replace_order_item: { Args: { p_item_id: string; p_product_id: string; p_qty?: number | null; p_note?: string | null }; Returns: Json };
+      available_delivery_slots: { Args: { p_restaurant_id: string; p_days?: number }; Returns: Json };
       is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };
       is_staff_of: { Args: { rid: string }; Returns: boolean };
     };
     Enums: {
       app_role: "superadmin" | "restaurant" | "customer" | "courier";
+      business_type: "restaurant" | "grocery";
       call_status: "pending" | "attended" | "cancelled";
       call_type: "waiter" | "bill" | "water" | "help";
       cash_movement_kind: "payout" | "withdrawal" | "deposit" | "courier_settlement" | "tip_out" | "correction" | "other";
@@ -2320,6 +2429,7 @@ export type Database = {
       plan_audience: "restaurant" | "courier";
       plan_interval: "month" | "year";
       rating_target: "restaurant" | "product" | "courier" | "waiter";
+      sale_unit: "unit" | "kg" | "g" | "l" | "ml";
       staff_role: "owner" | "admin" | "manager" | "waiter" | "kitchen" | "cashier";
       stock_movement_kind: "sale" | "return" | "restock" | "adjustment" | "waste";
       subscription_status: "trialing" | "active" | "past_due" | "canceled" | "expired";

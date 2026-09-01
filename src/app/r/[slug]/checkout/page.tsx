@@ -3,7 +3,8 @@ import { getRestaurantBySlug, deliveryAllowed } from '@/lib/queries/public';
 import { getTableSessionFor } from '@/lib/table-session';
 import { getSessionProfile } from '@/lib/auth';
 import { getCustomerLocation } from '@/lib/customer-location';
-import { CheckoutView } from '@/components/storefront/checkout-view';
+import { CheckoutView, type DeliverySlot } from '@/components/storefront/checkout-view';
+import { createPublicSupabase } from '@/lib/supabase/server';
 import type { Enums } from '@/types/database';
 
 export default async function CheckoutPage({
@@ -19,11 +20,14 @@ export default async function CheckoutPage({
   const restaurant = await getRestaurantBySlug(slug);
   if (!restaurant) notFound();
 
-  const [table, profile, location, permiteReparto] = await Promise.all([
+  const supabase = createPublicSupabase();
+  const [table, profile, location, permiteReparto, { data: franjas }] = await Promise.all([
     getTableSessionFor(slug),
     getSessionProfile(),
     getCustomerLocation(),
     deliveryAllowed(restaurant.id),
+    // Una semana por delante: más allá, la gente no sabe si estará en casa.
+    supabase.rpc('available_delivery_slots', { p_restaurant_id: restaurant.id, p_days: 7 }),
   ]);
 
   const tableCode = table?.code ?? null;
@@ -60,6 +64,7 @@ export default async function CheckoutPage({
       }}
       isSignedIn={Boolean(profile)}
       savedLocation={location ? { city: location.city, address: location.address } : null}
+      slots={(franjas as unknown as DeliverySlot[]) ?? []}
     />
   );
 }

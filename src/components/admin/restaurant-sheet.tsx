@@ -27,6 +27,7 @@ import {
   assignPlan,
   extendSubscription,
   setRestaurantActive,
+  setRestaurantBusinessType,
   changeOwnerEmail,
   sendPasswordReset,
 } from '@/app/admin/actions';
@@ -50,6 +51,7 @@ type Props = {
     currencyDecimals: number;
     isActive: boolean;
     isOpen: boolean;
+    businessType: Enums<'business_type'>;
     createdAt: string;
   };
   owner: { id: string; name: string | null; email: string | null; phone: string | null } | null;
@@ -88,6 +90,7 @@ export function RestaurantSheet({
   const [planSheet, setPlanSheet] = useState(false);
   const [newEmail, setNewEmail] = useState(owner?.email ?? '');
   const [planId, setPlanId] = useState(subscription?.planId ?? '');
+  const [tipo, setTipo] = useState(restaurant.businessType);
 
   async function run(key: string, fn: () => Promise<{ ok: boolean; error?: string }>, successMessage: string) {
     setBusy(key);
@@ -168,6 +171,26 @@ export function RestaurantSheet({
             </button>
           </div>
         </div>
+      </section>
+
+      {/* El tipo de negocio va con la ficha y no con los ajustes del local:
+          decide qué módulos ve el panel entero, y suele ir unido a lo que se le
+          ha vendido. Cambiar a supermercado apaga el servicio en mesa. */}
+      <section className="rounded-2xl bg-white p-6 shadow-chip">
+        <h2 className="font-display text-base font-bold text-ink-700">{t.business.type}</h2>
+        <p className="mb-4 mt-1 text-xs text-ink-300">{t.business.typeHint}</p>
+        <Select
+          value={tipo}
+          disabled={busy === 'tipo'}
+          onChange={(e) => {
+            const valor = e.target.value as Enums<'business_type'>;
+            setTipo(valor);
+            run('tipo', () => setRestaurantBusinessType(restaurant.id, valor), t.common.save);
+          }}
+        >
+          <option value="restaurant">{t.business.restaurant}</option>
+          <option value="grocery">{t.business.grocery}</option>
+        </Select>
       </section>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

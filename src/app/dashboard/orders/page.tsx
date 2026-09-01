@@ -9,6 +9,7 @@ import type { FloorTable } from '@/components/dashboard/floor-view';
 import type { OrderRow } from '@/components/dashboard/live-orders-panel';
 import { mapOrderRow } from '@/lib/queries/orders';
 import type { Enums } from '@/types/database';
+import { hasModule } from '@/lib/business-modules';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Pedidos' };
@@ -133,7 +134,10 @@ export default async function OrdersPage({
 
   return (
     <div className="space-y-6">
-      <h1 className="font-display text-2xl font-bold text-ink">{t.dashboard.floorAndOrders}</h1>
+      {/* Sin sala, el título no puede prometer sala. */}
+      <h1 className="font-display text-2xl font-bold text-ink">
+        {hasModule(restaurant.business_type, 'floor') ? t.dashboard.floorAndOrders : t.nav.orders}
+      </h1>
 
       <CourierCashPanel
         currency={restaurant.currency}
@@ -161,6 +165,7 @@ export default async function OrdersPage({
         slug={restaurant.slug}
         currentUserId={profile.id}
         canManageFloor={staffRole !== 'waiter'}
+        businessType={restaurant.business_type}
         canCharge={canChargeOrders(staffRole)}
         calls={(calls ?? []).map((c) => ({
           id: c.id,

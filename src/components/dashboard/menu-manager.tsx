@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Box, ImageIcon, Layers, Pencil, Plus, Star, Trash2 } from 'lucide-react';
+import { Barcode, Box, ImageIcon, Layers, Pencil, Plus, Star, Trash2 } from 'lucide-react';
 import { Sheet, ConfirmDialog } from '@/components/ui/sheet';
 import { Input, Select, Switch, Textarea } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,8 @@ import { OptionGroupsEditor } from '@/components/dashboard/option-groups-editor'
 import { saveProduct, deleteProduct, toggleProductAvailability } from '@/app/dashboard/actions';
 import { formatAmount, parseAmount, formatMoney } from '@/lib/money';
 import { useT } from '@/i18n/provider';
+import { hasModule } from '@/lib/business-modules';
+import type { Enums } from '@/types/database';
 import { cn } from '@/lib/utils';
 
 /** Categoría del catálogo de la plataforma; el restaurante solo la elige. */
@@ -61,6 +63,13 @@ export type ManagedProduct = {
   trackStock: boolean;
   stockQty: number;
   lowStockThreshold: number;
+  /** Ficha de estantería. En una carta se queda toda a nulo y no estorba. */
+  unit: Enums<'sale_unit'>;
+  brand: string | null;
+  packSize: string | null;
+  barcode: string | null;
+  netContent: number | null;
+  soldByWeight: boolean;
   optionGroups: ManagedOptionGroup[];
 };
 
@@ -88,11 +97,18 @@ function emptyDraft(categoryId: string | null): Draft {
     trackStock: false,
     stockQty: 0,
     lowStockThreshold: 0,
+    unit: 'unit',
+    brand: null,
+    packSize: null,
+    barcode: null,
+    netContent: null,
+    soldByWeight: false,
   };
 }
 
 export function MenuManager({
   restaurantId,
+  businessType,
   currency,
   currencyDecimals,
   allows3d,
@@ -100,6 +116,7 @@ export function MenuManager({
   products,
 }: {
   restaurantId: string;
+  businessType: Enums<'business_type'>;
   currency: string;
   currencyDecimals: number;
   allows3d: boolean;
@@ -107,6 +124,8 @@ export function MenuManager({
   products: ManagedProduct[];
 }) {
   const t = useT();
+  // La ficha de estantería sólo se enseña a quien vende estanterías.
+  const tienda = hasModule(businessType, 'barcodes');
   const toast = useToast();
   const router = useRouter();
 
@@ -144,6 +163,12 @@ export function MenuManager({
       track_stock: productDraft.trackStock,
       stock_qty: productDraft.stockQty,
       low_stock_threshold: productDraft.lowStockThreshold,
+      unit: productDraft.unit,
+      brand: productDraft.brand || null,
+      pack_size: productDraft.packSize || null,
+      barcode: productDraft.barcode || null,
+      net_content: productDraft.netContent,
+      sold_by_weight: productDraft.soldByWeight,
       position: productDraft.position,
     });
 
@@ -299,6 +324,12 @@ export function MenuManager({
                               trackStock: product.trackStock,
                               stockQty: product.stockQty,
                               lowStockThreshold: product.lowStockThreshold,
+                              unit: product.unit,
+                              brand: product.brand,
+                              packSize: product.packSize,
+                              barcode: product.barcode,
+                              netContent: product.netContent,
+                              soldByWeight: product.soldByWeight,
                               ingredients: product.ingredients,
                               allergens: product.allergens,
                               tags: product.tags,
@@ -385,15 +416,18 @@ export function MenuManager({
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <Input
-                type="number"
-                value={productDraft.prepMinutes}
-                onChange={(e) =>
-                  setProductDraft({ ...productDraft, prepMinutes: Number(e.target.value) })
-                }
-                label={`${t.storefront.prepTime} (${t.common.min})`}
-                min={0}
-              />
+              {/* Un bote de tomate no tarda en hacerse. */}
+              {!tienda && (
+                <Input
+                  type="number"
+                  value={productDraft.prepMinutes}
+                  onChange={(e) =>
+                    setProductDraft({ ...productDraft, prepMinutes: Number(e.target.value) })
+                  }
+                  label={`${t.storefront.prepTime} (${t.common.min})`}
+                  min={0}
+                />
+              )}
               <Input
                 type="number"
                 value={productDraft.calories ?? ''}
@@ -426,6 +460,87 @@ export function MenuManager({
               max={100}
               step={0.5}
             />
+
+            {/* Ficha de estantería: marca, formato y código de barras. Es lo
+                que distingue dos referencias que se llaman casi igual, y lo que
+                permite darlas de alta leyendo el envase en vez de teclearlo. */}
+            {tienda && (
+              <div className="space-y-4 rounded-2xl bg-surface-soft p-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Input
+                    value={productDraft.brand ?? ''}
+                    onChange={(e) => setProductDraft({ ...productDraft, brand: e.target.value })}
+                    label={t.business.brand}
+                  />
+                  <Input
+                    value={productDraft.packSize ?? ''}
+                    onChange={(e) => setProductDraft({ ...productDraft, packSize: e.target.value })}
+                    label={t.business.packSize}
+                    hint={t.business.packSizeHint}
+                  />
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Select
+                    value={productDraft.unit}
+                    onChange={(e) =>
+                      setProductDraft({
+                        ...productDraft,
+                        unit: e.target.value as Enums<'sale_unit'>,
+                      })
+                    }
+                    label={t.business.unit}
+                  >
+                    <option value="unit">{t.business.unitUnit}</option>
+                    <option value="kg">{t.business.unitKg}</option>
+                    <option value="g">{t.business.unitG}</option>
+                    <option value="l">{t.business.unitL}</option>
+                    <option value="ml">{t.business.unitMl}</option>
+                  </Select>
+                  <Input
+                    type="number"
+                    step="0.001"
+                    min={0}
+                    value={productDraft.netContent ?? ''}
+                    onChange={(e) =>
+                      setProductDraft({
+                        ...productDraft,
+                        netContent: e.target.value === '' ? null : Number(e.target.value),
+                      })
+                    }
+                    label={t.business.netContent}
+                    hint={t.business.netContentHint}
+                  />
+                </div>
+
+                <Input
+                  inputMode="numeric"
+                  value={productDraft.barcode ?? ''}
+                  onChange={(e) => setProductDraft({ ...productDraft, barcode: e.target.value })}
+                  label={t.business.barcode}
+                  icon={<Barcode className="h-4 w-4" />}
+                />
+
+                <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={productDraft.soldByWeight}
+                    onChange={(e) =>
+                      setProductDraft({ ...productDraft, soldByWeight: e.target.checked })
+                    }
+                    className="h-4 w-4 accent-brand"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold text-ink-700">
+                      {t.business.soldByWeight}
+                    </span>
+                    <span className="block text-xs text-ink-300">
+                      {t.business.soldByWeightHint}
+                    </span>
+                  </span>
+                </label>
+              </div>
+            )}
 
             {/* Existencias. Opcional a propósito: la mayoría de una carta no se
                 lleva por unidades, y obligar a todos la convertiría en almacén. */}

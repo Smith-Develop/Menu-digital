@@ -77,6 +77,13 @@ const productSchema = z.object({
   track_stock: z.boolean().default(false),
   stock_qty: z.coerce.number().int().min(0).default(0),
   low_stock_threshold: z.coerce.number().int().min(0).default(0),
+  // Ficha de tienda: sólo la rellena quien vende referencias de estantería.
+  unit: z.enum(['unit', 'kg', 'g', 'l', 'ml']).default('unit'),
+  brand: z.string().max(80).nullable().optional(),
+  pack_size: z.string().max(40).nullable().optional(),
+  barcode: z.string().max(32).nullable().optional(),
+  net_content: z.coerce.number().min(0).nullable().optional(),
+  sold_by_weight: z.boolean().default(false),
 });
 
 export async function saveProduct(input: unknown): Promise<Result<{ id: string }>> {
@@ -1761,4 +1768,124 @@ export async function createCounterOrder(input: {
     ok: true,
     data: { id: order.id, code: order.code, totalCents: order.total_cents, charged },
   };
+}
+
+// ========================= Preparación por pasillos =========================
+
+/**
+ * Recoger una línea de la compra.
+ *
+ * El permiso es el de trabajar la comanda y no el de mover dinero, aunque esto
+ * mueva dinero: quien recorre la tienda con el carro es quien sabe que no hay,
+ * y obligar a llamar al encargado por cada bote agotado convierte la pantalla
+ * en un trámite. La base ya limita el daño —sólo puede bajar el importe, nunca
+ * subirlo— y todo queda anotado con nombre y hora.
+ */
+export async function pickOrderItem(
+  itemId: string,
+  qty: number,
+  note?: string,
+): Promise<Result<{ totalCents: number; refundedCents: number }>> {
+  const context = await requireStaffContext();
+  if (!canAccessSection('picking', context.staffRole)) return fail('FORBIDDEN');
+
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase.rpc('pick_order_item', {
+    p_item_id: itemId,
+    p_qty: Math.max(0, Math.round(qty)),
+    p_note: note?.trim().slice(0, 300) || null,
+  });
+
+  if (error) return fail(errorCode(error.message));
+
+  revalidatePath('/dashboard/picking');
+  revalidatePath('/dashboard/orders');
+  const r = data as { total_cents?: number; refunded_cents?: number };
+  return {
+    ok: true,
+    data: { totalCents: r?.total_cents ?? 0, refundedCents: r?.refunded_cents ?? 0 },
+  };
+}
+
+/** Se lo cambiamos por otro. Nunca por uno más caro: eso lo impone la base. */
+export async function replaceOrderItem(
+  itemId: string,
+  productId: string,
+  qty: number | null,
+  note?: string,
+): Promise<Result<{ totalCents: number }>> {
+  const context = await requireStaffContext();
+  if (!canAccessSection('picking', context.staffRole)) return fail('FORBIDDEN');
+
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase.rpc('replace_order_item', {
+    p_item_id: itemId,
+    p_product_id: productId,
+    p_qty: qty ?? null,
+    p_note: note?.trim().slice(0, 300) || null,
+  });
+
+  if (error) return fail(errorCode(error.message));
+
+  revalidatePath('/dashboard/picking');
+  revalidatePath('/dashboard/orders');
+  return { ok: true, data: { totalCents: (data as { total_cents?: number })?.total_cents ?? 0 } };
+}
+
+// ============================ Franjas de entrega ============================
+
+const slotSchema = z.object({
+  id: z.string().uuid().optional(),
+  weekday: z.number().int().min(1).max(7),
+  starts_at: z.string().regex(/^\d{2}:\d{2}$/),
+  ends_at: z.string().regex(/^\d{2}:\d{2}$/),
+  capacity: z.number().int().min(0).max(9999),
+  is_active: z.boolean(),
+});
+
+export async function saveDeliverySlot(input: unknown): Promise<Result<{ id: string }>> {
+  const { context, error: denied } = await guard('settings');
+  if (!context) return fail(denied);
+
+  const parsed = slotSchema.safeParse(input);
+  if (!parsed.success) return fail('INVALID_INPUT');
+  const slot = parsed.data;
+
+  if (slot.ends_at <= slot.starts_at) return fail('SLOT_INVALID_RANGE');
+
+  const supabase = await createServerSupabase();
+  const fila = { ...slot, restaurant_id: context.restaurant.id };
+
+  const { data, error } = slot.id
+    ? await supabase
+        .from('delivery_slots')
+        .update(fila)
+        .eq('id', slot.id)
+        .eq('restaurant_id', context.restaurant.id)
+        .select('id')
+        .single()
+    : await supabase.from('delivery_slots').insert(fila).select('id').single();
+
+  // Dos franjas iguales el mismo día no son dos franjas.
+  if (error) return fail(error.code === '23505' ? 'SLOT_DUPLICATE' : errorCode(error.message));
+
+  revalidatePath('/dashboard/slots');
+  return { ok: true, data: { id: data.id } };
+}
+
+export async function deleteDeliverySlot(id: string): Promise<Result> {
+  const { context, error: denied } = await guard('settings');
+  if (!context) return fail(denied);
+
+  const supabase = await createServerSupabase();
+  const { error } = await supabase
+    .from('delivery_slots')
+    .delete()
+    .eq('id', id)
+    .eq('restaurant_id', context.restaurant.id);
+
+  if (error) return fail(errorCode(error.message));
+
+  revalidatePath('/dashboard/slots');
+  return { ok: true };
 }

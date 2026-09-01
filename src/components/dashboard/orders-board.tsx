@@ -17,6 +17,7 @@ import { formatDateTime } from '@/lib/utils';
 import { useI18n } from '@/i18n/provider';
 import { cn } from '@/lib/utils';
 import type { Enums } from '@/types/database';
+import { hasModule } from '@/lib/business-modules';
 
 const TYPE_ICON: Record<Enums<'order_type'>, typeof Bike> = {
   dine_in: UtensilsCrossed,
@@ -39,6 +40,7 @@ export function OrdersBoard({
   canManageFloor,
   canCharge = false,
   staffRole = 'owner',
+  businessType,
 }: {
   restaurantId: string;
   currency: string;
@@ -56,9 +58,12 @@ export function OrdersBoard({
   /** Cobrar la cuenta de una mesa: quien atiende y quien lleva la caja. */
   canCharge?: boolean;
   staffRole?: Enums<'staff_role'>;
+  businessType: Enums<'business_type'>;
 }) {
   const { t, locale } = useI18n();
   const [expanded, setExpanded] = useState<string | null>(null);
+  // Sin mesas no hay sala que enseñar: ni la pestaña ni el plano.
+  const conSala = hasModule(businessType, 'floor');
 
   // Qué se está mirando dentro de lo que está en marcha. La sala y los pedidos
   // eran dos pantallas separadas, pero es el mismo trabajo: lo que hay abierto
@@ -72,7 +77,7 @@ export function OrdersBoard({
 
   const VISTAS = [
     { id: 'todo' as const, label: t.common.all },
-    { id: 'dine_in' as const, label: t.floor.tables },
+    ...(conSala ? [{ id: 'dine_in' as const, label: t.floor.tables }] : []),
     { id: 'delivery' as const, label: t.cart.delivery },
     { id: 'pickup' as const, label: t.cart.pickup },
   ];
@@ -108,7 +113,7 @@ export function OrdersBoard({
             ))}
           </div>
 
-          {(vista === 'todo' || vista === 'dine_in') && (
+          {conSala && (vista === 'todo' || vista === 'dine_in') && (
             <FloorView
               tables={tables}
               waiters={waiters}
