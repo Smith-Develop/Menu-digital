@@ -7,27 +7,6 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type Database = {
   public: {
     Tables: {
-      _c: {
-        Row: {
-          n: number | null;
-          prueba: string | null;
-          esperado: string | null;
-          obtenido: string | null;
-        };
-        Insert: {
-          n?: number | null;
-          prueba?: string | null;
-          esperado?: string | null;
-          obtenido?: string | null;
-        };
-        Update: {
-          n?: number | null;
-          prueba?: string | null;
-          esperado?: string | null;
-          obtenido?: string | null;
-        };
-        Relationships: [];
-      };
       _f: {
         Row: {
           n: number | null;
@@ -81,6 +60,12 @@ export type Database = {
           social_apple: boolean;
           splash_seconds: number;
           banner_rotation_seconds: number;
+          legal_name: string | null;
+          tax_id: string | null;
+          fiscal_address: string | null;
+          invoice_series: string;
+          invoice_next: number;
+          invoice_note: string | null;
         };
         Insert: {
           id?: boolean;
@@ -113,6 +98,12 @@ export type Database = {
           social_apple?: boolean;
           splash_seconds?: number;
           banner_rotation_seconds?: number;
+          legal_name?: string | null;
+          tax_id?: string | null;
+          fiscal_address?: string | null;
+          invoice_series?: string;
+          invoice_next?: number;
+          invoice_note?: string | null;
         };
         Update: {
           id?: boolean;
@@ -145,6 +136,12 @@ export type Database = {
           social_apple?: boolean;
           splash_seconds?: number;
           banner_rotation_seconds?: number;
+          legal_name?: string | null;
+          tax_id?: string | null;
+          fiscal_address?: string | null;
+          invoice_series?: string;
+          invoice_next?: number;
+          invoice_note?: string | null;
         };
         Relationships: [];
       };
@@ -1414,6 +1411,84 @@ export type Database = {
         };
         Relationships: [];
       };
+      platform_invoices: {
+        Row: {
+          id: string;
+          subject_type: Enums<"subscription_subject">;
+          subject_id: string;
+          subscription_id: string | null;
+          settlement_id: string | null;
+          number: number;
+          full_number: string;
+          issued_at: string;
+          issued_by: string | null;
+          issuer_name: string;
+          issuer_tax_id: string | null;
+          issuer_address: string | null;
+          customer_name: string;
+          customer_tax_id: string | null;
+          customer_address: string | null;
+          currency: string;
+          subtotal_cents: number;
+          tax_rate: number;
+          tax_cents: number;
+          total_cents: number;
+          lines: Json;
+          note: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          subject_type: Enums<"subscription_subject">;
+          subject_id: string;
+          subscription_id?: string | null;
+          settlement_id?: string | null;
+          number: number;
+          full_number: string;
+          issued_at?: string;
+          issued_by?: string | null;
+          issuer_name: string;
+          issuer_tax_id?: string | null;
+          issuer_address?: string | null;
+          customer_name: string;
+          customer_tax_id?: string | null;
+          customer_address?: string | null;
+          currency?: string;
+          subtotal_cents?: number;
+          tax_rate?: number;
+          tax_cents?: number;
+          total_cents?: number;
+          lines?: Json;
+          note?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          subject_type?: Enums<"subscription_subject">;
+          subject_id?: string;
+          subscription_id?: string | null;
+          settlement_id?: string | null;
+          number?: number;
+          full_number?: string;
+          issued_at?: string;
+          issued_by?: string | null;
+          issuer_name?: string;
+          issuer_tax_id?: string | null;
+          issuer_address?: string | null;
+          customer_name?: string;
+          customer_tax_id?: string | null;
+          customer_address?: string | null;
+          currency?: string;
+          subtotal_cents?: number;
+          tax_rate?: number;
+          tax_cents?: number;
+          total_cents?: number;
+          lines?: Json;
+          note?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       platform_settlements: {
         Row: {
           id: string;
@@ -2221,6 +2296,7 @@ export type Database = {
       platform_account: { Args: { p_subject_type: string; p_subject_id: string }; Returns: Json };
       settle_platform_commissions: { Args: { p_subject_type: string; p_subject_id: string; p_note?: string | null }; Returns: Json };
       platform_revenue: { Args: { p_days?: number }; Returns: Json };
+      issue_platform_invoice: { Args: { p_settlement_id: string; p_tax_rate?: number }; Returns: Json };
       is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };
       is_staff_of: { Args: { rid: string }; Returns: boolean };
     };

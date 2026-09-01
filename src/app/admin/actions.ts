@@ -840,3 +840,61 @@ export async function settlePlatformCommissions(
   revalidatePath('/admin/revenue');
   return { ok: true, data: { amountCents: r?.amount_cents ?? 0, lines: r?.lines ?? 0 } };
 }
+
+// ===================== Facturación de la plataforma =====================
+
+const billingSchema = z.object({
+  legal_name: z.string().max(120).nullable().optional(),
+  tax_id: z.string().max(40).nullable().optional(),
+  fiscal_address: z.string().max(200).nullable().optional(),
+  invoice_series: z.string().min(1).max(8).optional(),
+  invoice_note: z.string().max(200).nullable().optional(),
+});
+
+/**
+ * Los datos con los que la plataforma factura a sus clientes.
+ *
+ * Van aquí y no en la marca porque no son apariencia: sin identificación fiscal
+ * del emisor no se puede emitir ninguna factura, y la función de la base se
+ * niega a hacerlo.
+ */
+export async function updatePlatformBilling(input: unknown): Promise<Result> {
+  if (!(await requireAdmin())) return { ok: false, error: 'FORBIDDEN' };
+
+  const parsed = billingSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'INVALID_INPUT' };
+
+  const supabase = await createServerSupabase();
+  const { error } = await supabase.from('app_settings').update(parsed.data).eq('id', true);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath('/admin/revenue');
+  return { ok: true };
+}
+
+/** Emite la factura de una liquidación ya cerrada. */
+export async function issuePlatformInvoice(
+  settlementId: string,
+  taxRate = 0,
+): Promise<Result<{ fullNumber: string; already: boolean }>> {
+  if (!(await requireAdmin())) return { ok: false, error: 'FORBIDDEN' };
+
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase.rpc('issue_platform_invoice', {
+    p_settlement_id: settlementId,
+    p_tax_rate: taxRate,
+  });
+
+  if (error) {
+    return {
+      ok: false,
+      error: error.message.includes('PLATFORM_TAX_ID_MISSING')
+        ? 'PLATFORM_TAX_ID_MISSING'
+        : error.message,
+    };
+  }
+
+  const r = data as { full_number: string; already?: boolean };
+  revalidatePath('/admin/revenue');
+  return { ok: true, data: { fullNumber: r.full_number, already: Boolean(r.already) } };
+}

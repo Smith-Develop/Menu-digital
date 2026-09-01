@@ -235,6 +235,7 @@ export type Database = {
     out.append('      platform_account: { Args: { p_subject_type: string; p_subject_id: string }; Returns: Json };')
     out.append('      settle_platform_commissions: { Args: { p_subject_type: string; p_subject_id: string; p_note?: string | null }; Returns: Json };')
     out.append('      platform_revenue: { Args: { p_days?: number }; Returns: Json };')
+    out.append('      issue_platform_invoice: { Args: { p_settlement_id: string; p_tax_rate?: number }; Returns: Json };')
     out.append("      is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };")
     out.append("      is_staff_of: { Args: { rid: string }; Returns: boolean };")
     out.append("    };")
