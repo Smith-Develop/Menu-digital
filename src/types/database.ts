@@ -7,6 +7,27 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type Database = {
   public: {
     Tables: {
+      _f: {
+        Row: {
+          n: number | null;
+          prueba: string | null;
+          esperado: string | null;
+          obtenido: string | null;
+        };
+        Insert: {
+          n?: number | null;
+          prueba?: string | null;
+          esperado?: string | null;
+          obtenido?: string | null;
+        };
+        Update: {
+          n?: number | null;
+          prueba?: string | null;
+          esperado?: string | null;
+          obtenido?: string | null;
+        };
+        Relationships: [];
+      };
       app_settings: {
         Row: {
           id: boolean;
@@ -538,6 +559,123 @@ export type Database = {
         };
         Relationships: [];
       };
+      fiscal_documents: {
+        Row: {
+          id: string;
+          restaurant_id: string;
+          series_id: string;
+          kind: Enums<"fiscal_document_kind">;
+          number: number;
+          full_number: string;
+          order_id: string | null;
+          replaces_id: string | null;
+          issued_at: string;
+          issued_by: string | null;
+          issuer_name: string;
+          issuer_tax_id: string | null;
+          issuer_address: string | null;
+          customer_name: string | null;
+          customer_tax_id: string | null;
+          customer_address: string | null;
+          currency: string;
+          currency_decimals: number;
+          subtotal_cents: number;
+          discount_cents: number;
+          tax_cents: number;
+          total_cents: number;
+          tax_breakdown: Json;
+          lines: Json;
+          payments: Json;
+          note: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          restaurant_id: string;
+          series_id: string;
+          kind: Enums<"fiscal_document_kind">;
+          number: number;
+          full_number: string;
+          order_id?: string | null;
+          replaces_id?: string | null;
+          issued_at?: string;
+          issued_by?: string | null;
+          issuer_name: string;
+          issuer_tax_id?: string | null;
+          issuer_address?: string | null;
+          customer_name?: string | null;
+          customer_tax_id?: string | null;
+          customer_address?: string | null;
+          currency: string;
+          currency_decimals: number;
+          subtotal_cents: number;
+          discount_cents?: number;
+          tax_cents?: number;
+          total_cents: number;
+          tax_breakdown?: Json;
+          lines?: Json;
+          payments?: Json;
+          note?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          restaurant_id?: string;
+          series_id?: string;
+          kind?: Enums<"fiscal_document_kind">;
+          number?: number;
+          full_number?: string;
+          order_id?: string | null;
+          replaces_id?: string | null;
+          issued_at?: string;
+          issued_by?: string | null;
+          issuer_name?: string;
+          issuer_tax_id?: string | null;
+          issuer_address?: string | null;
+          customer_name?: string | null;
+          customer_tax_id?: string | null;
+          customer_address?: string | null;
+          currency?: string;
+          currency_decimals?: number;
+          subtotal_cents?: number;
+          discount_cents?: number;
+          tax_cents?: number;
+          total_cents?: number;
+          tax_breakdown?: Json;
+          lines?: Json;
+          payments?: Json;
+          note?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      fiscal_series: {
+        Row: {
+          id: string;
+          restaurant_id: string;
+          kind: Enums<"fiscal_document_kind">;
+          code: string;
+          next_number: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          restaurant_id: string;
+          kind: Enums<"fiscal_document_kind">;
+          code: string;
+          next_number?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          restaurant_id?: string;
+          kind?: Enums<"fiscal_document_kind">;
+          code?: string;
+          next_number?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       money_audit: {
         Row: {
           id: number;
@@ -769,6 +907,10 @@ export type Database = {
           voided_at: string | null;
           voided_by: string | null;
           void_reason: string | null;
+          tax_rate: number;
+          discount_cents: number;
+          taxable_base_cents: number;
+          tax_cents: number;
         };
         Insert: {
           id?: string;
@@ -787,6 +929,10 @@ export type Database = {
           voided_at?: string | null;
           voided_by?: string | null;
           void_reason?: string | null;
+          tax_rate?: number;
+          discount_cents?: number;
+          taxable_base_cents?: number;
+          tax_cents?: number;
         };
         Update: {
           id?: string;
@@ -805,6 +951,10 @@ export type Database = {
           voided_at?: string | null;
           voided_by?: string | null;
           void_reason?: string | null;
+          tax_rate?: number;
+          discount_cents?: number;
+          taxable_base_cents?: number;
+          tax_cents?: number;
         };
         Relationships: [];
       };
@@ -877,6 +1027,24 @@ export type Database = {
         };
         Relationships: [];
       };
+      order_transitions: {
+        Row: {
+          from_status: Enums<"order_status">;
+          to_status: Enums<"order_status">;
+          roles: Enums<"staff_role">[];
+        };
+        Insert: {
+          from_status: Enums<"order_status">;
+          to_status: Enums<"order_status">;
+          roles: Enums<"staff_role">[];
+        };
+        Update: {
+          from_status?: Enums<"order_status">;
+          to_status?: Enums<"order_status">;
+          roles?: Enums<"staff_role">[];
+        };
+        Relationships: [];
+      };
       orders: {
         Row: {
           id: string;
@@ -931,6 +1099,10 @@ export type Database = {
           discount_by: string | null;
           delivery_failed_at: string | null;
           delivery_failed_reason: string | null;
+          covers: number | null;
+          billing_name: string | null;
+          billing_tax_id: string | null;
+          billing_address: string | null;
         };
         Insert: {
           id?: string;
@@ -985,6 +1157,10 @@ export type Database = {
           discount_by?: string | null;
           delivery_failed_at?: string | null;
           delivery_failed_reason?: string | null;
+          covers?: number | null;
+          billing_name?: string | null;
+          billing_tax_id?: string | null;
+          billing_address?: string | null;
         };
         Update: {
           id?: string;
@@ -1039,6 +1215,10 @@ export type Database = {
           discount_by?: string | null;
           delivery_failed_at?: string | null;
           delivery_failed_reason?: string | null;
+          covers?: number | null;
+          billing_name?: string | null;
+          billing_tax_id?: string | null;
+          billing_address?: string | null;
         };
         Relationships: [];
       };
@@ -1179,6 +1359,10 @@ export type Database = {
           created_at: string;
           updated_at: string;
           catalog_category_id: string | null;
+          tax_rate: number | null;
+          track_stock: boolean;
+          stock_qty: number;
+          low_stock_threshold: number;
         };
         Insert: {
           id?: string;
@@ -1205,6 +1389,10 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           catalog_category_id?: string | null;
+          tax_rate?: number | null;
+          track_stock?: boolean;
+          stock_qty?: number;
+          low_stock_threshold?: number;
         };
         Update: {
           id?: string;
@@ -1231,6 +1419,10 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           catalog_category_id?: string | null;
+          tax_rate?: number | null;
+          track_stock?: boolean;
+          stock_qty?: number;
+          low_stock_threshold?: number;
         };
         Relationships: [];
       };
@@ -1621,6 +1813,45 @@ export type Database = {
         };
         Relationships: [];
       };
+      stock_movements: {
+        Row: {
+          id: string;
+          product_id: string;
+          restaurant_id: string;
+          kind: Enums<"stock_movement_kind">;
+          qty: number;
+          qty_after: number;
+          order_id: string | null;
+          reason: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          product_id: string;
+          restaurant_id: string;
+          kind: Enums<"stock_movement_kind">;
+          qty: number;
+          qty_after: number;
+          order_id?: string | null;
+          reason?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          product_id?: string;
+          restaurant_id?: string;
+          kind?: Enums<"stock_movement_kind">;
+          qty?: number;
+          qty_after?: number;
+          order_id?: string | null;
+          reason?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       subscriptions: {
         Row: {
           id: string;
@@ -1772,6 +2003,10 @@ export type Database = {
           p_tip_cents?: number;
           p_coupon_code?: string | null;
           p_table_session?: string | null;
+          p_covers?: number | null;
+          p_billing_name?: string | null;
+          p_billing_tax_id?: string | null;
+          p_billing_address?: string | null;
         };
         Returns: Json;
       };
@@ -1844,6 +2079,14 @@ export type Database = {
       cash_sessions_list: { Args: { p_restaurant_id: string; p_limit?: number }; Returns: Json };
       money_audit_list: { Args: { p_restaurant_id: string; p_limit?: number }; Returns: Json };
       expected_cash: { Args: { p_session_id: string }; Returns: number };
+      issue_fiscal_document: { Args: { p_order_id: string; p_customer_name?: string | null; p_customer_tax_id?: string | null; p_customer_address?: string | null }; Returns: Json };
+      issue_credit_note: { Args: { p_document_id: string; p_reason: string; p_amount_cents?: number | null }; Returns: Json };
+      order_documents: { Args: { p_order_id: string }; Returns: Json };
+      transfer_order_to_table: { Args: { p_order_id: string; p_table_id: string }; Returns: Json };
+      merge_tables: { Args: { p_from_table: string; p_to_table: string }; Returns: Json };
+      set_order_covers: { Args: { p_order_id: string; p_covers: number }; Returns: Json };
+      adjust_stock: { Args: { p_product_id: string; p_kind: Enums<'stock_movement_kind'>; p_qty: number; p_reason: string }; Returns: Json };
+      low_stock: { Args: { p_restaurant_id: string }; Returns: Json };
       is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };
       is_staff_of: { Args: { rid: string }; Returns: boolean };
     };
@@ -1856,6 +2099,7 @@ export type Database = {
       coupon_kind: "percentage" | "fixed" | "free_delivery";
       coupon_target: "order" | "products" | "categories";
       courier_status: "offline" | "available" | "busy";
+      fiscal_document_kind: "simplified" | "invoice" | "credit_note";
       notification_audience: "all" | "cities";
       order_item_status: "queued" | "preparing" | "ready" | "served";
       order_status: "pending" | "confirmed" | "preparing" | "ready" | "served" | "delivering" | "completed" | "cancelled";
@@ -1866,6 +2110,7 @@ export type Database = {
       plan_interval: "month" | "year";
       rating_target: "restaurant" | "product" | "courier" | "waiter";
       staff_role: "owner" | "admin" | "manager" | "waiter" | "kitchen" | "cashier";
+      stock_movement_kind: "sale" | "return" | "restock" | "adjustment" | "waste";
       subscription_status: "trialing" | "active" | "past_due" | "canceled" | "expired";
     };
     CompositeTypes: { [_ in never]: never };

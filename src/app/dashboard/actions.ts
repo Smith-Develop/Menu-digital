@@ -72,6 +72,11 @@ const productSchema = z.object({
   is_available: z.boolean().default(true),
   is_featured: z.boolean().default(false),
   position: z.coerce.number().int().min(0).default(0),
+  // Nulo usa el tipo general del restaurante, que es el caso mayoritario.
+  tax_rate: z.coerce.number().min(0).max(1).nullable().optional(),
+  track_stock: z.boolean().default(false),
+  stock_qty: z.coerce.number().int().min(0).default(0),
+  low_stock_threshold: z.coerce.number().int().min(0).default(0),
 });
 
 export async function saveProduct(input: unknown): Promise<Result<{ id: string }>> {
@@ -608,6 +613,18 @@ function errorCode(message: string): string {
     'NO_OPEN_SESSION',
     'COUNT_REQUIRED',
     'MOVEMENT_REASON_REQUIRED',
+    'NOT_PAID',
+    'FISCAL_DOCUMENT_IMMUTABLE',
+    'DOCUMENT_NOT_FOUND',
+    'ALREADY_CREDIT_NOTE',
+    'ORDER_CLOSED',
+    'TABLE_OTHER_RESTAURANT',
+    'TABLE_NOT_FOUND',
+    'SAME_TABLE',
+    'STOCK_REASON_REQUIRED',
+    'INVALID_KIND',
+    'INVALID_TRANSITION',
+    'ROLE_CANNOT_TRANSITION',
   ];
   return known.find((code) => message.includes(code)) ?? message;
 }
@@ -1529,4 +1546,139 @@ export async function addCashMovement(
   if (error) return fail(errorCode(error.message));
   revalidatePath('/dashboard/cash');
   return { ok: true };
+}
+
+// ========================= Documentos fiscales =========================
+//
+// Fase 3. Lo que se imprimía no podía defenderse ante una inspección: sin serie
+// ni numeración correlativa, sin identificación fiscal del emisor y sin
+// desglose por tipo impositivo. El documento se congela al emitirse, de modo
+// que tocar el pedido después no reescribe una factura ya entregada.
+
+/**
+ * Emite el documento de una venta.
+ *
+ * Con datos fiscales del cliente sale factura; sin ellos, ticket simplificado.
+ * Emitir dos veces no duplica la numeración: devuelve el que ya existe.
+ */
+export async function issueFiscalDocument(
+  orderId: string,
+  customer?: { name?: string | null; taxId?: string | null; address?: string | null },
+): Promise<Result<{ id: string; fullNumber: string; kind: string; already: boolean }>> {
+  const context = await requireStaffContext();
+  if (!canChargeOrders(context.staffRole)) return fail('FORBIDDEN');
+
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase.rpc('issue_fiscal_document', {
+    p_order_id: orderId,
+    p_customer_name: customer?.name?.trim() || null,
+    p_customer_tax_id: customer?.taxId?.trim() || null,
+    p_customer_address: customer?.address?.trim() || null,
+  });
+
+  if (error) return fail(errorCode(error.message));
+
+  const r = data as { id: string; full_number: string; kind?: string; already?: boolean };
+  revalidatePath('/dashboard/orders');
+  return {
+    ok: true,
+    data: {
+      id: r.id,
+      fullNumber: r.full_number,
+      kind: r.kind ?? 'simplified',
+      already: Boolean(r.already),
+    },
+  };
+}
+
+/**
+ * Emite una rectificativa sobre un documento ya entregado.
+ *
+ * Es la contrapartida fiscal de la devolución: nunca toca el original, emite
+ * otro que lo enmienda.
+ */
+export async function issueCreditNote(
+  documentId: string,
+  reason: string,
+  amountCents?: number | null,
+): Promise<Result<{ fullNumber: string; totalCents: number }>> {
+  const context = await requireStaffContext();
+  if (!canRefund(context.staffRole)) return fail('FORBIDDEN');
+  if (!reason.trim()) return fail('REFUND_REASON_REQUIRED');
+
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase.rpc('issue_credit_note', {
+    p_document_id: documentId,
+    p_reason: reason.trim().slice(0, 300),
+    p_amount_cents: amountCents ?? null,
+  });
+
+  if (error) return fail(errorCode(error.message));
+
+  const r = data as { full_number: string; total_cents: number };
+  revalidatePath('/dashboard/orders');
+  return { ok: true, data: { fullNumber: r.full_number, totalCents: r.total_cents } };
+}
+
+// ============================ Sala: mesas ============================
+
+/** Mueve una comanda a otra mesa. */
+export async function transferOrderToTable(orderId: string, tableId: string): Promise<Result> {
+  const context = await requireStaffContext();
+  if (!canChargeOrders(context.staffRole)) return fail('FORBIDDEN');
+
+  const supabase = await createServerSupabase();
+  const { error } = await supabase.rpc('transfer_order_to_table', {
+    p_order_id: orderId,
+    p_table_id: tableId,
+  });
+
+  if (error) return fail(errorCode(error.message));
+  revalidatePath('/dashboard/orders');
+  return { ok: true };
+}
+
+/** Junta dos mesas: lo abierto de la primera pasa a la segunda. */
+export async function mergeTables(
+  fromTableId: string,
+  toTableId: string,
+): Promise<Result<{ orders: number }>> {
+  const context = await requireStaffContext();
+  if (!canChargeOrders(context.staffRole)) return fail('FORBIDDEN');
+
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase.rpc('merge_tables', {
+    p_from_table: fromTableId,
+    p_to_table: toTableId,
+  });
+
+  if (error) return fail(errorCode(error.message));
+  revalidatePath('/dashboard/orders');
+  return { ok: true, data: { orders: (data as { orders?: number })?.orders ?? 0 } };
+}
+
+// ============================ Existencias ============================
+
+/** Recuento, merma o reposición. El motivo es obligatorio. */
+export async function adjustStock(
+  productId: string,
+  kind: Enums<'stock_movement_kind'>,
+  qty: number,
+  reason: string,
+): Promise<Result<{ stock: number }>> {
+  const context = await requireStaffContext();
+  if (!canManageMenu(context.staffRole)) return fail('FORBIDDEN');
+  if (!reason.trim()) return fail('STOCK_REASON_REQUIRED');
+
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase.rpc('adjust_stock', {
+    p_product_id: productId,
+    p_kind: kind,
+    p_qty: Math.round(qty),
+    p_reason: reason.trim().slice(0, 200),
+  });
+
+  if (error) return fail(errorCode(error.message));
+  revalidatePath('/dashboard/menu');
+  return { ok: true, data: { stock: (data as { stock?: number })?.stock ?? 0 } };
 }

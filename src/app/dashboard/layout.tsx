@@ -42,6 +42,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
         address: restaurant.address,
         phone: restaurant.phone,
         logoUrl: restaurant.logo_url,
+        // Sin identificación fiscal del emisor, lo impreso no es un ticket:
+        // es un resumen de la comanda.
+        taxId: restaurant.document_number,
       }}
       settings={printSettings}
     >

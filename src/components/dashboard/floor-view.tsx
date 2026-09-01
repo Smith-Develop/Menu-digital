@@ -3,12 +3,12 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { BellRing, LogOut, Plus, UserRound, Users, Wallet } from 'lucide-react';
+import { BellRing, LogOut, Merge, Plus, UserRound, Users, Wallet } from 'lucide-react';
 import { Select } from '@/components/ui/input';
 import { Badge, EmptyState } from '@/components/ui/misc';
 import { ConfirmDialog } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
-import { assignTableWaiter, endTableSession, payTableBill } from '@/app/dashboard/actions';
+import { assignTableWaiter, endTableSession, payTableBill, mergeTables } from '@/app/dashboard/actions';
 import { ChargeDialog, type Method } from '@/components/dashboard/money-dialogs';
 import { formatMoney } from '@/lib/money';
 import { useI18n } from '@/i18n/provider';
@@ -26,6 +26,8 @@ export type FloorTable = {
   total_cents: number;
   /** Lo que queda por cobrar: el total menos lo ya entregado a cuenta. */
   due_cents: number;
+  /** Comensales sumados de las comandas abiertas. */
+  covers: number | null;
   orders: {
     id: string;
     code: string;
@@ -76,6 +78,31 @@ export function FloorView({
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmarLiberar, setConfirmarLiberar] = useState<FloorTable | 'todas' | null>(null);
   const [cobrarMesa, setCobrarMesa] = useState<FloorTable | null>(null);
+  const [juntarDesde, setJuntarDesde] = useState<FloorTable | null>(null);
+
+  /**
+   * Junta dos mesas: lo abierto de la primera pasa a la segunda.
+   *
+   * La mesa de origen estrena turno, porque para sus comensales ya no hay
+   * cuenta ahí: si conservara el turno seguirían viendo una que se está
+   * pagando en otro sitio.
+   */
+  async function juntar(destino: FloorTable) {
+    const origen = juntarDesde;
+    if (!origen) return;
+    setJuntarDesde(null);
+
+    setBusy(origen.id);
+    const result = await mergeTables(origen.id, destino.id);
+    setBusy(null);
+
+    if (!result.ok) {
+      toast(result.error === 'FORBIDDEN' ? t.common.forbidden : t.common.error, 'error');
+      return;
+    }
+    toast(t.dashboard.tableMerged, 'success');
+    router.refresh();
+  }
 
   /**
    * Cobra la cuenta de la mesa, entera o a trozos.
@@ -232,6 +259,11 @@ export function FloorView({
                       {formatMoney(mesa.due_cents, currency, currencyDecimals)}
                     </span>
                   </div>
+                  {mesa.covers ? (
+                    <p className="text-right text-[11px] text-ink-300">
+                      {t.dashboard.covers}: {mesa.covers}
+                    </p>
+                  ) : null}
                   {mesa.due_cents < mesa.total_cents && (
                     <p className="text-right text-[11px] text-ink-300">
                       {t.dashboard.partialPaid}:{' '}
@@ -269,14 +301,47 @@ export function FloorView({
                     la práctica —quien toma la comanda la atiende— y así sus
                     avisos le llegan sin tener que asignarse a mano. */}
                 {canCharge && mesa.due_cents > 0 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setCobrarMesa(mesa)}
+                      disabled={busy === mesa.id}
+                      className="btn w-full border border-emerald-300 text-xs text-emerald-700 hover:bg-emerald-50"
+                    >
+                      <Wallet className="h-3.5 w-3.5" />
+                      {t.dashboard.payTable}
+                    </button>
+
+                    {/* Juntar mesas se hace en dos toques: primero la que se
+                        mueve, después dónde va. Un desplegable con todas las
+                        mesas obligaría a saberse los nombres de memoria. */}
+                    <button
+                      type="button"
+                      onClick={() => setJuntarDesde(juntarDesde?.id === mesa.id ? null : mesa)}
+                      disabled={busy === mesa.id}
+                      aria-pressed={juntarDesde?.id === mesa.id}
+                      className={cn(
+                        'btn w-full border text-xs',
+                        juntarDesde?.id === mesa.id
+                          ? 'border-brand bg-brand-50 text-brand-700'
+                          : 'border-surface-line text-ink-400 hover:bg-surface-field',
+                      )}
+                    >
+                      <Merge className="h-3.5 w-3.5" />
+                      {t.dashboard.mergeTables}
+                    </button>
+                  </>
+                )}
+
+                {/* Destino de la unión: sólo aparece en las demás mesas. */}
+                {juntarDesde && juntarDesde.id !== mesa.id && (
                   <button
                     type="button"
-                    onClick={() => setCobrarMesa(mesa)}
+                    onClick={() => juntar(mesa)}
                     disabled={busy === mesa.id}
-                    className="btn w-full border border-emerald-300 text-xs text-emerald-700 hover:bg-emerald-50"
+                    className="btn w-full bg-brand text-xs text-brand-contrast"
                   >
-                    <Wallet className="h-3.5 w-3.5" />
-                    {t.dashboard.payTable}
+                    {juntarDesde.name} → {mesa.name}
                   </button>
                 )}
 

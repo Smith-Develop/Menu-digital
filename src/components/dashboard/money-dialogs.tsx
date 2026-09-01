@@ -619,3 +619,94 @@ export function ReasonDialog<T extends string>({
 
 export const MOTIVOS_QUITAR = ['broken', 'outOfStock', 'mistake', 'customer', 'other'] as const;
 export const MOTIVOS_FALLIDA = ['absent', 'unreachable', 'address', 'refused', 'other'] as const;
+
+// ========================= Documento fiscal =========================
+
+/**
+ * Emisión del documento de una venta.
+ *
+ * Sin datos fiscales sale un ticket simplificado, que es lo que se entrega en
+ * la barra. En cuanto se rellena el NIF pasa a ser factura y se numera en su
+ * propia serie: son dos documentos distintos y no pueden compartir contador.
+ */
+export function InvoiceDialog({
+  open,
+  order,
+  loading,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean;
+  order: { code: string } | null;
+  loading?: boolean;
+  onClose: () => void;
+  onConfirm: (customer: { name: string; taxId: string; address: string }) => void;
+}) {
+  const { t } = useI18n();
+  const [nombre, setNombre] = useState('');
+  const [nif, setNif] = useState('');
+  const [direccion, setDireccion] = useState('');
+
+  useEffect(() => {
+    if (open) {
+      setNombre('');
+      setNif('');
+      setDireccion('');
+    }
+  }, [open]);
+
+  if (!order) return null;
+
+  const esFactura = nif.trim().length > 0;
+
+  return (
+    <Sheet open={open} onClose={onClose} title={`${t.dashboard.invoiceTitle} #${order.code}`}>
+      <p className="text-sm leading-relaxed text-ink-400">{t.dashboard.invoiceHint}</p>
+
+      <label className="label mt-5 block" htmlFor="factura-nif">
+        {t.dashboard.invoiceTaxId}
+      </label>
+      <input
+        id="factura-nif"
+        value={nif}
+        onChange={(e) => setNif(e.target.value)}
+        maxLength={30}
+        autoComplete="off"
+        className="input w-full"
+      />
+
+      {esFactura && (
+        <>
+          <label className="label mt-4 block" htmlFor="factura-nombre">
+            {t.dashboard.invoiceName}
+          </label>
+          <input
+            id="factura-nombre"
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            maxLength={120}
+            className="input w-full"
+          />
+
+          <label className="label mt-4 block" htmlFor="factura-direccion">
+            {t.dashboard.invoiceAddress}
+          </label>
+          <input
+            id="factura-direccion"
+            value={direccion}
+            onChange={(e) => setDireccion(e.target.value)}
+            maxLength={200}
+            className="input w-full"
+          />
+        </>
+      )}
+
+      <Footer
+        onClose={onClose}
+        onConfirm={() => onConfirm({ name: nombre, taxId: nif, address: direccion })}
+        confirmLabel={esFactura ? t.dashboard.issueInvoice : t.dashboard.issueDocument}
+        loading={loading}
+      />
+    </Sheet>
+  );
+}

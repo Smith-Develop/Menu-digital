@@ -8,6 +8,7 @@ import {
   Bike,
   CreditCard,
   Droplets,
+  FileText,
   HelpCircle,
   Receipt,
   Printer,
@@ -32,6 +33,7 @@ import {
   voidOrderItem,
   applyManualDiscount,
   failDelivery,
+  issueFiscalDocument,
 } from '@/app/dashboard/actions';
 import { formatMoney } from '@/lib/money';
 import { formatTime, cn } from '@/lib/utils';
@@ -46,6 +48,7 @@ import {
   RefundDialog,
   DiscountDialog,
   ReasonDialog,
+  InvoiceDialog,
   MOTIVOS_QUITAR,
   MOTIVOS_FALLIDA,
   type Method,
@@ -237,6 +240,7 @@ export function LiveOrdersPanel({
   const [discountFor, setDiscountFor] = useState<OrderRow | null>(null);
   const [failFor, setFailFor] = useState<OrderRow | null>(null);
   const [voidItem, setVoidItem] = useState<{ order: OrderRow; itemId: string; name: string } | null>(null);
+  const [invoiceFor, setInvoiceFor] = useState<OrderRow | null>(null);
   const vistos = useRef(new Set(initialCalls.map((c) => c.id)));
 
   const puedeCobrar = canChargeOrders(staffRole);
@@ -556,6 +560,35 @@ export function LiveOrdersPanel({
     router.refresh();
   }
 
+  /** Emite el ticket o la factura de una venta ya cobrada. */
+  async function confirmInvoice(customer: { name: string; taxId: string; address: string }) {
+    const order = invoiceFor;
+    if (!order) return;
+    setInvoiceFor(null);
+
+    setBusy(order.id);
+    const result = await issueFiscalDocument(order.id, {
+      name: customer.name,
+      taxId: customer.taxId,
+      address: customer.address,
+    });
+    setBusy(null);
+
+    if (!result.ok) {
+      toast(
+        result.error === 'NOT_PAID'
+          ? t.dashboard.paymentRequired
+          : result.error === 'FORBIDDEN'
+            ? t.common.forbidden
+            : t.common.error,
+        'error',
+      );
+      return;
+    }
+    toast(`${t.dashboard.documentIssued}: ${result.data.fullNumber}`, 'success');
+    router.refresh();
+  }
+
   async function confirmFail(reason: string) {
     const order = failFor;
     if (!order) return;
@@ -712,6 +745,14 @@ export function LiveOrdersPanel({
         danger
         onClose={() => setVoidItem(null)}
         onConfirm={confirmVoid}
+      />
+
+      <InvoiceDialog
+        open={invoiceFor !== null}
+        order={invoiceFor}
+        loading={busy === invoiceFor?.id}
+        onClose={() => setInvoiceFor(null)}
+        onConfirm={confirmInvoice}
       />
 
       <ReasonDialog
@@ -921,6 +962,18 @@ export function LiveOrdersPanel({
                         {order.paidCents > 0
                           ? `${t.dashboard.dueNow} ${formatMoney(order.totalCents - order.paidCents, currency, currencyDecimals)}`
                           : t.dashboard.markPaid}
+                      </button>
+                    )}
+
+                    {puedeCobrar && order.paidCents > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setInvoiceFor(order)}
+                        disabled={busy === order.id}
+                        className="btn flex-1 border border-surface-line text-ink-500 hover:bg-surface-field"
+                      >
+                        <FileText className="h-3.5 w-3.5" />
+                        {t.dashboard.issueDocument}
                       </button>
                     )}
 

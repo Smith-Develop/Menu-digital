@@ -29,6 +29,9 @@ export const PAPER_WIDTH: Record<TicketPaper, string> = {
   a4: '190mm',
 };
 
+/** Desglose por tipo impositivo, tal y como lo congela el documento fiscal. */
+export type TaxLine = { rate: number; base_cents: number; tax_cents: number };
+
 export type TicketOrder = {
   code: string;
   type: Enums<'order_type'>;
@@ -49,6 +52,13 @@ export type TicketOrder = {
   taxCents: number;
   tipCents: number;
   totalCents: number;
+  /** Documento fiscal emitido, si lo hay: serie, número y desglose. */
+  fiscalNumber?: string | null;
+  fiscalKind?: 'simplified' | 'invoice' | 'credit_note' | null;
+  taxBreakdown?: TaxLine[];
+  customerTaxId?: string | null;
+  customerAddress?: string | null;
+  covers?: number | null;
   items: {
     name: string;
     quantity: number;
@@ -72,7 +82,14 @@ export function Ticket({
   locale,
 }: {
   order: TicketOrder;
-  restaurant: { name: string; address: string | null; phone: string | null; logoUrl: string | null };
+  restaurant: {
+    name: string;
+    address: string | null;
+    phone: string | null;
+    logoUrl: string | null;
+    /** Identificación fiscal del emisor: sin ella el ticket no vale como tal. */
+    taxId?: string | null;
+  };
   settings: PrintSettings;
   locale: string;
 }) {
@@ -111,6 +128,7 @@ export function Ticket({
           />
         )}
         <div style={{ fontSize: narrow ? '13px' : '15px', fontWeight: 700 }}>{restaurant.name}</div>
+        {restaurant.taxId && <div>{restaurant.taxId}</div>}
         {restaurant.address && <div>{restaurant.address}</div>}
         {restaurant.phone && <div>{restaurant.phone}</div>}
       </div>
@@ -121,11 +139,27 @@ export function Ticket({
         <span>#{order.code}</span>
         <span>{TYPE_LABEL[order.type]}</span>
       </div>
+      {/* El número del pedido no sirve como numeración fiscal: es un contador
+          global de la plataforma. El de la serie sí, y va destacado. */}
+      {order.fiscalNumber && (
+        <div style={{ fontWeight: 700 }}>
+          {order.fiscalKind === 'invoice'
+            ? 'FACTURA'
+            : order.fiscalKind === 'credit_note'
+              ? 'FACTURA RECTIFICATIVA'
+              : 'TICKET'}{' '}
+          {order.fiscalNumber}
+        </div>
+      )}
       <div>{formatDateTime(order.createdAt, locale)}</div>
+      {order.covers ? <div>Comensales: {order.covers}</div> : null}
 
       {order.customerName && <div>Cliente: {order.customerName}</div>}
+      {order.customerTaxId && <div>NIF: {order.customerTaxId}</div>}
       {order.customerPhone && <div>Tel: {order.customerPhone}</div>}
-      {order.address && <div>Dir: {order.address}</div>}
+      {(order.customerAddress ?? order.address) && (
+        <div>Dir: {order.customerAddress ?? order.address}</div>
+      )}
 
       <Divider />
 
@@ -162,7 +196,15 @@ export function Ticket({
         />
       )}
       {order.deliveryFeeCents > 0 && <Line label="Envío" value={money(order.deliveryFeeCents)} />}
-      {order.taxCents > 0 && <Line label="Impuestos" value={money(order.taxCents)} />}
+      {order.taxBreakdown && order.taxBreakdown.length > 0
+        ? order.taxBreakdown.map((t) => (
+            <Line
+              key={t.rate}
+              label={`IVA ${(Number(t.rate) * 100).toFixed(0)}% s/ ${money(t.base_cents)}`}
+              value={money(t.tax_cents)}
+            />
+          ))
+        : order.taxCents > 0 && <Line label="Impuestos" value={money(order.taxCents)} />}
       {order.tipCents > 0 && <Line label="Propina" value={money(order.tipCents)} />}
 
       <Divider />

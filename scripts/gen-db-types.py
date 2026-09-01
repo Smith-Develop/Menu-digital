@@ -143,6 +143,10 @@ export type Database = {
           p_tip_cents?: number;
           p_coupon_code?: string | null;
           p_table_session?: string | null;
+          p_covers?: number | null;
+          p_billing_name?: string | null;
+          p_billing_tax_id?: string | null;
+          p_billing_address?: string | null;
         };
         Returns: Json;
       };""")
@@ -215,6 +219,14 @@ export type Database = {
     out.append("      cash_sessions_list: { Args: { p_restaurant_id: string; p_limit?: number }; Returns: Json };")
     out.append("      money_audit_list: { Args: { p_restaurant_id: string; p_limit?: number }; Returns: Json };")
     out.append("      expected_cash: { Args: { p_session_id: string }; Returns: number };")
+    out.append('      issue_fiscal_document: { Args: { p_order_id: string; p_customer_name?: string | null; p_customer_tax_id?: string | null; p_customer_address?: string | null }; Returns: Json };')
+    out.append('      issue_credit_note: { Args: { p_document_id: string; p_reason: string; p_amount_cents?: number | null }; Returns: Json };')
+    out.append('      order_documents: { Args: { p_order_id: string }; Returns: Json };')
+    out.append('      transfer_order_to_table: { Args: { p_order_id: string; p_table_id: string }; Returns: Json };')
+    out.append('      merge_tables: { Args: { p_from_table: string; p_to_table: string }; Returns: Json };')
+    out.append('      set_order_covers: { Args: { p_order_id: string; p_covers: number }; Returns: Json };')
+    out.append("      adjust_stock: { Args: { p_product_id: string; p_kind: Enums<'stock_movement_kind'>; p_qty: number; p_reason: string }; Returns: Json };")
+    out.append('      low_stock: { Args: { p_restaurant_id: string }; Returns: Json };')
     out.append("      is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };")
     out.append("      is_staff_of: { Args: { rid: string }; Returns: boolean };")
     out.append("    };")

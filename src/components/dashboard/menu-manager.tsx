@@ -56,6 +56,11 @@ export type ManagedProduct = {
   isAvailable: boolean;
   isFeatured: boolean;
   position: number;
+  /** Nulo usa el tipo general del restaurante. */
+  taxRate: number | null;
+  trackStock: boolean;
+  stockQty: number;
+  lowStockThreshold: number;
   optionGroups: ManagedOptionGroup[];
 };
 
@@ -79,6 +84,10 @@ function emptyDraft(categoryId: string | null): Draft {
     isAvailable: true,
     isFeatured: false,
     position: 0,
+    taxRate: null,
+    trackStock: false,
+    stockQty: 0,
+    lowStockThreshold: 0,
   };
 }
 
@@ -131,6 +140,10 @@ export function MenuManager({
       tags: productDraft.tags,
       is_available: productDraft.isAvailable,
       is_featured: productDraft.isFeatured,
+      tax_rate: productDraft.taxRate,
+      track_stock: productDraft.trackStock,
+      stock_qty: productDraft.stockQty,
+      low_stock_threshold: productDraft.lowStockThreshold,
       position: productDraft.position,
     });
 
@@ -282,6 +295,10 @@ export function MenuManager({
                               modelScale: product.modelScale,
                               prepMinutes: product.prepMinutes,
                               calories: product.calories,
+                              taxRate: product.taxRate,
+                              trackStock: product.trackStock,
+                              stockQty: product.stockQty,
+                              lowStockThreshold: product.lowStockThreshold,
                               ingredients: product.ingredients,
                               allergens: product.allergens,
                               tags: product.tags,
@@ -390,6 +407,66 @@ export function MenuManager({
                 min={0}
               />
             </div>
+
+            {/* Tipo impositivo del plato. En hostelería la comida y la bebida
+                alcohólica tributan distinto, y un porcentaje único por
+                restaurante no puede expresarlo. Vacío usa el general. */}
+            <Input
+              type="number"
+              value={productDraft.taxRate === null ? '' : productDraft.taxRate * 100}
+              onChange={(e) =>
+                setProductDraft({
+                  ...productDraft,
+                  taxRate: e.target.value === '' ? null : Number(e.target.value) / 100,
+                })
+              }
+              label={t.dashboard.taxRateLabel}
+              hint={t.dashboard.taxRateHint}
+              min={0}
+              max={100}
+              step={0.5}
+            />
+
+            {/* Existencias. Opcional a propósito: la mayoría de una carta no se
+                lleva por unidades, y obligar a todos la convertiría en almacén. */}
+            <label className="flex items-center gap-3 rounded-xl bg-surface-field px-4 py-3">
+              <input
+                type="checkbox"
+                checked={productDraft.trackStock}
+                onChange={(e) => setProductDraft({ ...productDraft, trackStock: e.target.checked })}
+                className="h-4 w-4 accent-brand"
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-ink-700">
+                  {t.dashboard.trackStock}
+                </span>
+                <span className="block text-xs text-ink-300">{t.dashboard.trackStockHint}</span>
+              </span>
+            </label>
+
+            {productDraft.trackStock && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Input
+                  type="number"
+                  value={productDraft.stockQty}
+                  onChange={(e) =>
+                    setProductDraft({ ...productDraft, stockQty: Number(e.target.value) })
+                  }
+                  label={t.dashboard.stockQty}
+                  min={0}
+                />
+                <Input
+                  type="number"
+                  value={productDraft.lowStockThreshold}
+                  onChange={(e) =>
+                    setProductDraft({ ...productDraft, lowStockThreshold: Number(e.target.value) })
+                  }
+                  label={t.dashboard.lowStockThreshold}
+                  hint={t.dashboard.lowStockHint}
+                  min={0}
+                />
+              </div>
+            )}
 
             <FileUpload
               bucket="products"

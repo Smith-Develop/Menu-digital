@@ -44,7 +44,13 @@ export function PrintProvider({
   settings,
   children,
 }: {
-  restaurant: { name: string; address: string | null; phone: string | null; logoUrl: string | null };
+  restaurant: {
+    name: string;
+    address: string | null;
+    phone: string | null;
+    logoUrl: string | null;
+    taxId?: string | null;
+  };
   settings: PrintSettings;
   children: ReactNode;
 }) {
