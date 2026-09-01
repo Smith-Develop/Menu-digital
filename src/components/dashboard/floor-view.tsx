@@ -306,7 +306,7 @@ export function FloorView({
                       type="button"
                       onClick={() => setCobrarMesa(mesa)}
                       disabled={busy === mesa.id}
-                      className="btn w-full border border-emerald-300 text-xs text-emerald-700 hover:bg-emerald-50"
+                      className="btn w-full bg-emerald-50 text-xs text-emerald-700 hover:bg-emerald-100"
                     >
                       <Wallet className="h-3.5 w-3.5" />
                       {t.dashboard.payTable}
@@ -339,7 +339,7 @@ export function FloorView({
                     type="button"
                     onClick={() => juntar(mesa)}
                     disabled={busy === mesa.id}
-                    className="btn w-full bg-brand text-xs text-brand-contrast"
+                    className="btn-primary w-full text-xs"
                   >
                     {juntarDesde.name} → {mesa.name}
                   </button>
@@ -363,7 +363,7 @@ export function FloorView({
                       disabled={busy === mesa.id}
                       aria-label={t.floor.endSession}
                       title={t.floor.endSession}
-                      className="btn shrink-0 px-3 text-xs text-ink-300 hover:bg-red-50 hover:text-state-danger"
+                      className="btn-soft shrink-0 px-3 text-xs hover:bg-red-50 hover:text-state-danger"
                     >
                       <LogOut className="h-3.5 w-3.5" />
                     </button>

@@ -127,6 +127,18 @@
     @apply btn border border-brand bg-white text-brand hover:bg-brand-50;
   }
 
+  /* Confirmación destructiva: rellena, como la principal, porque es la acción
+     que se va a pulsar. Un botón peligroso escondido es peor que uno visible. */
+  .btn-danger {
+    @apply btn bg-state-danger text-white hover:brightness-95;
+  }
+
+  /* Acción de apoyo con superficie propia. `btn` a secas no pinta fondo —sólo
+     forma y tamaño— así que usarla sola dejaba botones invisibles. */
+  .btn-soft {
+    @apply btn bg-surface-field text-ink-600 hover:bg-surface-muted;
+  }
+
   .chip {
     @apply inline-flex shrink-0 items-center gap-2 rounded-pill px-4 py-2.5
            text-[13px] font-bold transition-colors;

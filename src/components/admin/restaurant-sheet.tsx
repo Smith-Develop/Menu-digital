@@ -154,7 +154,14 @@ export function RestaurantSheet({
                 )
               }
               disabled={busy === 'active'}
-              className={cn('btn text-xs', restaurant.isActive ? 'border border-state-danger/40 text-state-danger' : 'bg-state-success text-white')}
+              // Las dos caras del interruptor con superficie propia: suspender
+              // sin fondo se leía como texto, no como botón.
+              className={cn(
+                'btn text-xs',
+                restaurant.isActive
+                  ? 'bg-red-50 text-state-danger hover:bg-red-100'
+                  : 'bg-state-success text-white hover:brightness-95',
+              )}
             >
               {restaurant.isActive ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
               {restaurant.isActive ? t.admin.suspend : t.admin.activate}

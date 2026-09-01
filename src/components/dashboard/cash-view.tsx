@@ -304,14 +304,14 @@ export function CashView({
                 setContado(report?.session.expected_cents ?? 0);
                 setCerrando(true);
               }}
-              className="btn text-sm"
+              className="btn-primary text-sm"
             >
               <LockKeyhole className="h-4 w-4" />
               {t.cash.close}
             </button>
           </div>
         ) : (
-          <button type="button" onClick={() => setAbriendo(true)} className="btn text-sm">
+          <button type="button" onClick={() => setAbriendo(true)} className="btn-primary text-sm">
             <Unlock className="h-4 w-4" />
             {t.cash.open}
           </button>
@@ -665,7 +665,7 @@ export function CashView({
           <button type="button" onClick={() => setAbriendo(false)} className="btn-ghost flex-1">
             {t.common.cancel}
           </button>
-          <button type="button" onClick={abrir} disabled={guardando} className="btn flex-1 disabled:opacity-50">
+          <button type="button" onClick={abrir} disabled={guardando} className="btn-primary flex-1 disabled:opacity-50">
             {t.cash.open}
           </button>
         </div>
@@ -722,7 +722,7 @@ export function CashView({
           <button type="button" onClick={() => setCerrando(false)} className="btn-ghost flex-1">
             {t.common.cancel}
           </button>
-          <button type="button" onClick={cerrar} disabled={guardando} className="btn flex-1 disabled:opacity-50">
+          <button type="button" onClick={cerrar} disabled={guardando} className="btn-primary flex-1 disabled:opacity-50">
             {t.cash.close}
           </button>
         </div>
@@ -775,7 +775,7 @@ export function CashView({
             type="button"
             onClick={mover}
             disabled={guardando || importe <= 0 || !concepto.trim()}
-            className="btn flex-1 disabled:opacity-50"
+            className="btn-primary flex-1 disabled:opacity-50"
           >
             {t.cash.addMovement}
           </button>

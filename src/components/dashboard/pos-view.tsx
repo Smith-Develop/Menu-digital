@@ -562,7 +562,7 @@ export function PosView({
         type="button"
         onClick={enviar}
         disabled={lines.length === 0 || enviando}
-        className="btn flex-[2] disabled:opacity-40"
+        className="btn-primary flex-[2] disabled:opacity-40"
       >
         {enviando ? t.checkout.processing : t.pos.send}
       </button>
@@ -784,7 +784,7 @@ export function PosView({
           disabled={lines.length === 0}
           // "2 platos · 24,20 €" no dice qué pasa al tocarlo.
           aria-label={t.pos.viewTicket}
-          className="btn w-full justify-between py-4 disabled:opacity-40"
+          className="btn-primary w-full justify-between py-4 disabled:opacity-40"
         >
           <span className="flex items-center gap-2">
             <ShoppingBag className="h-5 w-5" />
@@ -881,7 +881,7 @@ export function PosView({
           <button type="button" onClick={() => setEligiendo(null)} className="btn-ghost flex-1">
             {t.common.cancel}
           </button>
-          <button type="button" onClick={confirmarOpciones} className="btn flex-1">
+          <button type="button" onClick={confirmarOpciones} className="btn-primary flex-1">
             {t.common.add}
           </button>
         </div>

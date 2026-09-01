@@ -99,7 +99,7 @@ export function ConfirmDialog({
           type="button"
           onClick={onConfirm}
           disabled={loading}
-          className="btn flex-1 bg-state-danger text-white disabled:opacity-50"
+          className="btn-danger flex-1 disabled:opacity-50"
         >
           {confirmLabel}
         </button>

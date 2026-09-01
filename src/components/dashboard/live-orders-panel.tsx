@@ -904,7 +904,7 @@ export function LiveOrdersPanel({
                           type="button"
                           onClick={() => entregarAlRepartidor(order)}
                           disabled={busy === order.id}
-                          className="btn flex-1 bg-brand text-brand-contrast"
+                          className="btn-primary flex-1"
                         >
                           <Truck className="h-4 w-4" />
                           {t.courier.handedToCourier}
@@ -915,7 +915,7 @@ export function LiveOrdersPanel({
                           type="button"
                           onClick={() => setAssignFor(order)}
                           disabled={busy === order.id}
-                          className="btn flex-1 bg-brand text-brand-contrast"
+                          className="btn-primary flex-1"
                         >
                           <Truck className="h-4 w-4" />
                           {t.courier.sendCourier}
@@ -942,7 +942,7 @@ export function LiveOrdersPanel({
                       onClick={() => print(toTicket(order, currency, currencyDecimals))}
                       title={t.dashboard.printTicket}
                       aria-label={t.dashboard.printTicket}
-                      className="btn border border-surface-line text-ink-500 hover:bg-surface-field"
+                      className="btn-soft"
                     >
                       <Printer className="h-4 w-4" />
                     </button>
@@ -957,7 +957,7 @@ export function LiveOrdersPanel({
                           setChargeFor(order);
                         }}
                         disabled={busy === order.id}
-                        className="btn flex-1 border border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                        className="btn flex-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                       >
                         {order.paidCents > 0
                           ? `${t.dashboard.dueNow} ${formatMoney(order.totalCents - order.paidCents, currency, currencyDecimals)}`
@@ -970,7 +970,7 @@ export function LiveOrdersPanel({
                         type="button"
                         onClick={() => setInvoiceFor(order)}
                         disabled={busy === order.id}
-                        className="btn flex-1 border border-surface-line text-ink-500 hover:bg-surface-field"
+                        className="btn-soft flex-1"
                       >
                         <FileText className="h-3.5 w-3.5" />
                         {t.dashboard.issueDocument}
@@ -982,7 +982,7 @@ export function LiveOrdersPanel({
                         type="button"
                         onClick={() => setRefundFor(order)}
                         disabled={busy === order.id}
-                        className="btn flex-1 border border-state-danger/40 text-state-danger hover:bg-red-50"
+                        className="btn flex-1 bg-red-50 text-state-danger hover:bg-red-100"
                       >
                         {t.dashboard.refund}
                       </button>
@@ -993,7 +993,7 @@ export function LiveOrdersPanel({
                         type="button"
                         onClick={() => setCancelFor(order)}
                         disabled={busy === order.id}
-                        className="btn flex-1 border border-state-danger/40 text-state-danger hover:bg-red-50"
+                        className="btn flex-1 bg-red-50 text-state-danger hover:bg-red-100"
                       >
                         <XCircle className="h-4 w-4" />
                         {t.dashboard.cancelOrder}
@@ -1007,7 +1007,7 @@ export function LiveOrdersPanel({
                         type="button"
                         onClick={() => setDiscountFor(order)}
                         disabled={busy === order.id}
-                        className="btn flex-1 border border-surface-line text-ink-500 hover:bg-surface-field"
+                        className="btn-soft flex-1"
                       >
                         <Percent className="h-3.5 w-3.5" />
                         {order.manualDiscountCents > 0
@@ -1023,7 +1023,7 @@ export function LiveOrdersPanel({
                         type="button"
                         onClick={() => setFailFor(order)}
                         disabled={busy === order.id}
-                        className="btn flex-1 border border-amber-300 text-amber-700 hover:bg-amber-50"
+                        className="btn flex-1 bg-amber-50 text-amber-700 hover:bg-amber-100"
                       >
                         <Undo2 className="h-3.5 w-3.5" />
                         {t.dashboard.failDelivery}

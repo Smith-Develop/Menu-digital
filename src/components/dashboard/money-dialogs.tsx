@@ -162,7 +162,7 @@ function Footer({
         type="button"
         onClick={onConfirm}
         disabled={loading || disabled}
-        className={cn('btn flex-1 disabled:opacity-50', danger && 'bg-state-danger text-white')}
+        className={cn('flex-1 disabled:opacity-50', danger ? 'btn-danger' : 'btn-primary')}
       >
         {confirmLabel}
       </button>
