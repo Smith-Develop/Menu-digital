@@ -24,6 +24,7 @@ import {
   Truck,
   UsersRound,
   UtensilsCrossed,
+  Wallet,
   X,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -64,6 +65,9 @@ export function DashboardShell({
     // usan las páginas para dejar entrar, así que nunca ofrecen sitios cerrados.
     { href: '/dashboard', icon: LayoutDashboard, label: t.dashboard.overview, exact: true, show: true },
     { href: '/dashboard/orders', icon: Receipt, label: t.dashboard.floorAndOrders, show: puede('orders') },
+    // La caja va junto a los pedidos: se abre al empezar el turno y se cierra
+    // al acabarlo, que es el mismo momento en que se mira la sala.
+    { href: '/dashboard/cash', icon: Wallet, label: t.cash.title, show: puede('cash') },
     { href: '/dashboard/menu', icon: UtensilsCrossed, label: t.dashboard.menu, show: puede('menu') },
     { href: '/dashboard/tables', icon: QrCode, label: t.dashboard.tables, show: puede('tables') },
     { href: '/dashboard/banners', icon: ImageIcon, label: t.dashboard.banners, show: puede('banners') },

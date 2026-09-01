@@ -157,6 +157,93 @@ export type Database = {
         };
         Relationships: [];
       };
+      cash_movements: {
+        Row: {
+          id: string;
+          session_id: string;
+          restaurant_id: string;
+          kind: Enums<"cash_movement_kind">;
+          amount_cents: number;
+          method: Enums<"payment_method">;
+          reason: string;
+          courier_id: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          session_id: string;
+          restaurant_id: string;
+          kind: Enums<"cash_movement_kind">;
+          amount_cents: number;
+          method?: Enums<"payment_method">;
+          reason: string;
+          courier_id?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          session_id?: string;
+          restaurant_id?: string;
+          kind?: Enums<"cash_movement_kind">;
+          amount_cents?: number;
+          method?: Enums<"payment_method">;
+          reason?: string;
+          courier_id?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      cash_sessions: {
+        Row: {
+          id: string;
+          restaurant_id: string;
+          status: Enums<"cash_session_status">;
+          opened_at: string;
+          opened_by: string | null;
+          opening_float_cents: number;
+          closed_at: string | null;
+          closed_by: string | null;
+          counted_cents: number | null;
+          expected_cents: number | null;
+          variance_cents: number | null;
+          note: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          restaurant_id: string;
+          status?: Enums<"cash_session_status">;
+          opened_at?: string;
+          opened_by?: string | null;
+          opening_float_cents?: number;
+          closed_at?: string | null;
+          closed_by?: string | null;
+          counted_cents?: number | null;
+          expected_cents?: number | null;
+          variance_cents?: number | null;
+          note?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          restaurant_id?: string;
+          status?: Enums<"cash_session_status">;
+          opened_at?: string;
+          opened_by?: string | null;
+          opening_float_cents?: number;
+          closed_at?: string | null;
+          closed_by?: string | null;
+          counted_cents?: number | null;
+          expected_cents?: number | null;
+          variance_cents?: number | null;
+          note?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       catalog_categories: {
         Row: {
           id: string;
@@ -451,6 +538,48 @@ export type Database = {
         };
         Relationships: [];
       };
+      money_audit: {
+        Row: {
+          id: number;
+          restaurant_id: string;
+          entity: string;
+          entity_id: string;
+          action: string;
+          before_cents: number | null;
+          after_cents: number | null;
+          reason: string | null;
+          actor_id: string | null;
+          actor_role: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: number;
+          restaurant_id: string;
+          entity: string;
+          entity_id: string;
+          action: string;
+          before_cents?: number | null;
+          after_cents?: number | null;
+          reason?: string | null;
+          actor_id?: string | null;
+          actor_role?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: number;
+          restaurant_id?: string;
+          entity?: string;
+          entity_id?: string;
+          action?: string;
+          before_cents?: number | null;
+          after_cents?: number | null;
+          reason?: string | null;
+          actor_id?: string | null;
+          actor_role?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       notifications: {
         Row: {
           id: string;
@@ -694,6 +823,7 @@ export type Database = {
           cash_settled_at: string | null;
           cash_settled_by: string | null;
           created_at: string;
+          cash_session_id: string | null;
         };
         Insert: {
           id?: string;
@@ -709,6 +839,7 @@ export type Database = {
           cash_settled_at?: string | null;
           cash_settled_by?: string | null;
           created_at?: string;
+          cash_session_id?: string | null;
         };
         Update: {
           id?: string;
@@ -724,6 +855,7 @@ export type Database = {
           cash_settled_at?: string | null;
           cash_settled_by?: string | null;
           created_at?: string;
+          cash_session_id?: string | null;
         };
         Relationships: [];
       };
@@ -1704,6 +1836,14 @@ export type Database = {
       apply_manual_discount: { Args: { p_order_id: string; p_cents: number; p_reason: string }; Returns: Json };
       courier_fail_delivery: { Args: { p_order_id: string; p_reason: string }; Returns: Json };
       restaurant_cash_due: { Args: { p_restaurant_id: string }; Returns: Json };
+      open_cash_session: { Args: { p_restaurant_id: string; p_float_cents?: number; p_note?: string | null }; Returns: Json };
+      close_cash_session: { Args: { p_session_id: string; p_counted_cents: number; p_note?: string | null }; Returns: Json };
+      add_cash_movement: { Args: { p_restaurant_id: string; p_kind: Enums<'cash_movement_kind'>; p_amount_cents: number; p_reason: string; p_method?: Enums<'payment_method'> }; Returns: Json };
+      cash_session_report: { Args: { p_session_id: string }; Returns: Json };
+      current_cash_session: { Args: { p_restaurant_id: string }; Returns: Json };
+      cash_sessions_list: { Args: { p_restaurant_id: string; p_limit?: number }; Returns: Json };
+      money_audit_list: { Args: { p_restaurant_id: string; p_limit?: number }; Returns: Json };
+      expected_cash: { Args: { p_session_id: string }; Returns: number };
       is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };
       is_staff_of: { Args: { rid: string }; Returns: boolean };
     };
@@ -1711,6 +1851,8 @@ export type Database = {
       app_role: "superadmin" | "restaurant" | "customer" | "courier";
       call_status: "pending" | "attended" | "cancelled";
       call_type: "waiter" | "bill" | "water" | "help";
+      cash_movement_kind: "payout" | "withdrawal" | "deposit" | "courier_settlement" | "tip_out" | "correction" | "other";
+      cash_session_status: "open" | "closed";
       coupon_kind: "percentage" | "fixed" | "free_delivery";
       coupon_target: "order" | "products" | "categories";
       courier_status: "offline" | "available" | "busy";

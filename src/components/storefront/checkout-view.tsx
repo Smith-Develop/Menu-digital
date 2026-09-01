@@ -11,6 +11,7 @@ import { lineTotal, cartToOrderItems } from '@/lib/cart';
 import { useActiveCart, useCartContext } from '@/components/storefront/cart-provider';
 import { createClient } from '@/lib/supabase/client';
 import { formatMoney } from '@/lib/money';
+import { MoneyInput } from '@/components/ui/money-input';
 import { useT } from '@/i18n/provider';
 import { cn } from '@/lib/utils';
 import type { Enums } from '@/types/database';
@@ -153,14 +154,20 @@ export function CheckoutView({
   const [addressNotes, setAddressNotes] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // `null` significa "importe a mano"; cualquier otro valor es un porcentaje.
+  const [tipPercent, setTipPercent] = useState<number | null>(0);
+  const [tipCustom, setTipCustom] = useState(0);
 
   const subtotal = lines.reduce((sum, line) => sum + lineTotal(line), 0);
+  // La propina se calcula sobre la comida, no sobre el envío ni los impuestos:
+  // se agradece a quien cocina y a quien trae, no al reparto de la factura.
+  const tip = tipPercent === null ? tipCustom : Math.round((subtotal * tipPercent) / 100);
   const rawDelivery = orderType === 'delivery' ? deliveryFeeCents : 0;
   const freeDelivery = coupon?.kind === 'free_delivery';
   const delivery = freeDelivery ? Math.max(rawDelivery - coupon.discountCents, 0) : rawDelivery;
   const discount = coupon && !freeDelivery ? coupon.discountCents : 0;
   const tax = Math.round(Math.max(subtotal - discount, 0) * taxRate);
-  const total = Math.max(subtotal - discount + delivery + tax, 0);
+  const total = Math.max(subtotal - discount + delivery + tax + tip, 0);
 
   async function submit() {
     if (lines.length === 0) {
@@ -195,6 +202,7 @@ export function CheckoutView({
         p_address: orderType === 'delivery' ? address.trim() : null,
         p_address_notes: addressNotes.trim() || null,
         p_notes: notes.trim() || null,
+        p_tip_cents: tip,
         p_coupon_code: coupon?.code ?? null,
       });
 
@@ -366,6 +374,52 @@ export function CheckoutView({
           />
         </section>
 
+        {/* Propina. La columna existía en la base y el ticket la imprimía, pero
+            el pago nunca la enviaba: estaba construida y sin conectar. */}
+        <section className={cn('mt-7', requiresAccount && !signedIn && 'pointer-events-none opacity-40')}>
+          <p className="label">{t.checkout.tipTitle}</p>
+          <div className="grid grid-cols-4 gap-2">
+            {[0, 5, 10, 15].map((pct) => (
+              <button
+                key={pct}
+                type="button"
+                onClick={() => setTipPercent(pct)}
+                aria-pressed={tipPercent === pct}
+                className={cn(
+                  'rounded-xl border-2 py-3 text-sm font-bold transition-colors',
+                  tipPercent === pct
+                    ? 'border-brand bg-brand-50 text-brand-700'
+                    : 'border-transparent bg-surface-field text-ink-500 hover:bg-surface-muted',
+                )}
+              >
+                {pct === 0 ? t.checkout.tipNone : `${pct}%`}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => setTipPercent(null)}
+            aria-pressed={tipPercent === null}
+            className={cn(
+              'mt-2 w-full rounded-xl border-2 py-2.5 text-xs font-bold transition-colors',
+              tipPercent === null
+                ? 'border-brand bg-brand-50 text-brand-700'
+                : 'border-transparent bg-surface-field text-ink-400 hover:bg-surface-muted',
+            )}
+          >
+            {t.checkout.tipCustom}
+          </button>
+          {tipPercent === null && (
+            <MoneyInput
+              aria-label={t.checkout.tipCustom}
+              value={tipCustom}
+              decimals={currencyDecimals}
+              onChange={setTipCustom}
+              className="mt-2 text-lg"
+            />
+          )}
+        </section>
+
         <section
           className={cn('mt-7 rounded-2xl bg-surface-field p-5', requiresAccount && !signedIn && 'opacity-40')}
         >
@@ -393,6 +447,14 @@ export function CheckoutView({
                 </dt>
                 <dd className={freeDelivery ? 'font-semibold text-emerald-700' : 'font-semibold text-ink-600'}>
                   {freeDelivery ? t.common.free : formatMoney(delivery, currency, currencyDecimals)}
+                </dd>
+              </div>
+            )}
+            {tip > 0 && (
+              <div className="flex justify-between">
+                <dt className="text-ink-400">{t.common.tip}</dt>
+                <dd className="font-semibold text-ink-600">
+                  {formatMoney(tip, currency, currencyDecimals)}
                 </dd>
               </div>
             )}

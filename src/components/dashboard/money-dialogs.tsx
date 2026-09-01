@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Banknote, CreditCard, Smartphone } from 'lucide-react';
 import { Sheet } from '@/components/ui/sheet';
+import { MoneyInput } from '@/components/ui/money-input';
 import { formatMoney } from '@/lib/money';
 import { useI18n } from '@/i18n/provider';
 import { cn } from '@/lib/utils';
@@ -51,7 +52,7 @@ function MethodPicker({ value, onChange }: { value: Method; onChange: (m: Method
   );
 }
 
-/** Campo de importe en unidades de la divisa, devuelto en céntimos. */
+/** Etiqueta e importe, con la coma decimal que usa la aplicación. */
 function AmountField({
   id,
   label,
@@ -67,26 +68,12 @@ function AmountField({
   decimals: number;
   onChange: (cents: number) => void;
 }) {
-  const factor = 10 ** decimals;
   return (
     <>
       <label className="label mt-5 block" htmlFor={id}>
         {label}
       </label>
-      <input
-        id={id}
-        type="number"
-        inputMode="decimal"
-        min={0}
-        max={maxCents / factor}
-        step={1 / factor}
-        value={cents === 0 ? '' : (cents / factor).toFixed(decimals)}
-        onChange={(e) => {
-          const valor = Math.round(Number(e.target.value.replace(',', '.')) * factor);
-          onChange(Math.min(Math.max(Number.isFinite(valor) ? valor : 0, 0), maxCents));
-        }}
-        className="input w-full text-right font-display text-xl tabular-nums"
-      />
+      <MoneyInput id={id} value={cents} max={maxCents} decimals={decimals} onChange={onChange} className="text-xl" />
     </>
   );
 }

@@ -601,6 +601,13 @@ function errorCode(message: string): string {
     'LAST_ITEM',
     'OVERPAYMENT',
     'INVALID_AMOUNT',
+    'FORBIDDEN_CASH',
+    'SESSION_ALREADY_OPEN',
+    'SESSION_ALREADY_CLOSED',
+    'SESSION_NOT_FOUND',
+    'NO_OPEN_SESSION',
+    'COUNT_REQUIRED',
+    'MOVEMENT_REASON_REQUIRED',
   ];
   return known.find((code) => message.includes(code)) ?? message;
 }
@@ -1441,5 +1448,85 @@ export async function failDelivery(orderId: string, reason: string): Promise<Res
 
   if (error) return fail(errorCode(error.message));
   revalidatePath('/dashboard/orders');
+  return { ok: true };
+}
+
+// ============================== Caja y turno ==============================
+//
+// Fase 2 de la auditoría. Sin apertura con fondo, cierre con recuento y
+// descuadre, un panel de pedidos no llega a ser un TPV: nunca compara lo que
+// dice el sistema con el dinero que hay de verdad en el cajón.
+
+/** Abre el turno declarando el fondo con el que se empieza. */
+export async function openCashSession(
+  floatCents: number,
+  note?: string | null,
+): Promise<Result<{ sessionId: string }>> {
+  const context = await requireStaffContext();
+  if (!canChargeOrders(context.staffRole)) return fail('FORBIDDEN');
+
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase.rpc('open_cash_session', {
+    p_restaurant_id: context.restaurant.id,
+    p_float_cents: Math.max(0, Math.round(floatCents)),
+    p_note: note?.trim() || null,
+  });
+
+  if (error) return fail(errorCode(error.message));
+  revalidatePath('/dashboard/cash');
+  return { ok: true, data: { sessionId: (data as { session_id: string }).session_id } };
+}
+
+/** Cierra el turno con el recuento a mano y deja el descuadre a la vista. */
+export async function closeCashSession(
+  sessionId: string,
+  countedCents: number,
+  note?: string | null,
+): Promise<Result<{ expectedCents: number; countedCents: number; varianceCents: number }>> {
+  const context = await requireStaffContext();
+  if (!canChargeOrders(context.staffRole)) return fail('FORBIDDEN');
+
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase.rpc('close_cash_session', {
+    p_session_id: sessionId,
+    p_counted_cents: Math.max(0, Math.round(countedCents)),
+    p_note: note?.trim() || null,
+  });
+
+  if (error) return fail(errorCode(error.message));
+
+  const r = data as { expected_cents: number; counted_cents: number; variance_cents: number };
+  revalidatePath('/dashboard/cash');
+  revalidatePath('/dashboard');
+  return {
+    ok: true,
+    data: {
+      expectedCents: r.expected_cents,
+      countedCents: r.counted_cents,
+      varianceCents: r.variance_cents,
+    },
+  };
+}
+
+/** Entrada o salida de efectivo que no es una venta. */
+export async function addCashMovement(
+  kind: Enums<'cash_movement_kind'>,
+  amountCents: number,
+  reason: string,
+): Promise<Result> {
+  const context = await requireStaffContext();
+  if (!canChargeOrders(context.staffRole)) return fail('FORBIDDEN');
+  if (!reason.trim()) return fail('MOVEMENT_REASON_REQUIRED');
+
+  const supabase = await createServerSupabase();
+  const { error } = await supabase.rpc('add_cash_movement', {
+    p_restaurant_id: context.restaurant.id,
+    p_kind: kind,
+    p_amount_cents: Math.round(amountCents),
+    p_reason: reason.trim().slice(0, 200),
+  });
+
+  if (error) return fail(errorCode(error.message));
+  revalidatePath('/dashboard/cash');
   return { ok: true };
 }
