@@ -640,7 +640,12 @@ export function PosView({
           />
         ) : (
           // El hueco de abajo deja sitio a la barra fija del carrito.
-          <ul className="grid grid-cols-2 gap-3 pb-28 sm:grid-cols-3 xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:pb-2 2xl:grid-cols-4">
+          // `content-start` y `auto-rows-max` son lo que impide que se
+          // deformen: la rejilla vive dentro de una columna flexible, y por
+          // defecto `align-content` vale `stretch`, así que con pocos platos
+          // las filas se estiraban para llenar el alto sobrante y cada tarjeta
+          // salía enorme.
+          <ul className="grid auto-rows-max grid-cols-2 content-start gap-3 pb-28 sm:grid-cols-3 xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:pb-2 2xl:grid-cols-4">
             {visibles.map((p) => {
               const agotado = !p.isAvailable || (p.trackStock && p.stockQty <= 0);
               const enTicket = lines
@@ -657,7 +662,7 @@ export function PosView({
                       agotado ? 'cursor-not-allowed opacity-40' : 'active:scale-[0.98] hover:shadow-lg',
                     )}
                   >
-                    <span className="relative block aspect-[4/3] w-full bg-surface-muted">
+                    <span className="relative block h-24 w-full shrink-0 bg-surface-muted sm:h-28">
                       {p.imageUrl ? (
                         <Image src={p.imageUrl} alt="" fill sizes="200px" className="object-cover" />
                       ) : (
@@ -678,7 +683,11 @@ export function PosView({
                         </span>
                       )}
                     </span>
-                    <span className="flex flex-1 flex-col gap-1 p-3">
+                    {/* Alto fijo, no mínimo: con mínimo, un nombre de dos
+                        líneas hacía la tarjeta más alta que la de al lado. El
+                        nombre se recorta a dos líneas y el precio queda
+                        anclado abajo, así que todas miden igual. */}
+                    <span className="flex h-[5.5rem] flex-col gap-1 p-3">
                       <span className="line-clamp-2 text-sm font-semibold leading-tight text-ink-700">
                         {p.name}
                       </span>
