@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import {
+  CreditCard,
   Bell,
   Menu,
   Shield,
@@ -44,6 +45,7 @@ export function AdminNav({ userName }: { userName: string }) {
     // Los ingresos van junto a los planes: son las dos caras de lo mismo, lo
     // que se vende y lo que entra.
     { href: '/admin/revenue', icon: TrendingUp, label: t.admin.revenue },
+    { href: '/admin/payments', icon: CreditCard, label: t.gateway.title },
     { href: '/admin/categories', icon: LayoutGrid, label: t.catalog.title },
     { href: '/admin/couriers', icon: Bike, label: t.courier.couriers },
     { href: '/admin/coupons', icon: Ticket, label: t.coupon.coupons },

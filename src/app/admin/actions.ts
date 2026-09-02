@@ -999,3 +999,149 @@ export async function activateSponsorship(id: string): Promise<Result<{ totalCen
   revalidatePath('/');
   return { ok: true, data: { totalCents: (data as { total_cents?: number })?.total_cents ?? 0 } };
 }
+
+// ======================== Pasarelas de pago =========================
+
+const providerSchema = z.object({
+  id: z.string().uuid().optional(),
+  slug: z.string().min(2).max(40).regex(/^[a-z0-9-]+$/),
+  name: z.string().min(1).max(80),
+  logo_url: z.string().url().nullable().optional(),
+  kind: z.enum(['online', 'terminal']),
+  countries: z.array(z.string().length(2)).default([]),
+  currencies: z.array(z.string().length(3)).default([]),
+  adapter: z.string().min(1).max(40).default('http'),
+  config_schema: z.unknown(),
+  spec: z.unknown(),
+  is_active: z.boolean().default(true),
+  position: z.coerce.number().int().min(0).default(0),
+});
+
+/**
+ * Qué pasarelas se pueden conectar.
+ *
+ * Es la pantalla que hace que añadir una pasarela no sea desplegar una versión.
+ * Se guarda la receta tal cual, sin interpretarla: quien la revisa es la
+ * comprobación de abajo, y quien la ejecuta es el intérprete cuando llegue el
+ * primer cobro.
+ */
+export async function savePaymentProvider(input: unknown): Promise<Result<{ id: string }>> {
+  if (!(await requireAdmin())) return { ok: false, error: 'FORBIDDEN' };
+
+  const parsed = providerSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'INVALID_INPUT' };
+
+  const supabase = await createServerSupabase();
+  const { id, ...values } = parsed.data;
+  const fila = {
+    ...values,
+    config_schema: values.config_schema as never,
+    spec: values.spec as never,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data, error } = id
+    ? await supabase.from('payment_providers').update(fila).eq('id', id).select('id').single()
+    : await supabase.from('payment_providers').insert(fila).select('id').single();
+
+  if (error) {
+    return { ok: false, error: error.code === '23505' ? 'SLUG_TAKEN' : error.message };
+  }
+
+  revalidatePath('/admin/payments');
+  return { ok: true, data: { id: data.id } };
+}
+
+export async function deletePaymentProvider(id: string): Promise<Result> {
+  if (!(await requireAdmin())) return { ok: false, error: 'FORBIDDEN' };
+
+  const supabase = await createServerSupabase();
+  const { error } = await supabase.from('payment_providers').delete().eq('id', id);
+
+  // Una pasarela con comercios enganchados no se borra: se apaga. Borrarla
+  // dejaría cobros huérfanos sin manera de saber por dónde entraron.
+  if (error) {
+    return { ok: false, error: error.code === '23503' ? 'PROVIDER_IN_USE' : error.message };
+  }
+
+  revalidatePath('/admin/payments');
+  return { ok: true };
+}
+
+/**
+ * Revisa una receta antes de darla por buena.
+ *
+ * No llama a la pasarela: para eso hacen falta credenciales, y esas las pone
+ * cada comercio en su panel. Lo que sí puede decirse aquí es si la receta está
+ * completa y si sus caminos apuntan a algún sitio, que es donde se pierde la
+ * tarde cuando algo no funciona.
+ */
+export async function reviewPaymentSpec(spec: unknown): Promise<Result<{ avisos: string[] }>> {
+  if (!(await requireAdmin())) return { ok: false, error: 'FORBIDDEN' };
+
+  const avisos: string[] = [];
+  const receta = spec as Record<string, unknown> | null;
+
+  if (!receta || typeof receta !== 'object') {
+    return { ok: true, data: { avisos: ['La receta tiene que ser un objeto.'] } };
+  }
+
+  const crear = receta.create as Record<string, unknown> | undefined;
+  if (!crear) {
+    avisos.push('Falta `create`: sin ella no se puede abrir un cobro.');
+  } else {
+    if (typeof crear.url !== 'string' || !crear.url.startsWith('http')) {
+      avisos.push('`create.url` tiene que ser una dirección http o https.');
+    }
+    const extraer = (crear.extract ?? {}) as Record<string, string>;
+    if (!extraer.redirect_url) {
+      avisos.push('`create.extract.redirect_url` es obligatorio: es a dónde se manda al cliente.');
+    }
+    if (!extraer.reference) {
+      avisos.push(
+        '`create.extract.reference` falta. Sin referencia del proveedor no se puede ' +
+          'reconocer su aviso ni evitar cobrar dos veces.',
+      );
+    }
+  }
+
+  const aviso = receta.webhook as Record<string, unknown> | undefined;
+  if (!aviso) {
+    avisos.push('Falta `webhook`: sin él nunca se sabrá que el cliente pagó.');
+  } else {
+    const verify = aviso.verify as Record<string, unknown> | undefined;
+    if (!verify || verify.mode === 'none') {
+      avisos.push(
+        'El aviso no se verifica. Cualquiera podría llamar a esa dirección diciendo ' +
+          'que un pedido está pagado.',
+      );
+    }
+    if (!aviso.reference) avisos.push('`webhook.reference` falta: no se sabría de qué cobro habla.');
+    const mapa = (aviso.map ?? {}) as Record<string, string>;
+    if (!Object.values(mapa).includes('paid')) {
+      avisos.push('Ningún estado del proveedor está traducido a `paid`: nunca se dará por cobrado.');
+    }
+  }
+
+  const marcas = JSON.stringify(receta).match(/\{\{\s*[\w.]+\s*\}\}/g) ?? [];
+  const conocidas = new Set([
+    'amount_minor', 'amount_major', 'currency', 'order_code', 'order_id', 'intent_id',
+    'description', 'return_url', 'cancel_url', 'webhook_url',
+    'customer_name', 'customer_email', 'customer_phone', 'reference', 'cuerpo',
+  ]);
+  const credenciales = ((receta.__credenciales ?? []) as string[]) ?? [];
+  const desconocidas = [
+    ...new Set(
+      marcas
+        .map((m) => m.replace(/[{}\s]/g, ''))
+        .filter((m) => !conocidas.has(m) && !credenciales.includes(m)),
+    ),
+  ];
+  if (desconocidas.length) {
+    avisos.push(
+      `Estas marcas saldrán vacías si no son credenciales del comercio: ${desconocidas.join(', ')}.`,
+    );
+  }
+
+  return { ok: true, data: { avisos } };
+}

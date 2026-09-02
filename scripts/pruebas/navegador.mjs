@@ -37,6 +37,25 @@ let ok=0, mal=0;
 const check=(n,c,d='')=>{ if(c){ok++;console.log('  ok    '+n);} else {mal++;console.log('  FALLO '+n+' :: '+String(d).slice(0,180));} };
 
 const ventana = async () => (await b.newContext({viewport:{width:1440,height:1000},locale:'es-ES'})).newPage();
+
+/**
+ * El texto de la página, esperando a que haya página.
+ *
+ * En desarrollo el servidor se reinicia solo al cambiar un fichero, y una
+ * navegación pillada en ese momento deja la pestaña sin documento. Reintentar
+ * distingue eso —que no es un fallo de la aplicación— de una pantalla rota.
+ */
+async function texto(pag) {
+  for (let intento = 0; intento < 3; intento += 1) {
+    try {
+      await pag.waitForSelector('body', { timeout: 10000 });
+      return await pag.$eval('body', (e) => e.innerText);
+    } catch {
+      await pag.waitForTimeout(2000);
+    }
+  }
+  return '';
+}
 const entrar = async (p, mail, clave) => {
   await p.goto(`${BASE}/login`,{waitUntil:'networkidle'}); await p.waitForTimeout(3000);
   await p.fill('input[type="email"]',mail); await p.fill('input[type="password"]',clave);
@@ -56,7 +75,7 @@ for (const ruta of ['/', '/r/la-trattoria', '/search?q=pizza', '/login',
                     '/dashboard/pos', '/dashboard/tables', '/dashboard/staff',
                     '/dashboard/coupons', '/dashboard/promote', '/dashboard/settings',
                     '/kitchen', '/admin', '/admin/restaurants', '/admin/plans',
-                    '/admin/revenue', '/admin/categories']) {
+                    '/admin/revenue', '/admin/payments', '/admin/categories']) {
   await fetch(BASE + ruta).catch(() => {});
 }
 
@@ -70,16 +89,16 @@ if (!anon.url().endsWith('/') && !anon.url().includes('city=')) {
   await anon.goto(`${BASE}/?city=madrid`,{waitUntil:'networkidle'});
   await anon.waitForTimeout(2500);
 }
-let t = await anon.$eval('body', b=>b.innerText);
+let t = await texto(anon);
 check('la portada lista restaurantes sin sesión', /La Trattoria/.test(t), `${anon.url()} · ${t.slice(0,120)}`);
 check('y sus categorías', /Pizzas/i.test(t), t.slice(0,200));
 await anon.goto(`${BASE}/r/la-trattoria`,{waitUntil:'networkidle'});
 await anon.waitForTimeout(2500);
-t = await anon.$eval('body', b=>b.innerText);
+t = await texto(anon);
 check('la carta de un local se ve sin sesión', /Pizza Margherita/.test(t), t.slice(0,200));
 await anon.goto(`${BASE}/search?q=pizza`,{waitUntil:'networkidle'});
 await anon.waitForTimeout(2500);
-check('el buscador responde', !/error/i.test(await anon.$eval('body',b=>b.innerText)), '');
+check('el buscador responde', !/error/i.test(await texto(anon)), '');
 
 // --- 2 · El panel del restaurante ---------------------------------------
 const p = await ventana();
@@ -98,8 +117,8 @@ for (const [ruta, señal] of [['/dashboard', /Resumen|Hoy|Pedidos/i],
                              ['/kitchen', /cocina|En cola/i]]) {
   await p.goto(BASE+ruta,{waitUntil:'networkidle'});
   await p.waitForTimeout(2200);
-  const texto = await p.$eval('body', b=>b.innerText);
-  check(`abre ${ruta}`, señal.test(texto) && !/Application error|Unhandled/i.test(texto), texto.slice(0,160));
+  const t2 = await texto(p);
+  check(`abre ${ruta}`, señal.test(t2) && !/Application error|Unhandled/i.test(t2), t2.slice(0,160));
 }
 
 // --- 3 · El superadmin ---------------------------------------------------
@@ -110,11 +129,12 @@ for (const [ruta, señal] of [['/admin', /Superadmin|Restaurantes/i],
                              ['/admin/restaurants', /Restaurantes/i],
                              ['/admin/plans', /Planes/i],
                              ['/admin/revenue', /Ingresos/i],
+                             ['/admin/payments', /Pasarelas de pago/i],
                              ['/admin/categories', /Categor/i]]) {
   await sa.goto(BASE+ruta,{waitUntil:'networkidle'});
   await sa.waitForTimeout(2200);
-  const texto = await sa.$eval('body', b=>b.innerText);
-  check(`abre ${ruta}`, señal.test(texto) && !/Application error/i.test(texto), texto.slice(0,160));
+  const t3 = await texto(sa);
+  check(`abre ${ruta}`, señal.test(t3) && !/Application error/i.test(t3), t3.slice(0,160));
 }
 
 console.log('\nerrores de consola:', JSON.stringify({anon:errAnon.length, panel:errPanel.length, admin:errAdmin.length}));
