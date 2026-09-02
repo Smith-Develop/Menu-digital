@@ -31,12 +31,15 @@ NECESARIAS = {
     "delivery_allowed", "sponsored_restaurants", "unit_price_cents",
 }
 
-# Cuántas funciones puede ejecutar `anon` hoy. Sólo puede bajar.
+# Cuántas funciones puede ejecutar `anon`. Sólo puede bajar.
 #
-# El número alto no es una decisión: es el privilegio por defecto que Supabase
-# concede sobre todo lo que se crea en `public`. Cuando el bloque 0.3 lo revoque,
-# esta cifra pasará a 13 y la prueba se volverá estricta de verdad.
-TECHO = 125
+# Eran 125 —todas— porque el motor concede la ejecución a PUBLIC al crear cada
+# función y la instalación añadía la suya por defecto. Las migraciones 0057 y
+# 0058 cerraron las dos puertas y dejaron sólo lo concedido a mano: veintinueve,
+# que son las del escaparate más las que usan las políticas por dentro.
+#
+# Subir esta cifra tiene que costar una línea en un `git diff`.
+TECHO = 29
 
 # Tabla que crea el ejecutor de migraciones, cerrada a propósito y sin políticas.
 SIN_POLITICA_A_PROPOSITO = {"schema_migrations"}
@@ -87,15 +90,28 @@ def correr(c: Cuaderno, esc: Escenario) -> None:
         ("emitir factura",       "issue_platform_invoice", {"p_settlement_id": nadie, "p_tax_rate": 0}),
     ]
 
-    colados = []
+    colados, por_permiso, por_comprobacion = [], 0, 0
     for nombre, funcion, argumentos in intentos:
         respuesta = rpc(None, funcion, argumentos)
+        mensaje = respuesta.get("message", "") if isinstance(respuesta, dict) else ""
         codigo = error_de(respuesta)
-        rechazado = codigo.startswith("FORBIDDEN") or codigo in ("NOT_A_COURIER", "PLAN_NO_POOL")
-        if not rechazado:
+
+        if "permission denied" in mensaje.lower():
+            por_permiso += 1
+        elif codigo.startswith("FORBIDDEN") or codigo in ("NOT_A_COURIER", "PLAN_NO_POOL"):
+            por_comprobacion += 1
+        else:
             colados.append(f"{nombre} -> {str(respuesta)[:80]}")
+
     c.check(f"las {len(intentos)} llamadas anónimas al dinero rebotan", not colados,
             " | ".join(colados))
+
+    # Desde el bloque 0.3 la primera barrera es el permiso, no la comprobación
+    # que la función lleva dentro. Las dos siguen ahí; lo que cambia es cuál
+    # actúa primero, y que ahora hay dos.
+    c.check("y rebotan ya en la capa de permisos, no en la comprobación interna",
+            por_permiso == len(intentos),
+            f"{por_permiso} por permiso · {por_comprobacion} por comprobación interna")
 
     # Y que tampoco pueda leer nada.
     filtrados = []

@@ -1,10 +1,16 @@
 # Pruebas
 
 ```
-npm test            # todas
-npm run test:dinero # sólo las reglas del dinero
-npm run verify      # tipos, estilo, migraciones y pruebas
+npm test               # las de base de datos
+npm run test:dinero    # sólo las reglas del dinero
+npm run test:navegador  # que las pantallas abran (necesita el servidor en marcha)
+npm run verify         # tipos, estilo, migraciones y pruebas
 ```
+
+La de navegador pide las cuentas por entorno, porque son las de la instalación
+contra la que se prueba: `PRUEBAS_OWNER_EMAIL`, `PRUEBAS_OWNER_PASSWORD`,
+`PRUEBAS_ADMIN_EMAIL`, `PRUEBAS_ADMIN_PASSWORD` y, si no es local, `PRUEBAS_URL`.
+Sin ellas avisa y se sale, en vez de fallar.
 
 ## Cómo funcionan
 
@@ -24,6 +30,9 @@ comprobaciones de permiso: con un superusuario no se vería ninguna.
   devoluciones, quitar líneas, invitar, anular, la caja del turno con su efectivo
   esperado, el dinero que lleva el repartidor y su liquidación, y que el rastro
   no se pueda borrar.
+- **`navegador.mjs`** · que abran el escaparate sin sesión, las once pantallas
+  del panel del restaurante, la de cocina y las cinco del superadministrador, y
+  que ninguna deje errores en la consola.
 - **`superficie_publica.py`** · dieciséis llamadas sin sesión contra las
   funciones que mueven dinero, lectura anónima de las tablas sensibles, y dos
   trinquetes: que no crezca el número de funciones que `anon` puede ejecutar y
@@ -31,10 +40,10 @@ comprobaciones de permiso: con un superusuario no se vería ninguna.
 
 ## El trinquete
 
-`superficie_publica.py` guarda un techo: cuántas funciones puede ejecutar `anon`
-hoy. Esa cifra sólo puede bajar. Está alta porque en este esquema todo nace
-abierto por privilegio por defecto, y bajará de golpe a trece cuando se cierren
-los permisos. Mientras tanto, impide que empeore.
+`superficie_publica.py` guarda un techo: cuántas funciones puede ejecutar `anon`.
+Esa cifra sólo puede bajar. Eran 125 —todas— y son 29 desde que las migraciones
+0057 y 0058 cerraron los permisos. Subirla tiene que costar una línea visible en
+un `git diff`.
 
 ## Restos
 
