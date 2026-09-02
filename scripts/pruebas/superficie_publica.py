@@ -29,17 +29,21 @@ NECESARIAS = {
     "list_cities", "nearest_city", "home_banners", "active_notifications",
     "catalog_tree", "available_delivery_slots", "restaurant_is_open_now",
     "delivery_allowed", "sponsored_restaurants", "unit_price_cents",
+    # El escaparate necesita saber qué formas de pago acepta el local antes de
+    # que nadie inicie sesión. No devuelve credenciales ni recetas.
+    "merchant_payment_options",
 }
 
 # Cuántas funciones puede ejecutar `anon`. Sólo puede bajar.
 #
 # Eran 125 —todas— porque el motor concede la ejecución a PUBLIC al crear cada
-# función y la instalación añadía la suya por defecto. Las migraciones 0057 y
-# 0058 cerraron las dos puertas y dejaron sólo lo concedido a mano: veintinueve,
-# que son las del escaparate más las que usan las políticas por dentro.
+# función. Las migraciones 0057 y 0058 lo cerraron, y esta misma prueba encontró
+# que se reabría con cada función nueva: cuatro de los cimientos de cobro
+# salieron ejecutables sin sesión. La 0062 puso un disparador de eventos para
+# que ninguna vuelva a nacer abierta.
 #
 # Subir esta cifra tiene que costar una línea en un `git diff`.
-TECHO = 29
+TECHO = 30
 
 # Tabla que crea el ejecutor de migraciones, cerrada a propósito y sin políticas.
 SIN_POLITICA_A_PROPOSITO = {"schema_migrations"}

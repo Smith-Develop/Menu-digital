@@ -15,6 +15,7 @@
     "test": "python3 scripts/pruebas/correr.py",
     "test:dinero": "python3 scripts/pruebas/dinero.py",
     "test:publico": "python3 scripts/pruebas/superficie_publica.py",
+    "test:pasarelas": "python3 scripts/pruebas/pasarelas.py",
     "test:navegador": "node scripts/pruebas/navegador.mjs",
     "verify": "npm run typecheck && npm run lint && npm run db:check && npm test"
   },

@@ -16,7 +16,7 @@ sys.path.insert(0, str(AQUI))
 
 from arnes import Cuaderno, Escenario, limpiar_huerfanos  # noqa: E402
 
-SUITES = ["dinero", "superficie_publica"]
+SUITES = ["dinero", "superficie_publica", "pasarelas"]
 
 
 def main() -> int:
@@ -29,6 +29,14 @@ def main() -> int:
 
     for nombre in SUITES:
         modulo = importlib.import_module(nombre)
+
+        # Las que atraviesan la aplicación entera necesitan el servidor; si no
+        # está, se saltan con un aviso en vez de fallar.
+        if hasattr(modulo, "aplicacion_en_marcha") and not modulo.aplicacion_en_marcha():
+            print(f"\n{modulo.__doc__.strip().splitlines()[0]}")
+            print("    saltada · no hay aplicación levantada")
+            continue
+
         cuaderno = Cuaderno(modulo.__doc__.strip().splitlines()[0])
         # Cada suite estrena escenario: así una que ensucie no arrastra a la
         # siguiente, y cualquiera se puede ejecutar suelta.

@@ -107,6 +107,7 @@ export function Ticket({
     card: 'TARJETA',
     tpv: 'DATAFONO',
     stripe: 'TARJETA',
+    online: 'PAGADO ONLINE',
   };
 
   return (

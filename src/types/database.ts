@@ -7,27 +7,6 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type Database = {
   public: {
     Tables: {
-      _f: {
-        Row: {
-          n: number | null;
-          prueba: string | null;
-          esperado: string | null;
-          obtenido: string | null;
-        };
-        Insert: {
-          n?: number | null;
-          prueba?: string | null;
-          esperado?: string | null;
-          obtenido?: string | null;
-        };
-        Update: {
-          n?: number | null;
-          prueba?: string | null;
-          esperado?: string | null;
-          obtenido?: string | null;
-        };
-        Relationships: [];
-      };
       app_settings: {
         Row: {
           id: boolean;
@@ -751,6 +730,48 @@ export type Database = {
         };
         Relationships: [];
       };
+      merchant_payment_methods: {
+        Row: {
+          id: string;
+          restaurant_id: string;
+          provider_id: string;
+          display_name: string | null;
+          position: number;
+          is_active: boolean;
+          settings: Json;
+          secret_id: string | null;
+          webhook_token: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          restaurant_id: string;
+          provider_id: string;
+          display_name?: string | null;
+          position?: number;
+          is_active?: boolean;
+          settings?: Json;
+          secret_id?: string | null;
+          webhook_token?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          restaurant_id?: string;
+          provider_id?: string;
+          display_name?: string | null;
+          position?: number;
+          is_active?: boolean;
+          settings?: Json;
+          secret_id?: string | null;
+          webhook_token?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       money_audit: {
         Row: {
           id: number;
@@ -1067,6 +1088,10 @@ export type Database = {
           cash_settled_by: string | null;
           created_at: string;
           cash_session_id: string | null;
+          provider_id: string | null;
+          provider_ref: string | null;
+          fee_cents: number;
+          raw: Json | null;
         };
         Insert: {
           id?: string;
@@ -1083,6 +1108,10 @@ export type Database = {
           cash_settled_by?: string | null;
           created_at?: string;
           cash_session_id?: string | null;
+          provider_id?: string | null;
+          provider_ref?: string | null;
+          fee_cents?: number;
+          raw?: Json | null;
         };
         Update: {
           id?: string;
@@ -1099,6 +1128,10 @@ export type Database = {
           cash_settled_by?: string | null;
           created_at?: string;
           cash_session_id?: string | null;
+          provider_id?: string | null;
+          provider_ref?: string | null;
+          fee_cents?: number;
+          raw?: Json | null;
         };
         Relationships: [];
       };
@@ -1315,6 +1348,114 @@ export type Database = {
           billing_tax_id?: string | null;
           billing_address?: string | null;
           delivery_slot_id?: string | null;
+        };
+        Relationships: [];
+      };
+      payment_intents: {
+        Row: {
+          id: string;
+          order_id: string;
+          restaurant_id: string;
+          method_id: string | null;
+          provider_id: string | null;
+          amount_cents: number;
+          currency: string;
+          status: Enums<"payment_intent_status">;
+          provider_ref: string | null;
+          redirect_url: string | null;
+          raw: Json | null;
+          error_code: string | null;
+          expires_at: string;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          order_id: string;
+          restaurant_id: string;
+          method_id?: string | null;
+          provider_id?: string | null;
+          amount_cents: number;
+          currency: string;
+          status?: Enums<"payment_intent_status">;
+          provider_ref?: string | null;
+          redirect_url?: string | null;
+          raw?: Json | null;
+          error_code?: string | null;
+          expires_at?: string;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          order_id?: string;
+          restaurant_id?: string;
+          method_id?: string | null;
+          provider_id?: string | null;
+          amount_cents?: number;
+          currency?: string;
+          status?: Enums<"payment_intent_status">;
+          provider_ref?: string | null;
+          redirect_url?: string | null;
+          raw?: Json | null;
+          error_code?: string | null;
+          expires_at?: string;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      payment_providers: {
+        Row: {
+          id: string;
+          slug: string;
+          name: string;
+          logo_url: string | null;
+          kind: Enums<"payment_provider_kind">;
+          countries: string[];
+          currencies: string[];
+          adapter: string;
+          config_schema: Json;
+          spec: Json;
+          is_active: boolean;
+          position: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          slug: string;
+          name: string;
+          logo_url?: string | null;
+          kind?: Enums<"payment_provider_kind">;
+          countries?: string[];
+          currencies?: string[];
+          adapter?: string;
+          config_schema?: Json;
+          spec?: Json;
+          is_active?: boolean;
+          position?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          slug?: string;
+          name?: string;
+          logo_url?: string | null;
+          kind?: Enums<"payment_provider_kind">;
+          countries?: string[];
+          currencies?: string[];
+          adapter?: string;
+          config_schema?: Json;
+          spec?: Json;
+          is_active?: boolean;
+          position?: number;
+          created_at?: string;
+          updated_at?: string;
         };
         Relationships: [];
       };
@@ -2065,6 +2206,27 @@ export type Database = {
         };
         Relationships: [];
       };
+      schema_migrations: {
+        Row: {
+          version: string;
+          checksum: string;
+          applied_at: string;
+          duration_ms: number | null;
+        };
+        Insert: {
+          version: string;
+          checksum: string;
+          applied_at?: string;
+          duration_ms?: number | null;
+        };
+        Update: {
+          version?: string;
+          checksum?: string;
+          applied_at?: string;
+          duration_ms?: number | null;
+        };
+        Relationships: [];
+      };
       sponsorship_offers: {
         Row: {
           id: string;
@@ -2500,6 +2662,14 @@ export type Database = {
       activate_sponsorship: { Args: { p_id: string }; Returns: Json };
       cancel_sponsorship: { Args: { p_id: string }; Returns: Json };
       sponsorship_availability: { Args: { p_city_slug: string | null; p_kind: Enums<'sponsorship_kind'>; p_from: string; p_to: string }; Returns: Json };
+      save_merchant_credentials: { Args: { p_method_id: string; p_credentials: Json }; Returns: Json };
+      merchant_credentials: { Args: { p_method_id: string }; Returns: Json };
+      merchant_payment_options: { Args: { p_restaurant_id: string }; Returns: Json };
+      create_payment_intent: { Args: { p_order_id: string; p_method_id: string }; Returns: Json };
+      mark_intent_redirected: { Args: { p_intent_id: string; p_provider_ref: string; p_redirect_url: string; p_raw?: Json | null }; Returns: Json };
+      settle_payment_intent: { Args: { p_intent_id: string; p_status: string; p_provider_ref?: string | null; p_raw?: Json | null; p_fee_cents?: number }; Returns: Json };
+      method_by_webhook_token: { Args: { p_token: string }; Returns: Json };
+      expire_stale_intents: { Args: { [_ in never]: never }; Returns: Json };
       sponsored_restaurants: { Args: { p_city_slug?: string | null; p_kind?: Enums<'sponsorship_kind'> }; Returns: { restaurant_id: string; sponsorship_id: string }[] };
       is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };
       is_staff_of: { Args: { rid: string }; Returns: boolean };
@@ -2520,7 +2690,9 @@ export type Database = {
       order_status: "pending" | "confirmed" | "preparing" | "ready" | "served" | "delivering" | "completed" | "cancelled";
       order_type: "dine_in" | "delivery" | "pickup";
       payment_entry_kind: "charge" | "refund";
-      payment_method: "cash" | "card" | "tpv" | "stripe";
+      payment_intent_status: "pending" | "redirected" | "paid" | "failed" | "cancelled" | "expired";
+      payment_method: "cash" | "card" | "tpv" | "stripe" | "online";
+      payment_provider_kind: "online" | "terminal";
       payment_status: "pending" | "paid" | "failed" | "refunded";
       plan_audience: "restaurant" | "courier";
       plan_interval: "month" | "year";

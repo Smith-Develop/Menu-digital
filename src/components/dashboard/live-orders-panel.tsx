@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState, useRef} from 'react';
 import {
+  Globe,
   Banknote,
   Bell,
   Bike,
@@ -181,6 +182,9 @@ const PAY_ICON: Record<Enums<'payment_method'>, typeof Banknote> = {
   card: CreditCard,
   tpv: Smartphone,
   stripe: CreditCard,
+  // Pagado por internet antes de llegar: para quien atiende es lo mismo que
+  // una tarjeta, pero ya está cobrado.
+  online: Globe,
 };
 
 const CALL_ICON: Record<Enums<'call_type'>, typeof Bell> = {

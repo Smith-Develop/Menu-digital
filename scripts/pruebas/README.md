@@ -33,6 +33,10 @@ comprobaciones de permiso: con un superusuario no se vería ninguna.
 - **`navegador.mjs`** · que abran el escaparate sin sesión, las once pantallas
   del panel del restaurante, la de cocina y las cinco del superadministrador, y
   que ninguna deje errores en la consola.
+- **`pasarelas.py`** · levanta una pasarela de mentira, la da de alta escribiendo
+  su receta y cobra de punta a punta: llave secreta, redirección, aviso firmado,
+  apunte en el libro, comisión de la pasarela, aviso repetido y aviso falsificado.
+  Necesita el servidor levantado; si no lo está, se salta con un aviso.
 - **`superficie_publica.py`** · dieciséis llamadas sin sesión contra las
   funciones que mueven dinero, lectura anónima de las tablas sensibles, y dos
   trinquetes: que no crezca el número de funciones que `anon` puede ejecutar y
