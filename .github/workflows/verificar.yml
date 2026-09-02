@@ -1,0 +1,87 @@
+# Lo que se comprueba en cada cambio.
+#
+# Va en dos trabajos porque necesitan cosas distintas: el primero sólo necesita
+# el código, y corre siempre. El segundo habla con una base de datos, así que
+# espera unos secretos y se salta a sí mismo con un aviso si no están, en vez de
+# fallar y enseñar a todo el mundo a ignorar el rojo.
+#
+# Secretos que hacen falta para el segundo:
+#   SUPABASE_STUDIO_URL       la instalación contra la que probar
+#   SUPABASE_STUDIO_AUTH      usuario:contraseña del panel
+#   ENV_LOCAL                 el contenido de .env.local de ese entorno
+#
+# Importante: apúntalos a un entorno de pruebas, no a producción. Las pruebas
+# montan y desmontan su propio local, pero no hay razón para correr ese riesgo.
+
+name: Verificar
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  estatico:
+    name: Tipos, estilo y compilación
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://ejemplo.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: compilacion
+
+  base:
+    name: Migraciones y reglas del dinero
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: ¿Hay entorno de pruebas configurado?
+        id: entorno
+        run: |
+          if [ -n "${{ secrets.SUPABASE_STUDIO_URL }}" ]; then
+            echo "listo=si" >> "$GITHUB_OUTPUT"
+          else
+            echo "listo=no" >> "$GITHUB_OUTPUT"
+            echo "::notice::Sin secretos de base: este trabajo no comprueba nada todavía."
+          fi
+
+      - name: Preparar credenciales
+        if: steps.entorno.outputs.listo == 'si'
+        run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+
+      - name: ¿Falta alguna migración por aplicar?
+        if: steps.entorno.outputs.listo == 'si'
+        run: npm run db:status
+        env:
+          SUPABASE_STUDIO_URL: ${{ secrets.SUPABASE_STUDIO_URL }}
+          SUPABASE_STUDIO_AUTH: ${{ secrets.SUPABASE_STUDIO_AUTH }}
+
+      - name: ¿Describen los ficheros la base?
+        if: steps.entorno.outputs.listo == 'si'
+        run: npm run db:check
+        env:
+          SUPABASE_STUDIO_URL: ${{ secrets.SUPABASE_STUDIO_URL }}
+          SUPABASE_STUDIO_AUTH: ${{ secrets.SUPABASE_STUDIO_AUTH }}
+
+      - name: Reglas del dinero y superficie pública
+        if: steps.entorno.outputs.listo == 'si'
+        run: npm test
+        env:
+          SUPABASE_STUDIO_URL: ${{ secrets.SUPABASE_STUDIO_URL }}
+          SUPABASE_STUDIO_AUTH: ${{ secrets.SUPABASE_STUDIO_AUTH }}

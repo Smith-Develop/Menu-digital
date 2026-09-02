@@ -11,7 +11,11 @@
     "db:types": "SUPABASE_STUDIO_AUTH=\"$SUPABASE_STUDIO_AUTH\" python3 scripts/gen-db-types.py",
     "db:migrate": "python3 scripts/migrate.py",
     "db:status": "python3 scripts/migrate.py --status",
-    "db:check": "python3 scripts/checks/migraciones_describen_la_base.py"
+    "db:check": "python3 scripts/checks/migraciones_describen_la_base.py",
+    "test": "python3 scripts/pruebas/correr.py",
+    "test:dinero": "python3 scripts/pruebas/dinero.py",
+    "test:publico": "python3 scripts/pruebas/superficie_publica.py",
+    "verify": "npm run typecheck && npm run lint && npm run db:check && npm test"
   },
   "dependencies": {
     "@google/model-viewer": "^4.3.1",
