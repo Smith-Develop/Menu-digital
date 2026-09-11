@@ -1299,6 +1299,32 @@ const es = {
     noProviders: 'Todavía no hay ninguna pasarela conectada',
     placeholders: 'Marcas que puedes usar en la receta',
   },
+
+  /** Formas de cobro del comercio: qué pasarelas enciende y con qué llaves. */
+  merchantPay: {
+    title: 'Formas de cobro',
+    subtitle: 'Qué pasarelas acepta tu negocio y con qué cuenta cobra',
+    available: 'Disponibles para tu país y tu divisa',
+    none: 'Todavía no hay ninguna pasarela disponible para {country}. Escríbenos y la conectamos.',
+    off: 'Apagada',
+    on: 'Encendida',
+    needsKeys: 'Faltan las llaves',
+    keys: 'Llaves de la cuenta',
+    keysHint: 'Se guardan cifradas. Podrás cambiarlas cuando quieras, pero no volver a verlas.',
+    keysSaved: 'Llaves guardadas',
+    saveKeys: 'Guardar las llaves',
+    test: 'Probar la conexión',
+    testOk: 'Contesta bien: {host}',
+    testFail: 'No contesta: {error}',
+    testHint: 'Abre una operación de un importe mínimo que nadie va a pagar, sólo para ver si tus credenciales valen.',
+    webhookUrl: 'Dirección para los avisos',
+    webhookHint: 'Pégala en el panel de la pasarela, donde configuras los avisos. Es la que te trae la confirmación de cada pago.',
+    copied: 'Copiada',
+    secret: 'secreta',
+    onlyWithKeys: 'Guarda primero las llaves: encenderla sin ellas dejaría a tus clientes con un botón que falla.',
+    SIN_CREDENCIALES: 'Faltan las llaves de esta pasarela',
+    METHOD_NOT_CONFIGURED: 'Faltan las llaves de esta pasarela',
+  },
 } as const;
 
 export default es;

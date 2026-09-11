@@ -208,6 +208,27 @@ def correr(c: Cuaderno, esc: Escenario) -> None:
         apuntes = rest(duenyo, f"order_payments?order_id=eq.{pedido['id']}&select=id")
         c.check("el aviso repetido no cobra dos veces", len(apuntes) == 1, f"{len(apuntes)} apuntes")
 
+        # --- El panel del comercio ---------------------------------------
+        # Se presta el local colombiano al navegador: en un local en euros la
+        # pasarela no aparecería, y esa también es la respuesta correcta.
+        c.bloque("El panel donde el comercio la enciende")
+        entorno = {**os.environ,
+                   "PANEL_EMAIL": esc.correos["owner"],
+                   "PANEL_PASSWORD": "ArnesDePruebas123!"}
+        salida = subprocess.run(
+            ["node", str(Path(__file__).resolve().parent / "panel_cobro.mjs")],
+            capture_output=True, text=True, env=entorno, timeout=240)
+
+        for linea in salida.stdout.splitlines():
+            if linea.startswith("__RESULTADO__"):
+                bien, mal = (int(x) for x in linea.split()[1:3])
+                c.bien += bien
+                c.mal += mal
+            elif linea.strip():
+                print(linea)
+        if "__RESULTADO__" not in salida.stdout:
+            c.check("el panel responde", False, (salida.stderr or salida.stdout)[-220:])
+
     finally:
         servidor.shutdown()
         # La fila de verdad no se toca: sólo desaparece la copia de la prueba.

@@ -1989,3 +1989,133 @@ export async function cancelSponsorship(id: string): Promise<Result> {
   revalidatePath('/dashboard/promote');
   return { ok: true };
 }
+
+// ========================= Formas de cobro del comercio =========================
+
+/**
+ * Enciende o apaga una pasarela para este local, creándola si hace falta.
+ *
+ * Nace apagada aunque se pida encenderla: sin credenciales no es una forma de
+ * pago, es un botón que falla delante de un cliente. Se enciende sola en cuanto
+ * se guardan las llaves.
+ */
+export async function toggleMerchantMethod(
+  providerId: string,
+  activo: boolean,
+): Promise<Result<{ methodId: string; active: boolean; webhookUrl: string }>> {
+  const { context, error: denied } = await guard('settings');
+  if (!context) return fail(denied);
+
+  const supabase = await createServerSupabase();
+
+  const { data: existente } = await supabase
+    .from('merchant_payment_methods')
+    .select('id, secret_id, webhook_token')
+    .eq('restaurant_id', context.restaurant.id)
+    .eq('provider_id', providerId)
+    .maybeSingle();
+
+  if (!existente) {
+    const { data, error } = await supabase
+      .from('merchant_payment_methods')
+      .insert({ restaurant_id: context.restaurant.id, provider_id: providerId, is_active: false })
+      .select('id, webhook_token')
+      .single();
+    if (error) return fail(error.message);
+
+    revalidatePath('/dashboard/payments');
+    // La dirección de avisos vuelve con la respuesta: es lo primero que hay que
+    // copiar al panel de la pasarela, y esperar al siguiente refresco para
+    // enseñarla dejaba el campo en blanco justo la primera vez.
+    return {
+      ok: true,
+      data: {
+        methodId: data.id,
+        active: false,
+        webhookUrl: `${await getPublicOrigin()}/api/pago/aviso/${data.webhook_token}`,
+      },
+    };
+  }
+
+  // Encender sin llaves no se permite: el cliente se encontraría un botón que
+  // no lleva a ninguna parte.
+  const encendido = activo && Boolean(existente.secret_id);
+
+  const { error } = await supabase
+    .from('merchant_payment_methods')
+    .update({ is_active: encendido, updated_at: new Date().toISOString() })
+    .eq('id', existente.id);
+  if (error) return fail(error.message);
+
+  revalidatePath('/dashboard/payments');
+  revalidatePath(`/r/${context.restaurant.slug}`);
+  return {
+    ok: true,
+    data: {
+      methodId: existente.id,
+      active: encendido,
+      webhookUrl: `${await getPublicOrigin()}/api/pago/aviso/${existente.webhook_token}`,
+    },
+  };
+}
+
+/**
+ * Guarda las llaves de una pasarela.
+ *
+ * Nunca vuelven. Se pueden reescribir, pero no leer: una clave que se recupera
+ * desde el navegador acaba en el portapapeles de alguien.
+ */
+export async function saveGatewayCredentials(
+  methodId: string,
+  credenciales: Record<string, string>,
+): Promise<Result<{ campos: number }>> {
+  const { context, error: denied } = await guard('settings');
+  if (!context) return fail(denied);
+
+  const limpias = Object.fromEntries(
+    Object.entries(credenciales)
+      .map(([clave, valor]) => [clave, String(valor).trim()])
+      .filter(([, valor]) => valor !== ''),
+  );
+  if (Object.keys(limpias).length === 0) return fail('SIN_CREDENCIALES');
+
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase.rpc('save_merchant_credentials', {
+    p_method_id: methodId,
+    p_credentials: limpias as never,
+  });
+  if (error) return fail(errorCode(error.message));
+
+  revalidatePath('/dashboard/payments');
+  return { ok: true, data: { campos: (data as { fields?: number })?.fields ?? 0 } };
+}
+
+/**
+ * Prueba la conexión sin cobrarle a nadie.
+ *
+ * Abre una operación de un importe mínimo contra la pasarela y mira si
+ * contesta. No crea pedido ni intento ni mueve dinero: sólo demuestra que las
+ * credenciales valen y que la receta encaja con lo que espera el proveedor. Es
+ * la diferencia entre enterarse ahora o enterarse con un cliente delante.
+ */
+export async function testGatewayConnection(
+  methodId: string,
+): Promise<Result<{ host: string }>> {
+  const { context, error: denied } = await guard('settings');
+  if (!context) return fail(denied);
+
+  const supabase = await createServerSupabase();
+  const { data: metodo } = await supabase
+    .from('merchant_payment_methods')
+    .select('id')
+    .eq('id', methodId)
+    .eq('restaurant_id', context.restaurant.id)
+    .maybeSingle();
+  if (!metodo) return fail('METHOD_NOT_FOUND');
+
+  const { probarPasarela } = await import('@/lib/payments/probar');
+  const resultado = await probarPasarela(methodId, await getPublicOrigin());
+
+  if (!resultado.ok) return fail(resultado.error);
+  return { ok: true, data: { host: resultado.host } };
+}

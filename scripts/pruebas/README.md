@@ -37,6 +37,12 @@ comprobaciones de permiso: con un superusuario no se vería ninguna.
   su receta y cobra de punta a punta: llave secreta, redirección, aviso firmado,
   apunte en el libro, comisión de la pasarela, aviso repetido y aviso falsificado.
   Necesita el servidor levantado; si no lo está, se salta con un aviso.
+- **`mercadopago.py`** · la primera pasarela de verdad. Abre el cobro contra la
+  API real de Mercado Pago y comprueba la firma de su manifiesto y la consulta
+  de vuelta contra un doble, porque completar un pago necesita tarjeta de prueba
+  y una dirección pública. Termina prestándole su local colombiano a
+  `panel_cobro.mjs`, que recorre el panel donde el comercio la enciende.
+  Necesita `MP_ACCESS_TOKEN` en el entorno; sin él se salta.
 - **`superficie_publica.py`** · dieciséis llamadas sin sesión contra las
   funciones que mueven dinero, lectura anónima de las tablas sensibles, y dos
   trinquetes: que no crezca el número de funciones que `anon` puede ejecutar y

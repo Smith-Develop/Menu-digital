@@ -1301,6 +1301,32 @@ const en: Dictionary = {
     placeholders: 'Placeholders you can use in the recipe',
   },
 
+  /** Formas de cobro del comercio: qué pasarelas enciende y con qué llaves. */
+  merchantPay: {
+    title: 'Payment methods',
+    subtitle: 'Which gateways your business accepts, and which account it gets paid into',
+    available: 'Available for your country and currency',
+    none: 'No gateway is available for {country} yet. Write to us and we will connect one.',
+    off: 'Off',
+    on: 'On',
+    needsKeys: 'Keys missing',
+    keys: 'Account keys',
+    keysHint: 'Stored encrypted. You can change them whenever you like, but not read them back.',
+    keysSaved: 'Keys saved',
+    saveKeys: 'Save the keys',
+    test: 'Test the connection',
+    testOk: 'It answers: {host}',
+    testFail: 'No answer: {error}',
+    testHint: 'Opens a minimum-amount operation that nobody will pay, just to see whether your credentials work.',
+    webhookUrl: 'Address for notifications',
+    webhookHint: 'Paste it in the gateway panel, where notifications are configured. It is what brings you each payment confirmation.',
+    copied: 'Copied',
+    secret: 'secret',
+    onlyWithKeys: 'Save the keys first: switching it on without them would leave your customers with a button that fails.',
+    SIN_CREDENCIALES: 'This gateway has no keys yet',
+    METHOD_NOT_CONFIGURED: 'This gateway has no keys yet',
+  },
+
 };
 
 export default en;

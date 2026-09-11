@@ -107,6 +107,7 @@ export function DashboardShell({
     { href: '/dashboard/coupons', icon: Ticket, label: t.coupon.coupons, show: puede('coupons') },
     { href: '/dashboard/staff', icon: UsersRound, label: t.dashboard.staff, show: puede('staff') },
     { href: '/dashboard/couriers', icon: Truck, label: t.courier.couriers, show: puede('couriers') },
+    { href: '/dashboard/payments', icon: CreditCard, label: t.merchantPay.title, show: puede('payments') },
     { href: '/dashboard/promote', icon: Megaphone, label: t.sponsor.title, show: puede('promote') },
     { href: '/dashboard/subscription', icon: CreditCard, label: t.dashboard.subscription, show: puede('subscription') },
     { href: '/dashboard/settings', icon: Settings, label: t.dashboard.settings, show: puede('settings') },
