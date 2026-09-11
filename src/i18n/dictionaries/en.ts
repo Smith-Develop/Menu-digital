@@ -1327,6 +1327,20 @@ const en: Dictionary = {
     METHOD_NOT_CONFIGURED: 'This gateway has no keys yet',
   },
 
+  /** Las pestañas de los ajustes del restaurante. */
+  settingsTabs: {
+    profile: 'Business details',
+    orders: 'Orders and prices',
+    hours: 'Opening hours',
+    appearance: 'Appearance',
+    printing: 'Printing',
+    sounds: 'Sound alerts',
+    saveSection: 'Save this section',
+    savedSection: 'Saved',
+    failed: 'Could not save: {motivo}',
+    unsaved: 'This section has unsaved changes',
+  },
+
 };
 
 export default en;

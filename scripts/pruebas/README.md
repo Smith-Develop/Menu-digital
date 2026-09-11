@@ -43,6 +43,10 @@ comprobaciones de permiso: con un superusuario no se vería ninguna.
   y una dirección pública. Termina prestándole su local colombiano a
   `panel_cobro.mjs`, que recorre el panel donde el comercio la enciende.
   Necesita `MP_ACCESS_TOKEN` en el entorno; sin él se salta.
+- **`ajustes.py`** · que el local pueda guardar su ficha, campo a campo. Existe
+  por un fallo mío: al cerrar los permisos, `city_slug` —una columna generada—
+  dejó de poder calcularse y el guardado entero se cayó con un error que no lo
+  decía. Ese camino sólo se descubre intentándolo.
 - **`superficie_publica.py`** · dieciséis llamadas sin sesión contra las
   funciones que mueven dinero, lectura anónima de las tablas sensibles, y dos
   trinquetes: que no crezca el número de funciones que `anon` puede ejecutar y

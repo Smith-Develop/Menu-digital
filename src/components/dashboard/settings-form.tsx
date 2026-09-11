@@ -1,18 +1,18 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState, type FormEvent } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Input, Select, Switch, Textarea } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
-import { FileUpload } from '@/components/dashboard/file-upload';
 import { ImagePicker } from '@/components/ui/image-picker';
 import { updateRestaurantSettings, updateRestaurantTheme } from '@/app/dashboard/actions';
 import { ColorInput } from '@/components/ui/color-input';
 import { OpeningHoursEditor, type OpeningHours } from '@/components/dashboard/opening-hours';
 import { brandCssVariables } from '@/lib/brand-theme';
 import { CURRENCIES, formatAmount, parseAmount, getCurrency } from '@/lib/money';
-import { useT } from '@/i18n/provider';
+import { useT, interpolate } from '@/i18n/provider';
+import { cn } from '@/lib/utils';
 
 export type SettingsValues = {
   name: string;
@@ -46,44 +46,65 @@ export type SettingsValues = {
   textColor: string;
 };
 
+/** Las pestañas, en el orden en que se recorren al dar de alta un local. */
+type Pestana = 'profile' | 'orders' | 'hours' | 'appearance' | 'printing' | 'sounds';
+
 export function SettingsForm({
   restaurantId,
   initial,
+  impresion,
+  sonidos,
 }: {
   restaurantId: string;
   initial: SettingsValues;
+  /*
+   * Llegan montadas desde la página, que es de servidor. Guardan lo suyo por su
+   * cuenta desde antes de que esto tuviera pestañas; lo único que hace falta es
+   * decidir cuándo se ven.
+   */
+  impresion: ReactNode;
+  sonidos: ReactNode;
 }) {
   const t = useT();
   const toast = useToast();
   const router = useRouter();
 
   const [values, setValues] = useState(initial);
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState<Pestana | null>(null);
+  const [pestana, setPestana] = useState<Pestana>('profile');
+  const [tocadas, setTocadas] = useState<Set<Pestana>>(new Set());
 
   const decimals = getCurrency(values.currency).decimals;
 
   function set<K extends keyof SettingsValues>(key: K, value: SettingsValues[K]) {
     setValues((current) => ({ ...current, [key]: value }));
+    setTocadas((previas) => new Set(previas).add(pestana));
   }
 
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault();
-    setSaving(true);
-
-    const result = await updateRestaurantSettings({
+  /**
+   * Lo que manda cada pestaña, y sólo eso.
+   *
+   * Antes se enviaba la ficha entera en cada guardado. Con una sola pantalla se
+   * notaba poco; con seis, significa que tocar la divisa reenvía el horario y
+   * el logotipo, y que un fallo en cualquier campo tumba el guardado de todos.
+   */
+  const CAMPOS: Record<Pestana, () => Record<string, unknown>> = {
+    profile: () => ({
       name: values.name,
       description: values.description || null,
       phone: values.phone || null,
       address: values.address || null,
       city: values.city || null,
+      country: values.country.toUpperCase().slice(0, 2),
       document_type: values.document_type || null,
       document_number: values.document_number || null,
-      country: values.country.toUpperCase().slice(0, 2),
       logo_url: values.logoUrl,
       cover_url: values.coverUrl,
+      cuisine_tags: values.cuisineTags,
+    }),
+    orders: () => ({
       currency: values.currency,
       timezone: values.timezone,
-      cuisine_tags: values.cuisineTags,
       avg_prep_minutes: values.avgPrepMinutes,
       delivery_fee_cents: values.deliveryFeeCents,
       min_order_cents: values.minOrderCents,
@@ -94,22 +115,77 @@ export function SettingsForm({
       accepts_cash: values.acceptsCash,
       accepts_card: values.acceptsCard,
       accepts_tpv: values.acceptsTpv,
-      is_open: values.isOpen,
-      opening_hours: values.openingHours,
-    });
+    }),
+    hours: () => ({ is_open: values.isOpen, opening_hours: values.openingHours }),
+    appearance: () => ({}),
+    printing: () => ({}),
+    sounds: () => ({}),
+  };
 
-    setSaving(false);
+  async function guardar(cual: Pestana) {
+    setSaving(cual);
+    const result = await updateRestaurantSettings(CAMPOS[cual]());
+    setSaving(null);
 
     if (!result.ok) {
-      toast(t.common.error, 'error');
+      // Decir qué falló, no «algo salió mal»: quien lee esto es quien puede
+      // arreglarlo, y sin el motivo sólo le queda probar a ciegas.
+      toast(interpolate(t.settingsTabs.failed, { motivo: result.error.slice(0, 90) }), 'error');
       return;
     }
-    toast(t.common.save, 'success');
+    setTocadas((previas) => {
+      const siguientes = new Set(previas);
+      siguientes.delete(cual);
+      return siguientes;
+    });
+    toast(t.settingsTabs.savedSection, 'success');
     router.refresh();
   }
 
+  const PESTANAS: { id: Pestana; nombre: string }[] = [
+    { id: 'profile', nombre: t.settingsTabs.profile },
+    { id: 'orders', nombre: t.settingsTabs.orders },
+    { id: 'hours', nombre: t.settingsTabs.hours },
+    { id: 'appearance', nombre: t.settingsTabs.appearance },
+    { id: 'printing', nombre: t.settingsTabs.printing },
+    { id: 'sounds', nombre: t.settingsTabs.sounds },
+  ];
+
+  /** El botón de guardar de las pestañas que comparten el formulario grande. */
+  const guardarSeccion = (cual: Pestana) => (
+    <div className="flex items-center gap-4">
+      <Button type="button" loading={saving === cual} onClick={() => guardar(cual)}>
+        {t.settingsTabs.saveSection}
+      </Button>
+      {tocadas.has(cual) && (
+        <span className="text-xs font-semibold text-amber-700">{t.settingsTabs.unsaved}</span>
+      )}
+    </div>
+  );
+
   return (
-    <form onSubmit={onSubmit} className="space-y-6">
+    <div className="space-y-6">
+      {/* Cada pestaña guarda lo suyo. Un formulario de seis pantallas con un
+          solo botón obliga a reenviarlo todo para cambiar una cosa, y cuando
+          falla no dice cuál de las seis tenía el problema. */}
+      <div className="flex gap-1 overflow-x-auto rounded-xl bg-surface-field p-1">
+        {PESTANAS.map(({ id, nombre }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setPestana(id)}
+            className={cn(
+              'shrink-0 rounded-lg px-4 py-2 text-sm font-bold transition-colors',
+              pestana === id ? 'bg-white text-ink shadow-sm' : 'text-ink-400 hover:text-ink',
+            )}
+          >
+            {nombre}
+            {tocadas.has(id) && <span className="ml-1.5 text-amber-600">•</span>}
+          </button>
+        ))}
+      </div>
+
+      {pestana === 'profile' && (
       <section className="space-y-5 rounded-2xl bg-white p-6 shadow-chip">
         <h2 className="font-display text-base font-bold text-ink-700">{t.common.name}</h2>
 
@@ -188,10 +264,14 @@ export function SettingsForm({
             label={t.dashboard.documentNumber}
           />
         </div>
-      </section>
 
+        {guardarSeccion('profile')}
+      </section>
+      )}
+
+      {pestana === 'orders' && (
       <section className="space-y-5 rounded-2xl bg-white p-6 shadow-chip">
-        <h2 className="font-display text-base font-bold text-ink-700">Pedidos y precios</h2>
+        <h2 className="font-display text-base font-bold text-ink-700">{t.settingsTabs.orders}</h2>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Select
@@ -266,6 +346,14 @@ export function SettingsForm({
           </fieldset>
         </div>
 
+        {guardarSeccion('orders')}
+      </section>
+      )}
+
+      {pestana === 'hours' && (
+      <section className="space-y-5 rounded-2xl bg-white p-6 shadow-chip">
+        <h2 className="font-display text-base font-bold text-ink-700">{t.settingsTabs.hours}</h2>
+
         <div className="rounded-xl bg-surface-field p-4">
           <Switch
             checked={values.isOpen}
@@ -280,20 +368,26 @@ export function SettingsForm({
           value={values.openingHours}
           onChange={(v) => set('openingHours', v)}
         />
+
+        {guardarSeccion('hours')}
       </section>
+      )}
 
-      <ThemeSection
-        initial={{
-          primaryColor: initial.primaryColor,
-          accentColor: initial.accentColor,
-          textColor: initial.textColor,
-        }}
-      />
+      {pestana === 'appearance' && (
+        <ThemeSection
+          initial={{
+            primaryColor: initial.primaryColor,
+            accentColor: initial.accentColor,
+            textColor: initial.textColor,
+          }}
+        />
+      )}
 
-      <Button type="submit" loading={saving} size="lg">
-        {t.common.save}
-      </Button>
-    </form>
+      {/* Estas dos ya tenían su propio guardado y llegan montadas desde la
+          página, que es de servidor: aquí sólo se decide cuándo se ven. */}
+      {pestana === 'printing' && impresion}
+      {pestana === 'sounds' && sonidos}
+    </div>
   );
 }
 

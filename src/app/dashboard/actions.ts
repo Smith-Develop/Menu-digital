@@ -343,6 +343,7 @@ const settingsSchema = z.object({
   logo_url: z.string().url().nullable().optional(),
   cover_url: z.string().url().nullable().optional(),
   currency: z.string().length(3),
+  currency_decimals: z.coerce.number().int().min(0).max(3).optional(),
   timezone: z.string().max(60),
   cuisine_tags: z.array(z.string()).default([]),
   avg_prep_minutes: z.coerce.number().int().min(1).max(240),
@@ -360,28 +361,45 @@ const settingsSchema = z.object({
   opening_hours: z.record(z.array(z.tuple([z.string(), z.string()]))).default({}),
 });
 
+/**
+ * Guarda los ajustes del local, enteros o por partes.
+ *
+ * Acepta un trozo en vez de exigirlo todo porque la pantalla está partida en
+ * pestañas: quien cambia la divisa no debería estar reenviando también el
+ * horario, el logotipo y los métodos de pago. Guardar menos cosas a la vez
+ * también significa que, cuando algo falla, se sabe mejor qué era.
+ */
 export async function updateRestaurantSettings(input: unknown): Promise<Result> {
   const { context, error } = await guard('settings');
   if (!context) return fail(error);
 
-  const parsed = settingsSchema.safeParse(input);
+  const parsed = settingsSchema.partial().safeParse(input);
   if (!parsed.success) return fail('INVALID_INPUT');
 
-  const currency = getCurrency(parsed.data.currency);
-  const supabase = await createServerSupabase();
+  // Sólo lo que venga: una clave ausente no es «ponlo a nulo», es «no lo toques».
+  const cambios = Object.fromEntries(
+    Object.entries(parsed.data).filter(([, valor]) => valor !== undefined),
+  );
+  if (Object.keys(cambios).length === 0) return { ok: true };
 
+  // La divisa arrastra sus decimales: son la misma decisión y separarlos deja
+  // importes que se muestran mal para siempre.
+  if (typeof cambios.currency === 'string') {
+    const currency = getCurrency(cambios.currency);
+    cambios.currency = currency.code;
+    cambios.currency_decimals = currency.decimals;
+  }
+
+  const supabase = await createServerSupabase();
   const { error: dbError } = await supabase
     .from('restaurants')
-    .update({
-      ...parsed.data,
-      currency: currency.code,
-      currency_decimals: currency.decimals,
-    })
+    .update(cambios)
     .eq('id', context.restaurant.id);
 
   if (dbError) return fail(dbError.message);
 
   revalidatePath('/dashboard/settings');
+  revalidatePath('/dashboard', 'layout');
   revalidatePath(`/r/${context.restaurant.slug}`);
   return { ok: true };
 }

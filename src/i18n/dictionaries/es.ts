@@ -1325,6 +1325,20 @@ const es = {
     SIN_CREDENCIALES: 'Faltan las llaves de esta pasarela',
     METHOD_NOT_CONFIGURED: 'Faltan las llaves de esta pasarela',
   },
+
+  /** Las pestañas de los ajustes del restaurante. */
+  settingsTabs: {
+    profile: 'Ficha del local',
+    orders: 'Pedidos y precios',
+    hours: 'Horario',
+    appearance: 'Apariencia',
+    printing: 'Impresión',
+    sounds: 'Avisos sonoros',
+    saveSection: 'Guardar esta sección',
+    savedSection: 'Guardado',
+    failed: 'No se pudo guardar: {motivo}',
+    unsaved: 'Hay cambios sin guardar en esta sección',
+  },
 } as const;
 
 export default es;

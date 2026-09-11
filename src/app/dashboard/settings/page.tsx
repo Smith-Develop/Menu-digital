@@ -68,11 +68,9 @@ export default async function SettingsPage() {
           accentColor: restaurant.accent_color,
           textColor: restaurant.text_color,
         }}
+        impresion={<PrintSettingsForm initial={printSettings} />}
+        sonidos={<RestaurantSoundSettings initial={sounds} inherited={ownSounds === null} />}
       />
-
-      <PrintSettingsForm initial={printSettings} />
-
-      <RestaurantSoundSettings initial={sounds} inherited={ownSounds === null} />
     </div>
   );
 }

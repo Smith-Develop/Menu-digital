@@ -73,7 +73,7 @@ const entrar = async (p, mail, clave) => {
 for (const ruta of ['/', '/r/la-trattoria', '/search?q=pizza', '/login',
                     '/dashboard', '/dashboard/orders', '/dashboard/menu', '/dashboard/cash',
                     '/dashboard/pos', '/dashboard/tables', '/dashboard/staff',
-                    '/dashboard/coupons', '/dashboard/promote', '/dashboard/settings',
+                    '/dashboard/coupons', '/dashboard/promote', '/dashboard/settings', '/dashboard/payments',
                     '/kitchen', '/admin', '/admin/restaurants', '/admin/plans',
                     '/admin/revenue', '/admin/payments', '/admin/categories']) {
   await fetch(BASE + ruta).catch(() => {});
@@ -113,7 +113,8 @@ for (const [ruta, señal] of [['/dashboard', /Resumen|Hoy|Pedidos/i],
                              ['/dashboard/staff', /Equipo/i],
                              ['/dashboard/coupons', /Cupones/i],
                              ['/dashboard/promote', /Destacar/i],
-                             ['/dashboard/settings', /Ajustes/i],
+                             ['/dashboard/settings', /Ficha del local/i],
+                             ['/dashboard/payments', /Formas de cobro/i],
                              ['/kitchen', /cocina|En cola/i]]) {
   await p.goto(BASE+ruta,{waitUntil:'networkidle'});
   await p.waitForTimeout(2200);
