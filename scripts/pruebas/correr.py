@@ -16,7 +16,7 @@ sys.path.insert(0, str(AQUI))
 
 from arnes import Cuaderno, Escenario, limpiar_huerfanos  # noqa: E402
 
-SUITES = ["dinero", "superficie_publica", "pasarelas"]
+SUITES = ["dinero", "superficie_publica", "pasarelas", "mercadopago"]
 
 
 def main() -> int:
@@ -38,9 +38,12 @@ def main() -> int:
             continue
 
         cuaderno = Cuaderno(modulo.__doc__.strip().splitlines()[0])
+
         # Cada suite estrena escenario: así una que ensucie no arrastra a la
-        # siguiente, y cualquiera se puede ejecutar suelta.
-        with Escenario() as escenario:
+        # siguiente, y cualquiera se puede ejecutar suelta. Y puede pedirlo a su
+        # medida: una pasarela colombiana no acepta euros, y darle el escenario
+        # por defecto la hacía fallar por un motivo que no era el suyo.
+        with Escenario(**getattr(modulo, "ESCENARIO", {})) as escenario:
             modulo.correr(cuaderno, escenario)
         bien += cuaderno.bien
         mal += cuaderno.mal

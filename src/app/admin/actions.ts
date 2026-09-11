@@ -1125,7 +1125,7 @@ export async function reviewPaymentSpec(spec: unknown): Promise<Result<{ avisos:
 
   const marcas = JSON.stringify(receta).match(/\{\{\s*[\w.]+\s*\}\}/g) ?? [];
   const conocidas = new Set([
-    'amount_minor', 'amount_major', 'currency', 'order_code', 'order_id', 'intent_id',
+    'amount_minor', 'amount_major', 'amount_major_text', 'currency', 'order_code', 'order_id', 'intent_id',
     'description', 'return_url', 'cancel_url', 'webhook_url',
     'customer_name', 'customer_email', 'customer_phone', 'reference', 'cuerpo',
   ]);

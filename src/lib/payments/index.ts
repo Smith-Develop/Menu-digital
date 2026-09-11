@@ -1,7 +1,8 @@
 import 'server-only';
 import { createAdminSupabase } from '@/lib/supabase/server';
 import { currencyDecimals } from '@/lib/money';
-import { verificarFirma } from './firma';
+import { verificarFirma, contextoDelAviso } from './firma';
+import { ejecutar } from './motor';
 import { abrirCobro } from './motor';
 import { importeMayor, extraer } from './plantilla';
 import type { Contexto, EstadoNuestro, Receta } from './tipos';
@@ -92,7 +93,8 @@ export async function iniciarCobro(
     ...credenciales,
     ...((metodo.settings ?? {}) as Record<string, string>),
     amount_minor: intento.amount_cents,
-    amount_major: importeMayor(intento.amount_cents, decimales),
+    amount_major: Number(importeMayor(intento.amount_cents, decimales)),
+    amount_major_text: importeMayor(intento.amount_cents, decimales),
     currency: intento.currency,
     order_code: pedido.code,
     order_id: intento.order_id,
@@ -174,8 +176,26 @@ export async function procesarAviso(
     return { ok: false, error: 'CUERPO_NO_JSON' };
   }
 
-  const referencia = extraer(cuerpo, receta.webhook.reference);
-  const suyo = extraer(cuerpo, receta.webhook.status);
+  /*
+   * Hay pasarelas cuyo aviso sólo dice «ha pasado algo con el pago 123» y no si
+   * salió bien. Entonces se va a buscar el estado, y además conviene: llega por
+   * un canal autenticado en vez de venir dentro de un mensaje que cualquiera
+   * puede intentar falsificar.
+   */
+  let fuente: unknown = cuerpo;
+  if (receta.webhook.resolve) {
+    const contexto = contextoDelAviso(cuerpoCrudo, cabeceras, credenciales);
+    const consulta = await ejecutar(
+      receta,
+      { ...receta.webhook.resolve, extract: { todo: '$' } },
+      contexto as never,
+    );
+    if (!consulta.ok) return { ok: false, error: 'CONSULTA_FALLIDA' };
+    fuente = consulta.valores.todo;
+  }
+
+  const referencia = extraer(fuente, receta.webhook.reference);
+  const suyo = extraer(fuente, receta.webhook.status);
   if (!referencia) return { ok: false, error: 'AVISO_SIN_REFERENCIA' };
 
   const nuestro: EstadoNuestro = receta.webhook.map[String(suyo)] ?? 'pending';
@@ -185,24 +205,47 @@ export async function procesarAviso(
     return { ok: true, estado: 'ignorado' };
   }
 
-  const { data: intento } = await supabase
-    .from('payment_intents')
-    .select('id')
-    .eq('provider_id', info.provider_id)
-    .eq('provider_ref', String(referencia))
-    .maybeSingle();
+  // Algunas devuelven su propia referencia y otras la nuestra, porque se la
+  // mandamos al crear la operación. La receta dice cuál de las dos es.
+  const porIntento = receta.webhook.reference_is === 'intent_id';
+  const { data: intento } = porIntento
+    ? await supabase.from('payment_intents').select('id').eq('id', String(referencia)).maybeSingle()
+    : await supabase
+        .from('payment_intents')
+        .select('id')
+        .eq('provider_id', info.provider_id)
+        .eq('provider_ref', String(referencia))
+        .maybeSingle();
   if (!intento) return { ok: false, error: 'INTENTO_NO_ENCONTRADO' };
 
-  const comision = receta.webhook.fee ? Number(extraer(cuerpo, receta.webhook.fee) ?? 0) : 0;
+  // La comisión puede venir en unidades mayores —«1234.56»— y aquí todo se
+  // guarda en la unidad menor de la divisa.
+  const decimalesDivisa = currencyDecimals((await divisaDelIntento(intento.id)) ?? 'EUR');
+  const bruta = receta.webhook.fee ? Number(extraer(fuente, receta.webhook.fee) ?? 0) : 0;
+  const comision = receta.webhook.fee_is_major
+    ? bruta * 10 ** decimalesDivisa
+    : bruta;
 
   const { data, error } = await supabase.rpc('settle_payment_intent', {
     p_intent_id: intento.id,
     p_status: nuestro,
-    p_provider_ref: String(referencia),
+    // Cuando la referencia era la nuestra, se conserva la del proveedor que ya
+    // teníamos: es la mitad de la clave que impide cobrar dos veces.
+    p_provider_ref: porIntento ? null : String(referencia),
     p_raw: cuerpo as never,
     p_fee_cents: Number.isFinite(comision) ? Math.round(comision) : 0,
   });
 
   if (error) return { ok: false, error: error.message };
   return { ok: true, estado: (data as { status?: string })?.status ?? nuestro };
+}
+
+/** La divisa del cobro, para saber cuántos decimales tiene su unidad menor. */
+async function divisaDelIntento(intentId: string): Promise<string | null> {
+  const { data } = await createAdminSupabase()
+    .from('payment_intents')
+    .select('currency')
+    .eq('id', intentId)
+    .maybeSingle();
+  return data?.currency ?? null;
 }

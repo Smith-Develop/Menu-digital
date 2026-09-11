@@ -85,7 +85,7 @@ RECETA = {
         "method": "POST",
         "url": f"http://127.0.0.1:{PUERTO}/crear",
         "body": {
-            "amount": "{{amount_major}}",
+            "amount": "{{amount_major_text}}",
             "amount_cents": "{{amount_minor}}",
             "currency": "{{currency}}",
             "description": "{{description}}",
@@ -179,7 +179,10 @@ def correr(c: Cuaderno, esc: Escenario) -> None:
         c.check("la aplicación abre el cobro y devuelve a dónde ir",
                 inicio.get("url", "").endswith("REF-DE-MENTIRA-1"), str(inicio)[:250])
 
-        c.check("la pasarela recibió el importe en sus dos formatos",
+        # Las pasarelas no se ponen de acuerdo: unas quieren el importe como
+        # número y otras como texto. La receta elige, y las dos formas salen
+        # del mismo importe sin que nadie las calcule a mano.
+        c.check("la pasarela recibió el importe en las dos formas que puede pedir",
                 recibido.get("cuerpo", {}).get("amount_cents") == total
                 and recibido["cuerpo"]["amount"] == f"{total // 100}.{total % 100:02d}",
                 json.dumps(recibido.get("cuerpo"))[:220])

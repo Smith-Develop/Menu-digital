@@ -33,7 +33,7 @@ export type Gateway = {
 
 /** Las marcas que el intérprete sabe rellenar. Se enseñan al lado del editor. */
 const MARCAS = [
-  'amount_minor', 'amount_major', 'currency', 'order_code',
+  'amount_minor', 'amount_major', 'amount_major_text', 'currency', 'order_code',
   'return_url', 'cancel_url', 'webhook_url',
   'customer_name', 'customer_email', 'customer_phone', 'reference',
 ];

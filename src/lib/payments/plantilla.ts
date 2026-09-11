@@ -14,12 +14,12 @@ export function rellenar<T>(plantilla: T, contexto: Contexto): T {
   if (typeof plantilla === 'string') {
     // Una marca sola conserva su tipo: `"{{amount_minor}}"` debe salir como
     // número, no como la cadena "1250", porque hay APIs que lo rechazan.
-    const sola = plantilla.match(/^\{\{\s*([\w.]+)\s*\}\}$/);
+    const sola = plantilla.match(/^\{\{\s*([\w.-]+)\s*\}\}$/);
     if (sola) {
       const valor = contexto[sola[1]];
       return (valor === undefined ? '' : valor) as unknown as T;
     }
-    return plantilla.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_, clave: string) => {
+    return plantilla.replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (_, clave: string) => {
       const valor = contexto[clave];
       return valor === undefined ? '' : String(valor);
     }) as unknown as T;

@@ -128,7 +128,13 @@ class Escenario:
     ejecuciones siguientes y hace perder más tiempo del que ahorra.
     """
 
-    def __init__(self):
+    def __init__(self, divisa: str = "EUR", decimales: int = 2, pais: str = "ES"):
+        # La divisa se puede elegir porque algunas pruebas la necesitan: una
+        # pasarela colombiana no acepta euros, y el peso no tiene decimales, que
+        # es justo el camino donde se rompen los cálculos de importe.
+        self.divisa = divisa
+        self.decimales = decimales
+        self.pais = pais
         self.sufijo = uuid.uuid4().hex[:8]
         self.usuarios: dict[str, str] = {}      # rol -> id
         self.correos: dict[str, str] = {}       # rol -> correo
@@ -180,8 +186,8 @@ class Escenario:
               delivery_fee_cents, min_order_cents, tax_rate
             ) values (
               '{self.usuarios["owner"]}', 'arnes-{self.sufijo}', 'Local del arnés',
-              'Existe sólo para las pruebas', 'Madrid', 'ES', 'EUR',
-              2, 'Europe/Madrid', true, true,
+              'Existe sólo para las pruebas', 'Madrid', '{self.pais}', '{self.divisa}',
+              {self.decimales}, 'Europe/Madrid', true, true,
               true, true, true, true, true, true,
               300, 0, 0.10
             ) returning id;
