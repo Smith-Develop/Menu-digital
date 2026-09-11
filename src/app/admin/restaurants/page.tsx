@@ -2,6 +2,7 @@ import { getI18n } from '@/i18n';
 import { requireSuperadmin, daysUntil, subscriptionIsLive } from '@/lib/auth';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { RestaurantsTable } from '@/components/admin/restaurants-table';
+import { NewRestaurantButton } from '@/components/admin/restaurant-profile';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Restaurantes' };
@@ -36,7 +37,12 @@ export default async function AdminRestaurantsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="font-display text-2xl font-bold text-ink">{t.admin.restaurants}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="font-display text-2xl font-bold text-ink">{t.admin.restaurants}</h1>
+        <NewRestaurantButton
+          plans={(plans ?? []).map((plan) => ({ id: plan.id, name: plan.name }))}
+        />
+      </div>
 
       <RestaurantsTable
         plans={(plans ?? []).map((plan) => ({

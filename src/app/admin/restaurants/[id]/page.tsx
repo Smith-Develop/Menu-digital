@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { requireSuperadmin, daysUntil, subscriptionIsLive } from '@/lib/auth';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { RestaurantSheet } from '@/components/admin/restaurant-sheet';
+import { RestaurantProfileForm } from '@/components/admin/restaurant-profile';
 
 export const dynamic = 'force-dynamic';
 
@@ -112,6 +113,26 @@ export default async function AdminRestaurantPage({
           status: p.status,
           createdAt: p.paid_at ?? p.created_at,
         }))}
+      />
+
+      <RestaurantProfileForm
+        restaurantId={restaurant.id}
+        initial={{
+          name: restaurant.name,
+          slug: restaurant.slug,
+          description: restaurant.description ?? '',
+          email: restaurant.email ?? '',
+          phone: restaurant.phone ?? '',
+          address: restaurant.address ?? '',
+          country: restaurant.country ?? '',
+          city: restaurant.city ?? '',
+          currency: restaurant.currency,
+          timezone: restaurant.timezone,
+          documentType: restaurant.document_type ?? '',
+          documentNumber: restaurant.document_number ?? '',
+          businessType: restaurant.business_type,
+          isActive: restaurant.is_active,
+        }}
       />
     </div>
   );

@@ -55,6 +55,22 @@ def correr(c: Cuaderno, esc: Escenario) -> None:
     c.check("la cocina no toca la ficha", isinstance(r, list) and len(r) == 0, str(r)[:160])
 
 
+    c.bloque("El país, que es lo que filtra las pasarelas")
+
+    # El país deja de escribirse a mano porque es la llave del filtro de
+    # pasarelas: «CO» escrito de tres formas son tres países para ese filtro, y
+    # el comercio se queda sin ninguna forma de cobro sin saber por qué.
+    from countries import PAISES_CON_CIUDADES  # noqa: E402
+
+    for codigo, ciudad, divisa in PAISES_CON_CIUDADES:
+        r = guardar(duenyo, {"country": codigo, "city": ciudad})
+        c.check(f"se guarda {ciudad} ({codigo})", isinstance(r, list) and len(r) == 1, str(r)[:140])
+
+    fila = rest(duenyo, f"restaurants?id=eq.{local}&select=country,city_slug")[0]
+    c.check("y el identificador de ciudad sale sin tildes ni espacios",
+            fila["city_slug"] == "san-pedro-sula", str(fila))
+
+
 def main() -> int:
     c = Cuaderno("Que el local pueda guardar su ficha")
     with Escenario() as esc:

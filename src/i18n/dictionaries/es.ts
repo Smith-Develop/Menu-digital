@@ -489,6 +489,7 @@ const es = {
     changeCourier: 'Cambiar repartidor',
   },
   dashboard: {
+    address: 'Dirección',
     markServed: 'Marcar servido',
     floorAndOrders: 'Sala y pedidos',
     dishImageHint: 'Cuadrada y con el plato centrado: en la carta se recorta en círculo.',
@@ -1338,6 +1339,40 @@ const es = {
     savedSection: 'Guardado',
     failed: 'No se pudo guardar: {motivo}',
     unsaved: 'Hay cambios sin guardar en esta sección',
+  },
+
+  /** País y ciudad, elegidos de una lista. */
+  place: {
+    country: 'País',
+    city: 'Ciudad',
+    otherCity: 'Otra ciudad…',
+    cityFree: 'Escríbela tal y como quieras que se vea',
+    suggested: 'Se han propuesto la divisa y la zona horaria del país. Cámbialas si no son las tuyas.',
+  },
+
+  /** Alta y ficha de restaurantes desde el panel de la plataforma. */
+  adminShop: {
+    newRestaurant: 'Nuevo restaurante',
+    newHint: 'Déjalo montado antes de la primera llamada. El titular recibe un correo para poner su contraseña.',
+    ownerEmail: 'Correo del titular',
+    ownerHint: 'Si ya tiene cuenta se vincula sin tocarle la contraseña.',
+    businessType: 'Tipo de negocio',
+    plan: 'Plan inicial',
+    noPlan: 'Sin plan',
+    create: 'Crear el restaurante',
+    created: 'Restaurante creado',
+    invited: 'Creado. Se le ha enviado un correo al titular para que ponga su contraseña.',
+    profile: 'Ficha del restaurante',
+    profileHint: 'Todo lo del local. El identificador y el tipo de negocio sólo se cambian desde aquí.',
+    slug: 'Identificador de la tienda',
+    slugHint: 'Es la dirección pública: /r/identificador. Cambiarlo rompe los enlaces ya repartidos y los códigos QR impresos.',
+    docType: 'Tipo de documento',
+    docNumber: 'Número',
+    saveProfile: 'Guardar la ficha',
+    saved: 'Guardado',
+    slugTaken: 'Ese identificador ya está cogido',
+    SERVICE_ROLE_KEY_MISSING: 'Falta la clave de servicio en el servidor',
+    INVALID_INPUT: 'Faltan datos o alguno no vale',
   },
 } as const;
 

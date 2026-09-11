@@ -11,6 +11,7 @@ import { ColorInput } from '@/components/ui/color-input';
 import { OpeningHoursEditor, type OpeningHours } from '@/components/dashboard/opening-hours';
 import { brandCssVariables } from '@/lib/brand-theme';
 import { CURRENCIES, formatAmount, parseAmount, getCurrency } from '@/lib/money';
+import { CountryCityFields } from '@/components/ui/location-fields';
 import { useT, interpolate } from '@/i18n/provider';
 import { cn } from '@/lib/utils';
 
@@ -223,6 +224,32 @@ export function SettingsForm({
           />
         </div>
 
+        {/* El país deja de escribirse a mano: es lo que filtra las pasarelas
+            de pago, y «CO» escrito de tres formas distintas son tres países
+            para el filtro. Elegirlo propone además la divisa y la hora. */}
+        <CountryCityFields
+          country={values.country}
+          city={values.city ?? ''}
+          onCountry={(code) => set('country', code)}
+          onCity={(nombre) => set('city', nombre)}
+          onSuggest={(pais) => {
+            setValues((actual) => ({
+              ...actual,
+              country: pais.code,
+              currency: pais.currency,
+              timezone: pais.timezone,
+            }));
+            setTocadas((previas) => new Set(previas).add('profile').add('orders'));
+            toast(t.place.suggested, 'success');
+          }}
+          labels={{
+            country: t.place.country,
+            city: t.place.city,
+            otherCity: t.place.otherCity,
+            cityFree: t.place.cityFree,
+          }}
+        />
+
         <div className="grid gap-4 sm:grid-cols-2">
           <Input
             value={values.phone ?? ''}
@@ -231,17 +258,11 @@ export function SettingsForm({
             type="tel"
           />
           <Input
-            value={values.city ?? ''}
-            onChange={(e) => set('city', e.target.value)}
-            label="Ciudad"
+            value={values.address ?? ''}
+            onChange={(e) => set('address', e.target.value)}
+            label={t.dashboard.address}
           />
         </div>
-
-        <Input
-          value={values.address ?? ''}
-          onChange={(e) => set('address', e.target.value)}
-          label="Dirección"
-        />
 
         {/* Documento fiscal. El tipo se escribe a mano porque cada país tiene el
             suyo: NIF, RUC, RFC, CUIT, NIT… */}

@@ -491,6 +491,7 @@ const en: Dictionary = {
     changeCourier: 'Change courier',
   },
   dashboard: {
+    address: 'Address',
     markServed: 'Mark as served',
     floorAndOrders: 'Floor & orders',
     dishImageHint: 'Square with the dish centred: the menu crops it into a circle.',
@@ -1339,6 +1340,40 @@ const en: Dictionary = {
     savedSection: 'Saved',
     failed: 'Could not save: {motivo}',
     unsaved: 'This section has unsaved changes',
+  },
+
+  /** País y ciudad, elegidos de una lista. */
+  place: {
+    country: 'Country',
+    city: 'City',
+    otherCity: 'Another city…',
+    cityFree: 'Write it exactly as you want it shown',
+    suggested: 'The country currency and time zone have been suggested. Change them if they are not yours.',
+  },
+
+  /** Alta y ficha de restaurantes desde el panel de la plataforma. */
+  adminShop: {
+    newRestaurant: 'New restaurant',
+    newHint: 'Set it up before the first call. The owner gets an email to set their password.',
+    ownerEmail: "Owner's email",
+    ownerHint: 'If they already have an account it is linked without touching their password.',
+    businessType: 'Business type',
+    plan: 'Starting plan',
+    noPlan: 'No plan',
+    create: 'Create the restaurant',
+    created: 'Restaurant created',
+    invited: 'Created. An email was sent to the owner to set their password.',
+    profile: 'Restaurant details',
+    profileHint: 'Everything about the business. The shop identifier and business type change only from here.',
+    slug: 'Shop identifier',
+    slugHint: 'It is the public address: /r/identifier. Changing it breaks links already shared and printed QR codes.',
+    docType: 'Document type',
+    docNumber: 'Number',
+    saveProfile: 'Save details',
+    saved: 'Saved',
+    slugTaken: 'That identifier is taken',
+    SERVICE_ROLE_KEY_MISSING: 'The service key is missing on the server',
+    INVALID_INPUT: 'Something is missing or invalid',
   },
 
 };

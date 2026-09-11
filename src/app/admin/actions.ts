@@ -11,6 +11,8 @@ import { sendPasswordResetFor } from '@/lib/password-reset';
 import { sendBroadcastPush } from '@/lib/push';
 import { getSessionProfile } from '@/lib/auth';
 import { periodEnd } from '@/lib/stripe';
+import { slugify } from '@/lib/utils';
+import { getCurrency } from '@/lib/money';
 import type { Enums } from '@/types/database';
 
 // Genérico como el del panel: hay acciones que ya devuelven datos y tener dos
@@ -1144,4 +1146,183 @@ export async function reviewPaymentSpec(spec: unknown): Promise<Result<{ avisos:
   }
 
   return { ok: true, data: { avisos } };
+}
+
+// ===================== Alta y ficha de restaurantes =====================
+
+const nuevoRestauranteSchema = z.object({
+  name: z.string().min(1).max(120),
+  slug: z.string().max(60).regex(/^[a-z0-9-]*$/).optional(),
+  ownerEmail: z.string().email(),
+  country: z.string().length(2),
+  city: z.string().max(80).nullable().optional(),
+  currency: z.string().length(3),
+  timezone: z.string().max(60),
+  businessType: z.enum(['restaurant', 'grocery']).default('restaurant'),
+  planId: z.string().uuid().nullable().optional(),
+});
+
+/**
+ * Da de alta un restaurante desde el panel de la plataforma.
+ *
+ * Hasta ahora sólo podía crearse registrándose desde fuera, lo que obligaba a
+ * pedirle al cliente que se apuntara él y después ir a buscarle. Quien vende
+ * necesita poder dejarlo montado antes de la primera llamada.
+ *
+ * Si el correo del titular ya tiene cuenta, se vincula sin tocarle la
+ * contraseña. Si no la tiene, se crea y se le manda el correo para que la
+ * ponga: nunca se le asigna una por él.
+ */
+export async function createRestaurantAsAdmin(
+  input: unknown,
+): Promise<Result<{ id: string; slug: string; invited: boolean }>> {
+  if (!(await requireAdmin())) return { ok: false, error: 'FORBIDDEN' };
+
+  const parsed = nuevoRestauranteSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'INVALID_INPUT' };
+  const datos = parsed.data;
+
+  const supabase = await createServerSupabase();
+  const email = datos.ownerEmail.trim().toLowerCase();
+
+  const { data: perfil } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('email', email)
+    .maybeSingle();
+
+  let ownerId = perfil?.id ?? null;
+  let invited = false;
+
+  if (!ownerId) {
+    let admin: ReturnType<typeof createAdminSupabase>;
+    try {
+      admin = createAdminSupabase();
+    } catch {
+      return { ok: false, error: 'SERVICE_ROLE_KEY_MISSING' };
+    }
+
+    const { data: creado, error: errorAlta } = await admin.auth.admin.createUser({
+      email,
+      email_confirm: true,
+      user_metadata: { full_name: datos.name },
+    });
+    if (errorAlta || !creado.user) {
+      return { ok: false, error: errorAlta?.message ?? 'NO_SE_PUDO_CREAR_LA_CUENTA' };
+    }
+    ownerId = creado.user.id;
+    invited = true;
+  }
+
+  // Identificador único, como en el alta de fuera: si "la-trattoria" está
+  // cogido se prueba "la-trattoria-2", y así.
+  const base = (datos.slug?.trim() || slugify(datos.name) || 'local').slice(0, 50);
+  let slug = base;
+  for (let intento = 2; intento < 60; intento += 1) {
+    const { data: cogido } = await supabase
+      .from('restaurants')
+      .select('id')
+      .eq('slug', slug)
+      .maybeSingle();
+    if (!cogido) break;
+    slug = `${base}-${intento}`;
+  }
+
+  const moneda = getCurrency(datos.currency);
+  const { data: local, error: errorLocal } = await supabase
+    .from('restaurants')
+    .insert({
+      owner_id: ownerId,
+      slug,
+      name: datos.name.trim(),
+      email,
+      country: datos.country.toUpperCase(),
+      city: datos.city?.trim() || null,
+      currency: moneda.code,
+      currency_decimals: moneda.decimals,
+      timezone: datos.timezone,
+      business_type: datos.businessType,
+      is_active: true,
+    })
+    .select('id, slug')
+    .single();
+
+  if (errorLocal || !local) {
+    return { ok: false, error: errorLocal?.code === '23505' ? 'SLUG_TAKEN' : (errorLocal?.message ?? 'NO_SE_PUDO_CREAR') };
+  }
+
+  await supabase
+    .from('restaurant_staff')
+    .insert({ restaurant_id: local.id, user_id: ownerId, role: 'owner', is_active: true });
+
+  // Un local sin plan no puede recibir pedidos: se le asigna el elegido, o el
+  // más barato que haya, para que nazca funcionando.
+  if (datos.planId) {
+    await assignPlan(local.id, datos.planId, { subjectType: 'restaurant' });
+  }
+
+  // La contraseña la pone su dueño, no nosotros.
+  if (invited) await sendPasswordResetFor(email);
+
+  revalidatePath('/admin/restaurants');
+  revalidatePath('/admin');
+  return { ok: true, data: { id: local.id, slug: local.slug, invited } };
+}
+
+const fichaSchema = z.object({
+  name: z.string().min(1).max(120).optional(),
+  slug: z.string().min(1).max(60).regex(/^[a-z0-9-]+$/).optional(),
+  description: z.string().max(1000).nullable().optional(),
+  email: z.string().email().nullable().optional(),
+  phone: z.string().max(40).nullable().optional(),
+  address: z.string().max(240).nullable().optional(),
+  city: z.string().max(80).nullable().optional(),
+  country: z.string().length(2).optional(),
+  currency: z.string().length(3).optional(),
+  timezone: z.string().max(60).optional(),
+  document_type: z.string().max(40).nullable().optional(),
+  document_number: z.string().max(60).nullable().optional(),
+  business_type: z.enum(['restaurant', 'grocery']).optional(),
+  is_active: z.boolean().optional(),
+});
+
+/**
+ * La ficha completa, desde el panel de la plataforma.
+ *
+ * El superadministrador puede tocar cosas que el local no: el identificador de
+ * la tienda y el tipo de negocio. Lo primero porque cambiarlo rompe los enlaces
+ * ya repartidos y conviene que lo haga quien sepa lo que implica; lo segundo
+ * porque enciende y apaga módulos enteros del panel.
+ */
+export async function updateRestaurantProfile(
+  restaurantId: string,
+  input: unknown,
+): Promise<Result> {
+  if (!(await requireAdmin())) return { ok: false, error: 'FORBIDDEN' };
+
+  const parsed = fichaSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'INVALID_INPUT' };
+
+  const cambios: Record<string, unknown> = Object.fromEntries(
+    Object.entries(parsed.data).filter(([, valor]) => valor !== undefined),
+  );
+  if (Object.keys(cambios).length === 0) return { ok: true };
+
+  if (typeof cambios.currency === 'string') {
+    const moneda = getCurrency(cambios.currency);
+    cambios.currency = moneda.code;
+    cambios.currency_decimals = moneda.decimals;
+  }
+  if (typeof cambios.country === 'string') cambios.country = cambios.country.toUpperCase();
+
+  const supabase = await createServerSupabase();
+  const { error } = await supabase.from('restaurants').update(cambios).eq('id', restaurantId);
+
+  if (error) {
+    return { ok: false, error: error.code === '23505' ? 'SLUG_TAKEN' : error.message };
+  }
+
+  revalidatePath('/admin/restaurants');
+  revalidatePath(`/admin/restaurants/${restaurantId}`);
+  return { ok: true };
 }
