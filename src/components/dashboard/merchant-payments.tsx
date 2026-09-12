@@ -51,10 +51,19 @@ export function MerchantPayments({
   const [valores, setValores] = useState<Record<string, string>>({});
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [prueba, setPrueba] = useState<{ ok: boolean; texto: string } | null>(null);
+  /*
+   * Quién pulsó el interruptor antes de tener llaves.
+   *
+   * Sin esto, encender una pasarela eran tres pasos: pulsar, que te digan que
+   * faltan las llaves, guardarlas… y volver a pulsar. El último se olvida, y
+   * entonces el comercio cree que está cobrando por internet y no lo está.
+   */
+  const [queriaEncender, setQueriaEncender] = useState(false);
 
   async function encender(p: PasarelaDisponible, activo: boolean) {
     if (activo && !p.tieneLlaves) {
       toast(t.merchantPay.onlyWithKeys, 'error');
+      setQueriaEncender(true);
       abrir(p);
       return;
     }
@@ -99,9 +108,22 @@ export function MerchantPayments({
       toast(textos[result.error] ?? t.common.error, 'error');
       return;
     }
-    toast(t.merchantPay.keysSaved, 'success');
     setEditando({ ...editando, tieneLlaves: true });
     setValores(Object.fromEntries(editando.campos.map((c) => [c.campo, ''])));
+
+    // Ya tiene llaves: se termina lo que había empezado al pulsar el
+    // interruptor, en vez de dejarlo a medias esperando un segundo clic.
+    if (queriaEncender && !editando.activa) {
+      const encendida = await toggleMerchantMethod(editando.providerId, true);
+      setQueriaEncender(false);
+      if (encendida.ok && encendida.data.active) {
+        toast(t.merchantPay.savedAndOn, 'success');
+        router.refresh();
+        return;
+      }
+    }
+
+    toast(t.merchantPay.keysSaved, 'success');
     router.refresh();
   }
 

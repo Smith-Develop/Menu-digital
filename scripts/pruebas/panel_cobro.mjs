@@ -43,9 +43,11 @@ let t = await p.$eval('body', (e) => e.innerText);
 check('la pantalla ofrece Mercado Pago', /Mercado Pago/.test(t), t.slice(0, 300));
 check('y avisa de que le faltan las llaves', /Faltan las llaves/i.test(t), t.slice(0, 300));
 
-// Encender sin llaves no debe dejar.
-const interruptores = await p.$$('button[role="switch"]');
-await interruptores[0].click({ force: true });
+// Encender sin llaves no debe dejar. Se busca la tarjeta que de verdad no las
+// tiene: ir por índice apagaba la que ya estaba configurada, y entonces la
+// prueba pasaba por el motivo equivocado.
+const sinLlaves = p.locator('li', { hasText: 'Faltan las llaves' }).first();
+await sinLlaves.locator('button[role="switch"]').click({ force: true });
 await p.waitForTimeout(2500);
 t = await p.$eval('body', (e) => e.innerText);
 check('no deja encenderla sin llaves',
@@ -53,7 +55,7 @@ check('no deja encenderla sin llaves',
 
 // El diálogo se abre solo al intentarlo; si no, se abre a mano.
 if (!(await p.$('div[role="dialog"]'))) {
-  await p.click('button:has-text("Guardar las llaves")', { force: true });
+  await sinLlaves.locator('button:has-text("Guardar las llaves")').click({ force: true });
   await p.waitForTimeout(1500);
 }
 t = await p.$eval('div[role="dialog"]', (e) => e.innerText);
@@ -74,6 +76,38 @@ await p.waitForTimeout(9000);
 t = await p.$eval('div[role="dialog"]', (e) => e.innerText);
 check('la prueba de conexión llega a Mercado Pago',
   /mercadopago\.com/.test(t), t.slice(-300));
+
+// --- Y lo que ve quien paga ------------------------------------------------
+// Sobre el local del arnés, que es el que acaba de quedar configurado: hacerlo
+// contra un local de verdad ataría la prueba a cómo esté configurado ese día.
+const SLUG = process.env.PANEL_SLUG;
+if (SLUG) {
+  // Ventana limpia: quien paga no es el dueño, y con su sesión el escaparate
+  // le manda a su panel. Con el carrito vacío la pantalla de pago redirige,
+  // así que primero se mete algo.
+  const cliente = await (await b.newContext({
+    viewport: { width: 430, height: 900 }, locale: 'es-ES', isMobile: true, hasTouch: true,
+  })).newPage();
+
+  await cliente.goto(`${BASE}/r/${SLUG}`, { waitUntil: 'networkidle' });
+  await cliente.waitForTimeout(3000);
+  for (const boton of await cliente.$$('button[aria-label]')) {
+    const etiqueta = await boton.getAttribute('aria-label');
+    if (etiqueta && /a.adir|carrito/i.test(etiqueta)) {
+      await boton.click({ force: true });
+      break;
+    }
+  }
+  await cliente.waitForTimeout(1800);
+
+  await cliente.goto(`${BASE}/r/${SLUG}/checkout?type=delivery`, { waitUntil: 'networkidle' });
+  await cliente.waitForTimeout(3000);
+  const t2 = await cliente.$eval('body', (e) => e.innerText);
+  check('el cliente ve el pago agrupado por cuándo',
+    /Pagar ahora/i.test(t2) && /Pagar al recibir/i.test(t2), t2.slice(0, 400));
+  check('y la pasarela que el local encendió', /Mercado Pago/.test(t2), t2.slice(0, 400));
+  check('sin dos opciones de tarjeta que se pisen', !/Datáfono \(TPV\)/.test(t2), t2.slice(0, 400));
+}
 
 console.log('    errores de consola: ' + (errores.length ? JSON.stringify(errores.slice(0, 2)) : 'ninguno'));
 console.log(`__RESULTADO__ ${ok} ${mal}`);

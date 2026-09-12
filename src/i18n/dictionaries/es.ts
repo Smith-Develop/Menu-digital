@@ -292,6 +292,7 @@ const es = {
     remove: 'Quitar',
   },
   checkout: {
+    minOrderNotReached: 'Te falta llegar al pedido mínimo de {amount} para que te lo llevemos.',
     title: 'Finalizar pedido',
     yourData: 'Tus datos',
     paymentMethod: 'Método de pago',
@@ -1303,6 +1304,7 @@ const es = {
 
   /** Formas de cobro del comercio: qué pasarelas enciende y con qué llaves. */
   merchantPay: {
+    savedAndOn: 'Llaves guardadas. Ya está cobrando por internet.',
     title: 'Formas de cobro',
     subtitle: 'Qué pasarelas acepta tu negocio y con qué cuenta cobra',
     available: 'Disponibles para tu país y tu divisa',
@@ -1402,6 +1404,38 @@ const es = {
     restaurants: '{n} locales',
     COUNTRY_IN_USE: 'No se puede borrar: hay locales en ese país. Apágalo en su lugar.',
     empty: 'Todavía no hay ningún país. Añade el primero para que alguien pueda darse de alta.',
+  },
+
+  /** El momento del pago: ahora por internet, o al recibirlo. */
+  pay: {
+    now: 'Pagar ahora',
+    nowHint: 'Pagas por internet y el pedido entra ya confirmado',
+    onDelivery: 'Pagar al recibir',
+    onPickup: 'Pagar al recoger',
+    atTable: 'Pagar en la mesa',
+    cash: 'Efectivo',
+    cashDelivery: 'Le pagas al repartidor cuando llegue',
+    cashPickup: 'Pagas en el mostrador al recoger',
+    cashTable: 'Pagas al camarero',
+    card: 'Tarjeta',
+    cardDelivery: 'El repartidor lleva datáfono',
+    cardPickup: 'Con datáfono en el mostrador',
+    cardTable: 'El camarero lleva el datáfono a tu mesa',
+    goPay: 'Ir a pagar',
+    opening: 'Abriendo el pago…',
+    failed: 'No se pudo abrir el pago. Puedes intentarlo otra vez o pagar al recibir.',
+    /* La vuelta de la pasarela */
+    waiting: 'Estamos confirmando tu pago',
+    waitingHint: 'Puede tardar unos segundos. No cierres esta página.',
+    paid: 'Pago confirmado',
+    paidHint: 'Ya estamos con tu pedido.',
+    rejected: 'El pago no se completó',
+    rejectedHint: 'No se te ha cobrado nada. Puedes intentarlo otra vez o pagar al recibir.',
+    cancelled: 'Has cancelado el pago',
+    expired: 'El pago caducó',
+    tryAgain: 'Intentar otra vez',
+    seeOrder: 'Ver mi pedido',
+    takingLong: 'Está tardando más de lo normal. Tu pedido está guardado: ábrelo para ver si el pago llegó.',
   },
 } as const;
 

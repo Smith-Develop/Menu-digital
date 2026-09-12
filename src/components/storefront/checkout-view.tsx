@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Banknote, CreditCard, MapPin, Pencil, Smartphone } from 'lucide-react';
+import { Banknote, CreditCard, Globe, MapPin, Pencil } from 'lucide-react';
 import { ScreenHeader } from '@/components/ui/misc';
 import { CheckoutIdentity } from '@/components/storefront/checkout-identity';
 import { Input, Textarea } from '@/components/ui/input';
@@ -12,11 +12,20 @@ import { useActiveCart, useCartContext } from '@/components/storefront/cart-prov
 import { createClient } from '@/lib/supabase/client';
 import { formatMoney } from '@/lib/money';
 import { MoneyInput } from '@/components/ui/money-input';
-import { useT } from '@/i18n/provider';
+import { useT, interpolate } from '@/i18n/provider';
 import { cn } from '@/lib/utils';
 import type { Enums } from '@/types/database';
 
 type PayMethod = Extract<Enums<'payment_method'>, 'cash' | 'card' | 'tpv'>;
+
+/** Una forma de cobro por internet que el local tiene encendida. */
+export type OnlineMethod = {
+  method_id: string;
+  slug: string;
+  name: string;
+  logo_url: string | null;
+  kind: string;
+};
 
 export type DeliverySlot = {
   slot_id: string;
@@ -47,9 +56,26 @@ function diaCorto(iso: string, t: ReturnType<typeof useT>): string {
   });
 }
 
-/** Traduce los códigos de error que lanza place_order a un mensaje legible. */
-function errorMessage(raw: string, t: ReturnType<typeof useT>): string {
-  const code = raw.split(':')[0];
+/**
+ * Traduce los códigos de error que lanza place_order a un mensaje legible.
+ *
+ * Varios traen un dato detrás de los dos puntos —el mínimo que falta, el cupón
+ * que no llega— y ese dato es justo lo que convierte un «algo salió mal» en una
+ * frase que dice qué hacer.
+ */
+function errorMessage(
+  raw: string,
+  t: ReturnType<typeof useT>,
+  currency: string,
+  decimals: number,
+): string {
+  const [code, dato] = raw.split(':');
+
+  if (code === 'MIN_ORDER_NOT_REACHED') {
+    return interpolate(t.checkout.minOrderNotReached, {
+      amount: formatMoney(Number(dato) || 0, currency, decimals),
+    });
+  }
   const map: Record<string, string> = {
     EMPTY_CART: t.cart.empty,
     RESTAURANT_CLOSED: t.storefront.closed,
@@ -86,6 +112,7 @@ export function CheckoutView({
   isSignedIn,
   savedLocation,
   slots,
+  online,
 }: {
   slug: string;
   orderType: Enums<'order_type'>;
@@ -102,6 +129,8 @@ export function CheckoutView({
   savedLocation: { city: string; address: string | null } | null;
   /** Franjas de entrega libres. Vacío significa que el local no las usa. */
   slots: DeliverySlot[];
+  /** Pasarelas encendidas. Vacío quiere decir que aquí sólo se paga al recibir. */
+  online: OnlineMethod[];
 }) {
   const t = useT();
   const toast = useToast();
@@ -112,15 +141,39 @@ export function CheckoutView({
   const coupon = cart((s) => s.coupon);
   const clear = cart((s) => s.clear);
 
-  const ALL_METHODS = [
-    { id: 'cash', icon: Banknote, label: t.checkout.cash, hint: t.checkout.cashHint },
-    { id: 'card', icon: CreditCard, label: t.checkout.card, hint: t.checkout.cardHint },
-    { id: 'tpv', icon: Smartphone, label: t.checkout.tpv, hint: t.checkout.tpvHint },
-  ] satisfies { id: PayMethod; icon: typeof Banknote; label: string; hint: string }[];
+  /*
+   * Lo que se paga al final se agrupa por *cuándo*, no por *con qué*.
+   *
+   * Antes había tres botones —Efectivo, Tarjeta, Datáfono (TPV)— y «Tarjeta»
+   * prometía «pago seguro con tarjeta» sin cobrar nada: sólo anotaba que se
+   * pagaría al recibir. Para quien pide, tarjeta y datáfono son lo mismo —doy
+   * la tarjeta cuando llegue— así que se ofrecen como uno solo, y lo que
+   * cambia de verdad, pagar ahora o pagar después, sí se ve.
+   */
+  const cuando =
+    orderType === 'delivery'
+      ? { titulo: t.pay.onDelivery, efectivo: t.pay.cashDelivery, tarjeta: t.pay.cardDelivery }
+      : orderType === 'pickup'
+        ? { titulo: t.pay.onPickup, efectivo: t.pay.cashPickup, tarjeta: t.pay.cardPickup }
+        : { titulo: t.pay.atTable, efectivo: t.pay.cashTable, tarjeta: t.pay.cardTable };
 
-  const methods = ALL_METHODS.filter((m) => accepts[m.id]);
+  // El datáfono manda sobre la tarjeta manual cuando el local tiene los dos:
+  // es el aparato que de verdad se usa, y para el cliente son lo mismo.
+  const metodoTarjeta: PayMethod | null = accepts.tpv ? 'tpv' : accepts.card ? 'card' : null;
 
-  const [method, setMethod] = useState<PayMethod>(methods[0]?.id ?? 'cash');
+  const alRecibir = [
+    ...(accepts.cash
+      ? [{ id: 'cash' as PayMethod, icon: Banknote, label: t.pay.cash, hint: cuando.efectivo }]
+      : []),
+    ...(metodoTarjeta
+      ? [{ id: metodoTarjeta, icon: CreditCard, label: t.pay.card, hint: cuando.tarjeta }]
+      : []),
+  ];
+
+  // En línea de entrada cuando lo hay: es lo que el local prefiere cobrar, y
+  // al cliente le ahorra tener efectivo encima.
+  const [pasarela, setPasarela] = useState<string | null>(online[0]?.method_id ?? null);
+  const [method, setMethod] = useState<PayMethod>(alRecibir[0]?.id ?? 'cash');
   const [name, setName] = useState(customer.name);
   const [phone, setPhone] = useState(customer.phone);
   const [email, setEmail] = useState(customer.email);
@@ -228,7 +281,10 @@ export function CheckoutView({
         p_restaurant_slug: slug,
         p_items: cartToOrderItems(lines),
         p_type: orderType,
-        p_payment_method: method,
+        // Pagando por internet, el pedido nace con ese método aunque todavía
+        // no esté cobrado: es lo que se intentó, y el libro de cobros dirá
+        // después si llegó.
+        p_payment_method: pasarela ? 'online' : method,
         p_table_code: tableCode,
         // El turno de la mesa. La función lo exige desde la migración 0035:
         // sin él, cualquiera con un enlace antiguo podía colar comandas en la
@@ -247,11 +303,11 @@ export function CheckoutView({
       });
 
       if (error) {
-        toast(errorMessage(error.message, t), 'error');
+        toast(errorMessage(error.message, t, currency, currencyDecimals), 'error');
         return;
       }
 
-      const result = data as { token?: string } | null;
+      const result = data as { id?: string; token?: string } | null;
       if (!result?.token) {
         toast(t.common.error, 'error');
         return;
@@ -260,6 +316,34 @@ export function CheckoutView({
       // La cesta de la mesa se conserva a propósito: el comensal sigue viendo
       // su cuenta abierta hasta que el restaurante la marca como cobrada.
       clear();
+
+      if (pasarela && result.id) {
+        /*
+         * El pedido ya existe y está sin cobrar. Si abrir el pago falla, no se
+         * pierde nada: queda guardado y se puede pagar al recibirlo. Por eso se
+         * crea primero el pedido y se cobra después, y no al revés.
+         */
+        const respuesta = await fetch('/api/pago/iniciar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId: result.id,
+            methodId: pasarela,
+            token: result.token,
+          }),
+        });
+        const pago = (await respuesta.json().catch(() => ({}))) as { url?: string };
+
+        if (pago.url) {
+          window.location.href = pago.url;
+          return;
+        }
+
+        toast(t.pay.failed, 'error');
+        router.push(`/order/${result.token}`);
+        return;
+      }
+
       toast(t.checkout.success, 'success');
       router.push(inTable ? `/r/${slug}/table` : `/order/${result.token}`);
     } catch {
@@ -286,32 +370,85 @@ export function CheckoutView({
         )}
 
         <section className={cn(requiresAccount && !signedIn && 'pointer-events-none opacity-40')}>
-          <p className="label">{t.checkout.paymentMethod}</p>
-          <div className="grid grid-cols-3 gap-3">
-            {methods.map(({ id, icon: Icon, label }) => {
-              const active = method === id;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setMethod(id)}
-                  aria-pressed={active}
-                  className={cn(
-                    'flex flex-col items-center gap-2 rounded-2xl border-2 px-2 py-4 transition-colors',
-                    active
-                      ? 'border-brand bg-brand-50 text-brand-700'
-                      : 'border-transparent bg-surface-field text-ink-500 hover:bg-surface-muted',
-                  )}
-                >
-                  <Icon className="h-6 w-6" />
-                  <span className="text-xs font-bold">{label}</span>
-                </button>
-              );
-            })}
-          </div>
-          <p className="mt-2.5 text-xs text-ink-300">
-            {methods.find((m) => m.id === method)?.hint}
-          </p>
+          {/* Primero lo que cambia de verdad: si pagas ahora o al recibirlo. */}
+          {online.length > 0 && (
+            <div className="mb-6">
+              <p className="label">{t.pay.now}</p>
+              <div className="space-y-2">
+                {online.map((o) => {
+                  const elegida = pasarela === o.method_id;
+                  return (
+                    <button
+                      key={o.method_id}
+                      type="button"
+                      onClick={() => setPasarela(o.method_id)}
+                      aria-pressed={elegida}
+                      className={cn(
+                        'flex w-full items-center gap-3 rounded-2xl border-2 px-4 py-3.5 text-left transition-colors',
+                        elegida
+                          ? 'border-brand bg-brand-50'
+                          : 'border-transparent bg-surface-field hover:bg-surface-muted',
+                      )}
+                    >
+                      <Globe className={cn('h-5 w-5', elegida ? 'text-brand-700' : 'text-ink-400')} />
+                      <span className="min-w-0 flex-1">
+                        <span
+                          className={cn(
+                            'block text-sm font-bold',
+                            elegida ? 'text-brand-700' : 'text-ink-600',
+                          )}
+                        >
+                          {o.name}
+                        </span>
+                        <span className="block text-xs text-ink-300">{t.pay.nowHint}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {alRecibir.length > 0 && (
+            <>
+              <p className="label">{cuando.titulo}</p>
+              <div className="space-y-2">
+                {alRecibir.map(({ id, icon: Icon, label, hint }) => {
+                  const elegida = pasarela === null && method === id;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => {
+                        setPasarela(null);
+                        setMethod(id);
+                      }}
+                      aria-pressed={elegida}
+                      className={cn(
+                        'flex w-full items-center gap-3 rounded-2xl border-2 px-4 py-3.5 text-left transition-colors',
+                        elegida
+                          ? 'border-brand bg-brand-50'
+                          : 'border-transparent bg-surface-field hover:bg-surface-muted',
+                      )}
+                    >
+                      <Icon className={cn('h-5 w-5', elegida ? 'text-brand-700' : 'text-ink-400')} />
+                      <span className="min-w-0 flex-1">
+                        <span
+                          className={cn(
+                            'block text-sm font-bold',
+                            elegida ? 'text-brand-700' : 'text-ink-600',
+                          )}
+                        >
+                          {label}
+                        </span>
+                        <span className="block text-xs text-ink-300">{hint}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </section>
 
         <section
@@ -568,10 +705,12 @@ export function CheckoutView({
           className="btn-primary w-full py-4 text-[15px] uppercase tracking-wide"
         >
           {submitting
-            ? t.checkout.processing
-            : method === 'cash'
-              ? t.checkout.confirmOrder
-              : t.checkout.payAndConfirm}
+            ? pasarela
+              ? t.pay.opening
+              : t.checkout.processing
+            : pasarela
+              ? t.pay.goPay
+              : t.checkout.confirmOrder}
         </button>
       </div>
     </div>

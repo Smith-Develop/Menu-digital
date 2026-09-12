@@ -223,7 +223,8 @@ def correr(c: Cuaderno, esc: Escenario) -> None:
         c.bloque("El panel donde el comercio la enciende")
         entorno = {**os.environ,
                    "PANEL_EMAIL": esc.correos["owner"],
-                   "PANEL_PASSWORD": "ArnesDePruebas123!"}
+                   "PANEL_PASSWORD": "ArnesDePruebas123!",
+                   "PANEL_SLUG": f"arnes-{esc.sufijo}"}
         salida = subprocess.run(
             ["node", str(Path(__file__).resolve().parent / "panel_cobro.mjs")],
             capture_output=True, text=True, env=entorno, timeout=240)

@@ -2748,6 +2748,7 @@ export type Database = {
       settle_payment_intent: { Args: { p_intent_id: string; p_status: string; p_provider_ref?: string | null; p_raw?: Json | null; p_fee_cents?: number }; Returns: Json };
       method_by_webhook_token: { Args: { p_token: string }; Returns: Json };
       expire_stale_intents: { Args: { [_ in never]: never }; Returns: Json };
+      payment_intent_state: { Args: { p_intent_id: string }; Returns: Json };
       sponsored_restaurants: { Args: { p_city_slug?: string | null; p_kind?: Enums<'sponsorship_kind'> }; Returns: { restaurant_id: string; sponsorship_id: string }[] };
       is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };
       is_staff_of: { Args: { rid: string }; Returns: boolean };

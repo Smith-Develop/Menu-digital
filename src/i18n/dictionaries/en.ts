@@ -294,6 +294,7 @@ const en: Dictionary = {
     remove: 'Remove',
   },
   checkout: {
+    minOrderNotReached: 'You need to reach the {amount} minimum order for delivery.',
     title: 'Checkout',
     yourData: 'Your details',
     paymentMethod: 'Payment method',
@@ -1304,6 +1305,7 @@ const en: Dictionary = {
 
   /** Formas de cobro del comercio: qué pasarelas enciende y con qué llaves. */
   merchantPay: {
+    savedAndOn: 'Keys saved. It is now taking payments online.',
     title: 'Payment methods',
     subtitle: 'Which gateways your business accepts, and which account it gets paid into',
     available: 'Available for your country and currency',
@@ -1403,6 +1405,38 @@ const en: Dictionary = {
     restaurants: '{n} businesses',
     COUNTRY_IN_USE: 'It cannot be deleted: there are businesses in that country. Switch it off instead.',
     empty: 'No countries yet. Add the first one so somebody can sign up.',
+  },
+
+  /** El momento del pago: ahora por internet, o al recibirlo. */
+  pay: {
+    now: 'Pay now',
+    nowHint: 'Pay online and the order goes in already confirmed',
+    onDelivery: 'Pay on delivery',
+    onPickup: 'Pay on pickup',
+    atTable: 'Pay at the table',
+    cash: 'Cash',
+    cashDelivery: 'You pay the courier on arrival',
+    cashPickup: 'You pay at the counter',
+    cashTable: 'You pay the waiter',
+    card: 'Card',
+    cardDelivery: 'The courier carries a card reader',
+    cardPickup: 'Card reader at the counter',
+    cardTable: 'The waiter brings the card reader to your table',
+    goPay: 'Go to payment',
+    opening: 'Opening payment…',
+    failed: 'Payment could not be started. Try again or pay on delivery.',
+    /* La vuelta de la pasarela */
+    waiting: 'Confirming your payment',
+    waitingHint: 'It can take a few seconds. Do not close this page.',
+    paid: 'Payment confirmed',
+    paidHint: 'We are on your order.',
+    rejected: 'The payment did not go through',
+    rejectedHint: 'You have not been charged. Try again or pay on delivery.',
+    cancelled: 'You cancelled the payment',
+    expired: 'The payment expired',
+    tryAgain: 'Try again',
+    seeOrder: 'See my order',
+    takingLong: 'This is taking longer than usual. Your order is saved: open it to see whether the payment arrived.',
   },
 
 };

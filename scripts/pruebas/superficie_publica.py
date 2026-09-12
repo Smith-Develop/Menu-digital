@@ -32,6 +32,10 @@ NECESARIAS = {
     # El escaparate necesita saber qué formas de pago acepta el local antes de
     # que nadie inicie sesión. No devuelve credenciales ni recetas.
     "merchant_payment_options",
+    # Y quien acaba de pagar necesita ver si su pago llegó. Devuelve el estado y
+    # el importe de un intento cuyo identificador sólo tiene quien fue
+    # redirigido a él; ni referencias del proveedor ni de qué local es.
+    "payment_intent_state",
 }
 
 # Cuántas funciones puede ejecutar `anon`. Sólo puede bajar.
@@ -43,7 +47,7 @@ NECESARIAS = {
 # que ninguna vuelva a nacer abierta.
 #
 # Subir esta cifra tiene que costar una línea en un `git diff`.
-TECHO = 30
+TECHO = 31
 
 # Tabla que crea el ejecutor de migraciones, cerrada a propósito y sin políticas.
 SIN_POLITICA_A_PROPOSITO = {"schema_migrations"}
