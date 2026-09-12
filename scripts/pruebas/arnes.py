@@ -252,6 +252,13 @@ class Escenario:
 
     def _borrar_local(self) -> None:
         sql(f"""
+            -- Las llaves de sus pasarelas viven en Vault, fuera del alcance de
+            -- la cascada: borrar el local las dejaría ahí para siempre. Van
+            -- primero, mientras todavía se puede saber cuáles son suyas.
+            delete from vault.secrets where id in (
+              select m.secret_id from public.merchant_payment_methods m
+               where m.restaurant_id = '{self.restaurante}' and m.secret_id is not null
+            );
             delete from public.fiscal_documents where restaurant_id = '{self.restaurante}';
             delete from public.platform_commissions
              where subject_type = 'restaurant' and subject_id = '{self.restaurante}';
@@ -291,11 +298,21 @@ def limpiar_huerfanos() -> int:
     borrados = sql("""
         with locales as (
           delete from public.restaurants where slug like 'arnes-%' returning 1
+        ), llaves as (
+          -- Secretos de pasarela que ya no son de nadie: los deja una tanda
+          -- cortada a mitad, y en Vault no hay cascada que los recoja.
+          delete from vault.secrets
+           where name like 'pago\\_%'
+             and not exists (
+               select 1 from public.merchant_payment_methods m where m.secret_id = vault.secrets.id
+             )
+           returning 1
         ), usuarios as (
           -- El dominio entero es de pruebas: `.test` está reservado justo para
           -- esto y ninguna cuenta de verdad puede terminar ahí.
           delete from auth.users where email like '%@yumi.test' returning 1
         )
-        select (select count(*) from locales) + (select count(*) from usuarios) as n;
+        select (select count(*) from locales) + (select count(*) from usuarios)
+             + (select count(*) from llaves) as n;
     """)[0]["n"]
     return borrados

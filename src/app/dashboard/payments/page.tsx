@@ -37,6 +37,14 @@ export default async function PaymentsPage() {
       : Promise.resolve({ data: [] as { provider_id: string }[] }),
   ]);
 
+  // Tener llaves es que las llaves existan. Preguntar por el identificador del
+  // secreto decía que sí aunque el secreto ya no estuviera, y entonces la
+  // pantalla prometía una forma de cobro que fallaba al usarla.
+  const { data: conLlaves } = await supabase.rpc('merchant_methods_ready', {
+    p_restaurant_id: restaurant.id,
+  });
+  const listos = new Set((conLlaves as string[] | null) ?? []);
+
   const origen = await getPublicOrigin();
   const porProveedor = new Map((metodos ?? []).map((m) => [m.provider_id, m]));
 
@@ -64,7 +72,7 @@ export default async function PaymentsPage() {
         campos: ((p.config_schema ?? []) as Campo[]) ?? [],
         methodId: mio?.id ?? null,
         activa: mio?.is_active ?? false,
-        tieneLlaves: Boolean(mio?.secret_id),
+        tieneLlaves: mio ? listos.has(mio.id) : false,
         webhookUrl: mio ? `${origen}/api/pago/aviso/${mio.webhook_token}` : null,
       };
     });

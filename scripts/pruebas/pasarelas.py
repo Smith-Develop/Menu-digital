@@ -118,6 +118,14 @@ def literal(valor) -> str:
 def correr(c: Cuaderno, esc: Escenario) -> None:
     duenyo = esc.tokens["owner"]
 
+    # Un secreto de otro, para comprobar que la limpieza no se lo lleva. Existe
+    # porque pasó: la limpieza borraba por prefijo y dejó sin credenciales a un
+    # local de verdad, con su ficha diciendo que sí las tenía.
+    ajeno = sql("""
+        select vault.create_secret('{"secret_key":"de-otro"}',
+                                   'pago_de_otro_local', 'centinela') as id;
+    """)[0]["id"]
+
     # --- La pasarela de mentira, en marcha ------------------------------
     servidor = HTTPServer(("127.0.0.1", PUERTO), Pasarela)
     hilo = threading.Thread(target=servidor.serve_forever, daemon=True)
@@ -241,14 +249,37 @@ def correr(c: Cuaderno, esc: Escenario) -> None:
 
     finally:
         servidor.shutdown()
+
+        c.bloque("La limpieza no toca lo ajeno")
         sql("""
+            -- Primero los secretos, mientras todavía se puede saber cuáles son
+            -- suyos. Y sólo los suyos: barrer por el prefijo borraba también
+            -- los de los locales de verdad y dejaba su ficha diciendo que
+            -- tenían llaves cuando ya no existían.
+            delete from vault.secrets where id in (
+              select m.secret_id
+                from public.merchant_payment_methods m
+                join public.payment_providers p on p.id = m.provider_id
+               where p.slug = 'mentira' and m.secret_id is not null
+            );
             delete from public.payment_intents where provider_id in
               (select id from public.payment_providers where slug = 'mentira');
             delete from public.merchant_payment_methods where provider_id in
               (select id from public.payment_providers where slug = 'mentira');
             delete from public.payment_providers where slug = 'mentira';
-            delete from vault.secrets where name like 'pago_%';
         """)
+
+        sigue = sql(f"select count(*)::int n from vault.secrets where id = '{ajeno}';")[0]["n"]
+        c.check("el secreto de otro local sigue ahí", sigue == 1, f"quedan {sigue}")
+        sql(f"delete from vault.secrets where id = '{ajeno}';")
+
+        huerfanos = sql("""
+            select count(*)::int n from public.merchant_payment_methods m
+             where m.secret_id is not null
+               and not exists (select 1 from vault.decrypted_secrets v where v.id = m.secret_id);
+        """)[0]["n"]
+        c.check("ninguna ficha apunta a llaves que ya no existen", huerfanos == 0,
+                f"{huerfanos} fichas colgadas")
 
 
 def aplicacion_en_marcha() -> bool:

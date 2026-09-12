@@ -1304,6 +1304,7 @@ const es = {
 
   /** Formas de cobro del comercio: qué pasarelas enciende y con qué llaves. */
   merchantPay: {
+    saveAndTest: 'Guardar y probar',
     savedAndOn: 'Llaves guardadas. Ya está cobrando por internet.',
     title: 'Formas de cobro',
     subtitle: 'Qué pasarelas acepta tu negocio y con qué cuenta cobra',

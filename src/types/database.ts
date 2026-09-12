@@ -2749,6 +2749,8 @@ export type Database = {
       method_by_webhook_token: { Args: { p_token: string }; Returns: Json };
       expire_stale_intents: { Args: { [_ in never]: never }; Returns: Json };
       payment_intent_state: { Args: { p_intent_id: string }; Returns: Json };
+      merchant_has_credentials: { Args: { p_method_id: string }; Returns: boolean };
+      merchant_methods_ready: { Args: { p_restaurant_id: string }; Returns: string[] };
       sponsored_restaurants: { Args: { p_city_slug?: string | null; p_kind?: Enums<'sponsorship_kind'> }; Returns: { restaurant_id: string; sponsorship_id: string }[] };
       is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };
       is_staff_of: { Args: { rid: string }; Returns: boolean };

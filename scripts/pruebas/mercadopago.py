@@ -243,12 +243,21 @@ def correr(c: Cuaderno, esc: Escenario) -> None:
         servidor.shutdown()
         # La fila de verdad no se toca: sólo desaparece la copia de la prueba.
         sql("""
+            -- Primero los secretos, mientras todavía se puede saber cuáles son
+            -- suyos. Y sólo los suyos: barrer por el prefijo borraba también
+            -- los de los locales de verdad y dejaba su ficha diciendo que
+            -- tenían llaves cuando ya no existían.
+            delete from vault.secrets where id in (
+              select m.secret_id
+                from public.merchant_payment_methods m
+                join public.payment_providers p on p.id = m.provider_id
+               where p.slug = 'mercadopago-prueba' and m.secret_id is not null
+            );
             delete from public.payment_intents where provider_id in
               (select id from public.payment_providers where slug = 'mercadopago-prueba');
             delete from public.merchant_payment_methods where provider_id in
               (select id from public.payment_providers where slug = 'mercadopago-prueba');
             delete from public.payment_providers where slug = 'mercadopago-prueba';
-            delete from vault.secrets where name like 'pago_%';
         """)
 
 

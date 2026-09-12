@@ -127,10 +127,34 @@ export function MerchantPayments({
     router.refresh();
   }
 
+  /** ¿Hay algo escrito en el formulario sin guardar? */
+  const hayEscrito = Object.values(valores).some((v) => v.trim() !== '');
+
+  /**
+   * Probar comprueba lo guardado, no lo que hay escrito en la pantalla.
+   *
+   * Eso era una trampa: se rellenaban las llaves, se pulsaba «probar» —que
+   * estaba antes que «guardar»— y contestaba que no había credenciales, con las
+   * credenciales delante. Ahora, si hay algo escrito, se guarda primero.
+   */
   async function probar() {
     if (!editando?.methodId) return;
     setOcupado('probar');
     setPrueba(null);
+
+    if (hayEscrito) {
+      const guardado = await saveGatewayCredentials(editando.methodId, valores);
+      if (!guardado.ok) {
+        setOcupado(null);
+        const textos = t.merchantPay as unknown as Record<string, string>;
+        toast(textos[guardado.error] ?? t.common.error, 'error');
+        return;
+      }
+      setEditando({ ...editando, tieneLlaves: true });
+      setValores(Object.fromEntries(editando.campos.map((c) => [c.campo, ''])));
+      router.refresh();
+    }
+
     const result = await testGatewayConnection(editando.methodId);
     setOcupado(null);
 
@@ -211,11 +235,21 @@ export function MerchantPayments({
         title={editando?.name ?? ''}
         footer={
           <div className="flex gap-3">
-            <Button variant="ghost" loading={ocupado === 'probar'} onClick={probar}>
+            <Button
+              variant="ghost"
+              loading={ocupado === 'probar'}
+              disabled={!editando?.tieneLlaves && !hayEscrito}
+              onClick={probar}
+            >
               <Plug className="h-4 w-4" />
-              {t.merchantPay.test}
+              {hayEscrito ? t.merchantPay.saveAndTest : t.merchantPay.test}
             </Button>
-            <Button className="flex-1" loading={ocupado === 'guardar'} onClick={guardar}>
+            <Button
+              className="flex-1"
+              loading={ocupado === 'guardar'}
+              disabled={!hayEscrito}
+              onClick={guardar}
+            >
               {t.merchantPay.saveKeys}
             </Button>
           </div>

@@ -1305,6 +1305,7 @@ const en: Dictionary = {
 
   /** Formas de cobro del comercio: qué pasarelas enciende y con qué llaves. */
   merchantPay: {
+    saveAndTest: 'Save and test',
     savedAndOn: 'Keys saved. It is now taking payments online.',
     title: 'Payment methods',
     subtitle: 'Which gateways your business accepts, and which account it gets paid into',

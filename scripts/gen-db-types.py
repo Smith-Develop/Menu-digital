@@ -259,6 +259,8 @@ export type Database = {
     out.append('      method_by_webhook_token: { Args: { p_token: string }; Returns: Json };')
     out.append('      expire_stale_intents: { Args: { [_ in never]: never }; Returns: Json };')
     out.append('      payment_intent_state: { Args: { p_intent_id: string }; Returns: Json };')
+    out.append('      merchant_has_credentials: { Args: { p_method_id: string }; Returns: boolean };')
+    out.append('      merchant_methods_ready: { Args: { p_restaurant_id: string }; Returns: string[] };')
     out.append("      sponsored_restaurants: { Args: { p_city_slug?: string | null; p_kind?: Enums<'sponsorship_kind'> }; Returns: { restaurant_id: string; sponsorship_id: string }[] };")
     out.append("      is_superadmin: { Args: { [_ in never]: never }; Returns: boolean };")
     out.append("      is_staff_of: { Args: { rid: string }; Returns: boolean };")
