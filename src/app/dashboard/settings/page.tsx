@@ -59,6 +59,7 @@ export default async function SettingsPage() {
           taxRate: Number(restaurant.tax_rate),
           dineinEnabled: restaurant.dinein_enabled,
           deliveryEnabled: restaurant.delivery_enabled,
+          prepayDelivery: restaurant.prepay_delivery ?? false,
           pickupEnabled: restaurant.pickup_enabled,
           acceptsCash: restaurant.accepts_cash,
           acceptsCard: restaurant.accepts_card,

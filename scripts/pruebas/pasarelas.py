@@ -26,7 +26,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from arnes import Cuaderno, Escenario, rest, rpc, sql  # noqa: E402
+from arnes import Cuaderno, Escenario, error_de, rest, rpc, sql, sql_falla  # noqa: E402
 
 APP = os.environ.get("PRUEBAS_URL", "http://localhost:3000")
 PUERTO = 8799
@@ -136,11 +136,14 @@ def correr(c: Cuaderno, esc: Escenario) -> None:
         c.bloque("Dar de alta una pasarela sin tocar código")
         sql(f"""
             delete from public.payment_providers where slug = 'mentira';
-            insert into public.payment_providers (slug, name, kind, adapter, spec, config_schema)
+            insert into public.payment_providers (slug, name, kind, adapter, spec, config_schema, inline)
             values ('mentira', 'Pasarela de mentira', 'online', 'http',
                     {literal(RECETA)}::jsonb,
                     '[{{"campo":"secret_key","secreto":true}},
-                      {{"campo":"webhook_secret","secreto":true}}]'::jsonb);
+                      {{"campo":"public_key","secreto":false}},
+                      {{"campo":"webhook_secret","secreto":true}}]'::jsonb,
+                    '{{"adapter":"mentira","sdk":"https://ejemplo.invalid/sdk.js",
+                       "public_field":"public_key","methods":["card"]}}'::jsonb);
         """)
         proveedor = sql("select id from public.payment_providers where slug='mentira';")[0]["id"]
 
@@ -154,7 +157,8 @@ def correr(c: Cuaderno, esc: Escenario) -> None:
 
         r = rpc(duenyo, "save_merchant_credentials", {
             "p_method_id": metodo_id,
-            "p_credentials": {"secret_key": LLAVE, "webhook_secret": SECRETO_AVISO},
+            "p_credentials": {"secret_key": LLAVE, "public_key": "PUB-visible-a-proposito",
+                              "webhook_secret": SECRETO_AVISO},
         })
         c.check("y guarda sus llaves", isinstance(r, dict) and r.get("ok"), str(r)[:200])
 
@@ -167,6 +171,23 @@ def correr(c: Cuaderno, esc: Escenario) -> None:
         c.check("el escaparate la ve entre las opciones",
                 isinstance(opciones, list) and any(o["slug"] == "mentira" for o in opciones),
                 str(opciones)[:200])
+
+        # Cobrar dentro de la aplicación obliga a darle al navegador la clave
+        # pública del comercio. Es pública por diseño —sólo identifica ante el
+        # guion de la pasarela— pero viaja en la misma respuesta que antes no
+        # llevaba ninguna credencial, y eso hay que mirarlo de cerca.
+        mia = next((o for o in opciones if o["slug"] == "mentira"), {})
+        crudo = json.dumps(opciones)
+
+        c.check("el escaparate sabe que cobra por dentro",
+                (mia.get("inline") or {}).get("adapter") == "mentira", str(mia)[:200])
+        c.check("y recibe la clave pública, que es lo que necesita para cifrar",
+                (mia.get("public_config") or {}).get("public_key") == "PUB-visible-a-proposito",
+                str(mia.get("public_config"))[:200])
+        c.check("pero NO la llave secreta",
+                LLAVE not in crudo and "secret_key" not in crudo, crudo[:200])
+        c.check("ni el secreto de los avisos",
+                SECRETO_AVISO not in crudo and "webhook_secret" not in crudo, crudo[:200])
 
         # --- El cobro ----------------------------------------------------
         c.bloque("Cobrar de punta a punta")
@@ -249,6 +270,76 @@ def correr(c: Cuaderno, esc: Escenario) -> None:
 
     finally:
         servidor.shutdown()
+
+        # --- Las tarjetas guardadas --------------------------------------
+        c.bloque("Una tarjeta guardada es de quien la guardó")
+
+        # Las escribe el servidor después de hablar con la pasarela, así que
+        # aquí se ponen a mano: lo que se está probando es quién las ve.
+        cliente_pasarela = sql(f"""
+            insert into public.payment_customers
+              (restaurant_id, provider_id, user_id, provider_customer_id)
+            values ('{esc.restaurante}', '{proveedor}', '{esc.usuarios["cliente"]}', 'cus_de_mentira')
+            returning id;
+        """)[0]["id"]
+        sql(f"""
+            insert into public.payment_cards
+              (customer_id, provider_card_id, brand, last_four, exp_month, exp_year, is_default)
+            values ('{cliente_pasarela}', 'card_de_mentira', 'visa', '4242', 12, 30, true);
+        """)
+
+        suyas = rpc(esc.tokens["cliente"], "my_saved_cards", {"p_method_id": metodo_id})
+        c.check("el cliente ve la suya",
+                isinstance(suyas, list) and len(suyas) == 1 and suyas[0]["last_four"] == "4242",
+                str(suyas)[:200])
+
+        # El comercio cobra con ella y aun así no tiene por qué verla. Lo que no
+        # se guarda no se filtra, y lo que no se enseña tampoco.
+        del_comercio = rest(duenyo, "payment_cards?select=id,last_four")
+        c.check("el comercio no ve las tarjetas de su clientela",
+                isinstance(del_comercio, list) and len(del_comercio) == 0, str(del_comercio)[:200])
+
+        de_otro = rpc(esc.tokens["cajero"], "my_saved_cards", {"p_method_id": metodo_id})
+        c.check("y otra persona tampoco",
+                isinstance(de_otro, list) and len(de_otro) == 0, str(de_otro)[:200])
+
+        # Lo que sí se guarda: nunca un número entero. La restricción está para
+        # que un error de programación no consiga meterlo.
+        r = sql_falla(f"""
+            insert into public.payment_cards (customer_id, provider_card_id, last_four)
+            values ('{cliente_pasarela}', 'card_larga', '4242424242424242');
+        """)
+        c.check("no cabe un número de tarjeta donde van cuatro cifras", r is not None, str(r)[:120])
+
+        # --- El pago por adelantado ---------------------------------------
+        c.bloque("Si el local lo exige, a domicilio se paga antes")
+
+        sql(f"update public.restaurants set prepay_delivery = true where id = '{esc.restaurante}';")
+
+        def pedir_domicilio(token, metodo_pago):
+            return rpc(token, "place_order", {
+                "p_restaurant_slug": f"arnes-{esc.sufijo}",
+                "p_items": [{"product_id": esc.productos["Plato barato"], "quantity": 1}],
+                "p_type": "delivery",
+                "p_payment_method": metodo_pago,
+                "p_customer_name": "Quien pide",
+                "p_address": "Cra 45 # 12-34",
+            })
+
+        r = pedir_domicilio(esc.tokens["cliente"], "cash")
+        c.check("en efectivo ya no se puede",
+                error_de(r) == "PREPAY_REQUIRED", str(r)[:160])
+
+        r = pedir_domicilio(esc.tokens["cliente"], "online")
+        c.check("pagando por internet sí", isinstance(r, dict) and "id" in r, str(r)[:160])
+
+        # El equipo queda fuera: quien levanta el pedido por teléfono cobra en
+        # el mostrador, y esa decisión es del local.
+        r = pedir_domicilio(duenyo, "cash")
+        c.check("y el local sigue pudiendo cobrar a la puerta si lo levanta él",
+                isinstance(r, dict) and "id" in r, str(r)[:160])
+
+        sql(f"update public.restaurants set prepay_delivery = false where id = '{esc.restaurante}';")
 
         c.bloque("La limpieza no toca lo ajeno")
         sql("""

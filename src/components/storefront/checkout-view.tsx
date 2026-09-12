@@ -1,11 +1,12 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Banknote, CreditCard, Globe, Pencil } from 'lucide-react';
 import { ScreenHeader } from '@/components/ui/misc';
 import { CheckoutIdentity } from '@/components/storefront/checkout-identity';
 import { AddressPicker, type SavedAddress } from '@/components/storefront/address-picker';
+import { InlinePayment, type Inline, type ManejadorPago } from '@/components/storefront/inline-payment';
 import type { PaisDisponible } from '@/lib/queries/places';
 import { Input, Textarea } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
@@ -27,6 +28,10 @@ export type OnlineMethod = {
   name: string;
   logo_url: string | null;
   kind: string;
+  /** Qué sabe cobrar sin sacar al cliente de aquí. Nulo: sólo redirigiendo. */
+  inline: Inline | null;
+  /** Las credenciales no secretas del comercio. La clave pública sale de aquí. */
+  public_config: Record<string, string> | null;
 };
 
 export type DeliverySlot = {
@@ -89,6 +94,7 @@ function errorMessage(
     ADDRESS_INCOMPLETE: t.address.incomplete,
     ADDRESS_NOT_FOUND: t.address.incomplete,
     ADDRESS_NOT_YOURS: t.address.incomplete,
+    PREPAY_REQUIRED: t.pay.prepayRequired,
     RESTAURANT_SUBSCRIPTION_INACTIVE: t.subscription.expiredWarning,
     COUPON_NOT_FOUND: t.coupon.notFound,
     COUPON_INACTIVE: t.coupon.inactive,
@@ -121,6 +127,8 @@ export function CheckoutView({
   countries,
   defaultCity,
   defaultCountry,
+  country,
+  prepayDelivery,
   slots,
   online,
 }: {
@@ -142,6 +150,10 @@ export function CheckoutView({
   /** Para proponer ciudad y país al escribir la primera dirección. */
   defaultCity: string | null;
   defaultCountry: string | null;
+  /** El país del local: PSE sólo existe en Colombia. */
+  country: string | null;
+  /** El local sólo acepta pedidos a domicilio ya pagados. */
+  prepayDelivery: boolean;
   /** Franjas de entrega libres. Vacío significa que el local no las usa. */
   slots: DeliverySlot[];
   /** Pasarelas encendidas. Vacío quiere decir que aquí sólo se paga al recibir. */
@@ -176,7 +188,15 @@ export function CheckoutView({
   // es el aparato que de verdad se usa, y para el cliente son lo mismo.
   const metodoTarjeta: PayMethod | null = accepts.tpv ? 'tpv' : accepts.card ? 'card' : null;
 
-  const alRecibir = [
+  /*
+   * Cuando el local exige pago por adelantado a domicilio, «pagar al recibir»
+   * deja de ser una opción y no se enseña. Ofrecerla y que `place_order` la
+   * rechace después es mandar al cliente contra un muro que ya sabíamos que
+   * estaba ahí.
+   */
+  const soloPagoPrevio = prepayDelivery && orderType === 'delivery';
+
+  const alRecibir = soloPagoPrevio ? [] : [
     ...(accepts.cash
       ? [{ id: 'cash' as PayMethod, icon: Banknote, label: t.pay.cash, hint: cuando.efectivo }]
       : []),
@@ -254,6 +274,26 @@ export function CheckoutView({
    * eso. Ahora el pedido viaja con el identificador de una ficha de la libreta,
    * y si no hay ninguna utilizable el cliente la escribe aquí mismo.
    */
+  /*
+   * El formulario de pago de la pasarela.
+   *
+   * Se le habla por referencia y no por estado porque lo que hay que pedirle
+   * ocurre en un instante muy concreto —cifrar la tarjeta— y justo antes de
+   * crear el pedido: una tarjeta mal tecleada tiene que descubrirse aquí, sin
+   * haber mandado nada a la cocina.
+   */
+  const pagoRef = useRef<ManejadorPago>(null);
+  const [pagoListo, setPagoListo] = useState(false);
+
+  const elegidaEnLinea = online.find((o) => o.method_id === pasarela) ?? null;
+  const clavePublica =
+    elegidaEnLinea?.inline && elegidaEnLinea.public_config
+      ? (elegidaEnLinea.public_config[elegidaEnLinea.inline.public_field] ?? '')
+      : '';
+  // Sin clave pública no hay forma de cifrar la tarjeta en el navegador, así
+  // que se cae al camino de siempre en vez de enseñar un formulario muerto.
+  const pasarelaInterna = elegidaEnLinea?.inline && clavePublica ? elegidaEnLinea : null;
+
   const predeterminada = addresses.find((a) => a.is_default) ?? addresses[0] ?? null;
   const [addressId, setAddressId] = useState<string | null>(predeterminada?.id ?? null);
   // Con sesión los datos personales llegan del perfil: solo se editan a petición.
@@ -295,6 +335,19 @@ export function CheckoutView({
 
     setSubmitting(true);
     try {
+      /*
+       * La tarjeta se cifra antes de crear el pedido.
+       *
+       * Si está mal tecleada, el cliente se entera aquí y lo corrige sin que la
+       * cocina haya visto nada. Al revés —pedido primero, tarjeta después—
+       * cada error de tecleo deja una comanda fantasma en el panel del local.
+       */
+      let ordenDeCobro: Awaited<ReturnType<ManejadorPago['preparar']>> = null;
+      if (pasarelaInterna) {
+        ordenDeCobro = await pagoRef.current?.preparar() ?? null;
+        if (!ordenDeCobro) return;
+      }
+
       const supabase = createClient();
       const { data, error } = await supabase.rpc('place_order', {
         p_restaurant_slug: slug,
@@ -339,6 +392,52 @@ export function CheckoutView({
       // La cesta de la mesa se conserva a propósito: el comensal sigue viendo
       // su cuenta abierta hasta que el restaurante la marca como cobrada.
       clear();
+
+      if (ordenDeCobro && result.id) {
+        const respuesta = await fetch('/api/pago/interno', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId: result.id,
+            methodId: pasarela,
+            token: result.token,
+            instruccion: ordenDeCobro.instruccion,
+            tokenParaGuardar: ordenDeCobro.tokenParaGuardar,
+          }),
+        });
+        const pago = (await respuesta.json().catch(() => ({}))) as {
+          estado?: string;
+          redirect?: string;
+          motivo?: string;
+        };
+
+        // PSE acaba en la web del banco: es lo único de este camino que sale
+        // de la aplicación, y es así porque PSE es eso.
+        if (pago.redirect) {
+          window.location.href = pago.redirect;
+          return;
+        }
+
+        if (pago.estado === 'paid') {
+          toast(t.checkout.success, 'success');
+          router.push(`/order/${result.token}`);
+          return;
+        }
+
+        if (pago.estado === 'pending') {
+          toast(t.pay.inProcess, 'success');
+          router.push(`/order/${result.token}`);
+          return;
+        }
+
+        // Rechazada. El pedido existe y está sin cobrar, así que no se pierde:
+        // se le dice por qué, con algo que pueda arreglar, y se le deja en su
+        // pedido para reintentar o pagar al recibir.
+        const motivo = (pago.motivo ?? 'generico') as keyof typeof t.pay.rejectReason;
+        toast(t.pay.rejectReason[motivo] ?? t.pay.rejectReason.generico, 'error');
+        router.push(`/order/${result.token}`);
+        return;
+      }
 
       if (pasarela && result.id) {
         /*
@@ -429,7 +528,33 @@ export function CheckoutView({
                   );
                 })}
               </div>
+
+              {/* El formulario, debajo de la pasarela elegida. Antes esto era un
+                  viaje a la página de Mercado Pago, donde al cliente le volvían
+                  a preguntar con qué quería pagar —que es lo que acababa de
+                  contestar aquí— y desde donde bastante gente no volvía. */}
+              {pasarelaInterna && (
+                <div className="mt-4 rounded-2xl bg-white p-4 ring-1 ring-ink-100">
+                  <InlinePayment
+                    ref={pagoRef}
+                    methodId={pasarelaInterna.method_id}
+                    inline={pasarelaInterna.inline as Inline}
+                    publicKey={clavePublica}
+                    amountMajor={total / 10 ** currencyDecimals}
+                    country={country}
+                    isSignedIn={signedIn}
+                    customerName={name}
+                    onListo={setPagoListo}
+                  />
+                </div>
+              )}
             </div>
+          )}
+
+          {soloPagoPrevio && online.length === 0 && (
+            <p className="mb-6 rounded-xl bg-state-warning/10 px-4 py-3 text-sm text-ink-600">
+              {t.pay.prepayNoGateway}
+            </p>
           )}
 
           {alRecibir.length > 0 && (
@@ -702,16 +827,29 @@ export function CheckoutView({
         <button
           type="button"
           onClick={submit}
-          disabled={submitting || lines.length === 0 || (requiresAccount && !signedIn)}
+          disabled={
+            submitting ||
+            lines.length === 0 ||
+            (requiresAccount && !signedIn) ||
+            // Con el formulario de la pasarela a medias, confirmar sólo produce
+            // un error: el botón espera a que se pueda intentar de verdad.
+            Boolean(pasarelaInterna && !pagoListo)
+          }
           className="btn-primary w-full py-4 text-[15px] uppercase tracking-wide"
         >
+          {/* «Ir a pagar» describe un viaje, y con el formulario aquí mismo ya
+              no hay ninguno: el botón cobra y confirma en el sitio. Se sigue
+              diciendo «ir» cuando de verdad se va, que es el camino de
+              redirección y PSE. */}
           {submitting
-            ? pasarela
+            ? pasarela && !pasarelaInterna
               ? t.pay.opening
               : t.checkout.processing
-            : pasarela
-              ? t.pay.goPay
-              : t.checkout.confirmOrder}
+            : pasarelaInterna
+              ? t.checkout.payAndConfirm
+              : pasarela
+                ? t.pay.goPay
+                : t.checkout.confirmOrder}
         </button>
       </div>
     </div>

@@ -111,6 +111,8 @@ export default async function CheckoutPage({
       countries={countries}
       defaultCity={location?.city ?? profile?.city ?? restaurant.city ?? null}
       defaultCountry={restaurant.country ?? null}
+      country={restaurant.country ?? null}
+      prepayDelivery={restaurant.prepay_delivery ?? false}
       slots={(franjas as unknown as DeliverySlot[]) ?? []}
       online={(enLinea as unknown as OnlineMethod[]) ?? []}
     />

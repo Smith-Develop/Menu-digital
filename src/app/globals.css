@@ -109,6 +109,25 @@
     @apply mb-2 block text-xs font-bold uppercase tracking-wide text-ink-300;
   }
 
+  /*
+   * El hueco donde la pasarela incrusta su propio campo.
+   *
+   * Dentro hay un marco suyo, servido desde su dominio: es lo que hace que el
+   * número de la tarjeta no pase por nosotros. No podemos darle estilo a lo de
+   * dentro, así que se le da al hueco, y queda como el resto de los campos.
+   *
+   * El alto es fijo a propósito. El marco se carga después de pintar la
+   * pantalla, y sin alto reservado el formulario daba un salto justo cuando el
+   * cliente iba a pulsar.
+   */
+  .marco-pasarela {
+    @apply field flex h-[52px] items-center;
+  }
+
+  .marco-pasarela iframe {
+    @apply h-full w-full;
+  }
+
   .btn {
     @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3.5
            text-sm font-bold transition-all active:scale-[0.98]

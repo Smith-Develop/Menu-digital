@@ -26,6 +26,8 @@ export type PasarelaDisponible = {
   activa: boolean;
   tieneLlaves: boolean;
   webhookUrl: string | null;
+  /** El campo cuya clave permite cobrar sin sacar al cliente de la tienda. */
+  campoClavePublica: string | null;
 };
 
 /**
@@ -265,7 +267,13 @@ export function MerchantPayments({
                   <Input
                     key={campo.campo}
                     label={campo.etiqueta ?? campo.campo}
-                    hint={campo.secreto ? t.merchantPay.secret : undefined}
+                    hint={
+                      campo.campo === editando.campoClavePublica
+                        ? t.merchantPay.publicKeyHint
+                        : campo.secreto
+                          ? t.merchantPay.secret
+                          : undefined
+                    }
                     type={campo.secreto ? 'password' : 'text'}
                     autoComplete="off"
                     className="font-mono text-xs"

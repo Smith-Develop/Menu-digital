@@ -1429,6 +1429,72 @@ export type Database = {
         };
         Relationships: [];
       };
+      payment_cards: {
+        Row: {
+          id: string;
+          customer_id: string;
+          provider_card_id: string;
+          brand: string | null;
+          last_four: string | null;
+          exp_month: number | null;
+          exp_year: number | null;
+          holder_name: string | null;
+          is_default: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          customer_id: string;
+          provider_card_id: string;
+          brand?: string | null;
+          last_four?: string | null;
+          exp_month?: number | null;
+          exp_year?: number | null;
+          holder_name?: string | null;
+          is_default?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          customer_id?: string;
+          provider_card_id?: string;
+          brand?: string | null;
+          last_four?: string | null;
+          exp_month?: number | null;
+          exp_year?: number | null;
+          holder_name?: string | null;
+          is_default?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      payment_customers: {
+        Row: {
+          id: string;
+          restaurant_id: string;
+          provider_id: string;
+          user_id: string;
+          provider_customer_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          restaurant_id: string;
+          provider_id: string;
+          user_id: string;
+          provider_customer_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          restaurant_id?: string;
+          provider_id?: string;
+          user_id?: string;
+          provider_customer_id?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       payment_intents: {
         Row: {
           id: string;
@@ -1502,6 +1568,7 @@ export type Database = {
           position: number;
           created_at: string;
           updated_at: string;
+          inline: Json | null;
         };
         Insert: {
           id?: string;
@@ -1518,6 +1585,7 @@ export type Database = {
           position?: number;
           created_at?: string;
           updated_at?: string;
+          inline?: Json | null;
         };
         Update: {
           id?: string;
@@ -1534,6 +1602,7 @@ export type Database = {
           position?: number;
           created_at?: string;
           updated_at?: string;
+          inline?: Json | null;
         };
         Relationships: [];
       };
@@ -2209,6 +2278,7 @@ export type Database = {
           document_number: string | null;
           order_counter: number;
           business_type: Enums<"business_type">;
+          prepay_delivery: boolean;
         };
         Insert: {
           id?: string;
@@ -2257,6 +2327,7 @@ export type Database = {
           document_number?: string | null;
           order_counter?: number;
           business_type?: Enums<"business_type">;
+          prepay_delivery?: boolean;
         };
         Update: {
           id?: string;
@@ -2305,6 +2376,7 @@ export type Database = {
           document_number?: string | null;
           order_counter?: number;
           business_type?: Enums<"business_type">;
+          prepay_delivery?: boolean;
         };
         Relationships: [];
       };
@@ -2705,6 +2777,7 @@ export type Database = {
       };
       set_default_address: { Args: { p_id: string }; Returns: undefined };
       address_looks_complete: { Args: { p_text: string }; Returns: boolean };
+      my_saved_cards: { Args: { p_method_id: string }; Returns: Json };
       get_order_by_token: { Args: { p_token: string }; Returns: Json };
       call_waiter: { Args: { p_table_code: string; p_type?: Enums<'call_type'>; p_note?: string | null }; Returns: Json };
       restaurant_stats: { Args: { p_restaurant_id: string; p_days?: number }; Returns: Json };

@@ -39,6 +39,7 @@ export type SettingsValues = {
   deliveryEnabled: boolean;
   pickupEnabled: boolean;
   acceptsCash: boolean;
+  prepayDelivery: boolean;
   acceptsCard: boolean;
   acceptsTpv: boolean;
   isOpen: boolean;
@@ -118,6 +119,7 @@ export function SettingsForm({
       delivery_enabled: values.deliveryEnabled,
       pickup_enabled: values.pickupEnabled,
       accepts_cash: values.acceptsCash,
+      prepay_delivery: values.prepayDelivery,
       accepts_card: values.acceptsCard,
       accepts_tpv: values.acceptsTpv,
     }),
@@ -371,6 +373,24 @@ export function SettingsForm({
             </div>
           </fieldset>
         </div>
+
+        {/* Quién decide si a domicilio se paga antes. Es del local y no de la
+            plataforma: en Colombia y en Honduras mucha gente paga en efectivo
+            en la puerta, y obligar a todos dejaría fuera a media clientela de
+            quien no lo necesita. */}
+        {values.deliveryEnabled && (
+          <fieldset className="mt-5 rounded-xl bg-surface-field p-4">
+            <legend className="label mb-0">{t.settingsTabs.prepay}</legend>
+            <div className="mt-3">
+              <Switch
+                checked={values.prepayDelivery}
+                onChange={(v) => set('prepayDelivery', v)}
+                label={t.settingsTabs.prepayDelivery}
+              />
+              <p className="mt-2 text-xs text-ink-300">{t.settingsTabs.prepayHint}</p>
+            </div>
+          </fieldset>
+        )}
 
         {guardarSeccion('orders')}
       </section>

@@ -85,6 +85,20 @@ def rpc(token: str | None, funcion: str, argumentos: dict):
     return rest(token, f"rpc/{funcion}", "POST", argumentos)
 
 
+def sql_falla(consulta: str) -> str | None:
+    """
+    Ejecuta SQL esperando que Postgres lo rechace.
+
+    Devuelve el error, o `None` si pasó. Existe para probar las restricciones:
+    una restricción que nadie intenta saltar no se sabe si está puesta.
+    """
+    try:
+        sql(consulta)
+        return None
+    except Exception as fallo:      # noqa: BLE001  (aquí el fallo es el resultado)
+        return str(fallo)[:300]
+
+
 def error_de(respuesta) -> str:
     """El código de error de PostgREST, sin el detalle que sigue a los dos puntos."""
     if isinstance(respuesta, dict):

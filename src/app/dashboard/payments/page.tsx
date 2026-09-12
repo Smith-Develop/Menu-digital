@@ -22,7 +22,7 @@ export default async function PaymentsPage() {
   const [{ data: proveedores }, { data: metodos }, { data: ofrecidas }] = await Promise.all([
     supabase
       .from('payment_providers')
-      .select('id, slug, name, kind, countries, currencies, config_schema')
+      .select('id, slug, name, kind, countries, currencies, config_schema, inline')
       .eq('is_active', true)
       .eq('kind', 'online')
       .order('position'),
@@ -74,6 +74,11 @@ export default async function PaymentsPage() {
         activa: mio?.is_active ?? false,
         tieneLlaves: mio ? listos.has(mio.id) : false,
         webhookUrl: mio ? `${origen}/api/pago/aviso/${mio.webhook_token}` : null,
+        // De qué campo sale la clave que permite cobrar dentro de la tienda.
+        // Sin ella la pasarela sigue cobrando, pero sacando al cliente fuera, y
+        // eso el comercio tiene que saberlo antes y no descubrirlo después.
+        campoClavePublica:
+          (p.inline as { public_field?: string } | null)?.public_field ?? null,
       };
     });
 

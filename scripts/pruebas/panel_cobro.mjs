@@ -65,11 +65,18 @@ check('y enseña la dirección donde pegar los avisos', /api\/pago\/aviso\//.tes
 
 const campos = await p.$$('div[role="dialog"] input');
 await campos[0].fill(TOKEN_MP);
+// La clave pública va en medio y no es secreta: es la que el navegador necesita
+// para cifrar la tarjeta, y sin ella el cliente acaba en la web de la pasarela.
+await campos[1].fill(process.env.MP_PUBLIC_KEY ?? 'TEST-public-key').catch(() => {});
 await campos[2].fill('secreto-de-avisos-de-prueba').catch(() => {});
 await p.click('div[role="dialog"] button:has-text("Guardar las llaves")', { force: true });
 await p.waitForTimeout(3000);
-t = await p.$eval('body', (e) => e.innerText);
-check('guarda las llaves', /Llaves guardadas/i.test(t) || !/Faltan las llaves/i.test(t), t.slice(0, 300));
+// Se mira la ficha concreta, no la página entera: en este local hay más de una
+// pasarela ofrecida y el texto de la otra contaminaba el resultado.
+const fichas = await p.$$eval('li', (ns) =>
+  ns.map((n) => n.innerText.replace(/\s+/g, ' ').slice(0, 120)).filter((x) => /Mercado Pago/i.test(x)));
+check('guarda las llaves', !fichas.some((f) => /Faltan las llaves/i.test(f)),
+  JSON.stringify(fichas));
 
 await p.click('div[role="dialog"] button:has-text("Probar la conexión")', { force: true });
 await p.waitForTimeout(9000);
@@ -89,6 +96,20 @@ if (SLUG) {
     viewport: { width: 430, height: 900 }, locale: 'es-ES', isMobile: true, hasTouch: true,
   })).newPage();
 
+  // A domicilio la identificación es obligatoria, y sin ella el formulario de
+  // pago queda inerte: hay que entrar antes de poder comprobar nada.
+  if (process.env.CLIENTE_EMAIL) {
+    await cliente.goto(`${BASE}/login`, { waitUntil: 'networkidle' });
+    await cliente.waitForTimeout(1500);
+    await cliente.fill('input[type="email"]', process.env.CLIENTE_EMAIL);
+    await cliente.fill('input[type="password"]', CLAVE);
+    await Promise.all([
+      cliente.waitForURL((u) => !String(u).includes('/login'), { timeout: 40000 }).catch(() => {}),
+      cliente.evaluate(() => document.querySelector('form')?.requestSubmit()),
+    ]);
+    await cliente.waitForTimeout(2500);
+  }
+
   await cliente.goto(`${BASE}/r/${SLUG}`, { waitUntil: 'networkidle' });
   await cliente.waitForTimeout(3000);
   for (const boton of await cliente.$$('button[aria-label]')) {
@@ -107,6 +128,41 @@ if (SLUG) {
     /Pagar ahora/i.test(t2) && /Pagar al recibir/i.test(t2), t2.slice(0, 400));
   check('y la pasarela que el local encendió', /Mercado Pago/.test(t2), t2.slice(0, 400));
   check('sin dos opciones de tarjeta que se pisen', !/Datáfono \(TPV\)/.test(t2), t2.slice(0, 400));
+
+  // --- Y que el pago ocurra aquí dentro ------------------------------------
+  // Lo que se comprueba no es que el pago salga bien —eso necesita una tarjeta
+  // de prueba y varios minutos— sino que el formulario aparezca en esta misma
+  // página en vez de mandar al cliente a la de Mercado Pago, que era el
+  // problema que había que resolver.
+  await cliente.click('button:has-text("Mercado Pago")', { force: true }).catch(() => {});
+  await cliente.waitForTimeout(9000);
+
+  const t3 = await cliente.$eval('body', (e) => e.innerText);
+  check('el formulario de tarjeta sale en la propia tienda',
+    /Número de la tarjeta/i.test(t3) && /Titular/i.test(t3), t3.slice(0, 500));
+  check('y avisa de que la tarjeta no pasa por Yumi',
+    /no los ve ni los guarda/i.test(t3), t3.slice(0, 500));
+  check('con PSE, porque el local es colombiano', /PSE/.test(t3), t3.slice(0, 500));
+
+  // Los campos son marcos de la pasarela servidos desde su dominio: es lo que
+  // hace que el número de la tarjeta no pase por nuestro servidor.
+  const marcos = await cliente.$$eval('.marco-pasarela iframe', (ns) =>
+    ns.map((n) => n.getAttribute('src') ?? ''));
+  check('los campos son marcos de la pasarela, no nuestros',
+    marcos.length >= 2 && marcos.every((u) => /mercadopago|mercadolibre/.test(u)),
+    JSON.stringify(marcos).slice(0, 300));
+
+  // Con el formulario a medias, confirmar sólo produciría un error. El texto
+  // sale en mayúsculas por CSS, así que se compara sin distinguirlas.
+  const botones = await cliente.$$eval('button', (ns) =>
+    ns.map((n) => ({ txt: n.innerText.replace(/\s+/g, ' ').slice(0, 40), off: n.disabled }))
+      .filter((b) => /confirmar|pagar/i.test(b.txt)));
+  const confirmar = botones.find((b) => /confirmar|pagar/i.test(b.txt));
+  check('y no deja confirmar con la tarjeta a medias',
+    Boolean(confirmar?.off), JSON.stringify(botones));
+  check('el botón ya no promete un viaje que no ocurre',
+    Boolean(confirmar && !/ir a pagar/i.test(confirmar.txt)), JSON.stringify(botones));
+  check('sin salir de la tienda', cliente.url().includes(`/r/${SLUG}/checkout`), cliente.url());
 }
 
 console.log('    errores de consola: ' + (errores.length ? JSON.stringify(errores.slice(0, 2)) : 'ninguno'));

@@ -6,44 +6,9 @@ import { ejecutar } from './motor';
 import { abrirCobro } from './motor';
 import { importeMayor, extraer } from './plantilla';
 import type { Contexto, EstadoNuestro, Receta } from './tipos';
+import { cargarMetodo } from './metodo';
 
 export type { Receta, Contexto } from './tipos';
-
-/**
- * Lo que hace falta saber para hablar con la pasarela de un comercio.
- *
- * Las credenciales se leen con la llave de servicio, nunca con la sesión de
- * quien paga ni con la del dueño del local: viven cifradas en Vault y sólo el
- * servidor las abre, un instante antes de firmar la petición.
- */
-async function cargarMetodo(methodId: string) {
-  const supabase = createAdminSupabase();
-
-  const { data: metodo } = await supabase
-    .from('merchant_payment_methods')
-    .select('id, restaurant_id, provider_id, settings, webhook_token')
-    .eq('id', methodId)
-    .maybeSingle();
-  if (!metodo) throw new Error('METHOD_NOT_FOUND');
-
-  const { data: proveedor } = await supabase
-    .from('payment_providers')
-    .select('id, slug, name, adapter, spec')
-    .eq('id', metodo.provider_id)
-    .maybeSingle();
-  if (!proveedor) throw new Error('PROVIDER_NOT_FOUND');
-
-  const { data: credenciales } = await supabase.rpc('merchant_credentials', {
-    p_method_id: methodId,
-  });
-
-  return {
-    metodo,
-    proveedor,
-    credenciales: (credenciales ?? {}) as Record<string, string>,
-    receta: (proveedor.spec ?? {}) as unknown as Receta,
-  };
-}
 
 /**
  * Arranca un cobro: llama a la pasarela y devuelve a dónde mandar al cliente.

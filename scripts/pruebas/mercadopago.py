@@ -40,6 +40,9 @@ from arnes import Cuaderno, Escenario, rest, rpc, sql  # noqa: E402
 
 APP = os.environ.get("PRUEBAS_URL", "http://localhost:3000")
 TOKEN = os.environ.get("MP_ACCESS_TOKEN", "")
+# La clave pública es lo que enciende el cobro dentro de la aplicación: sin
+# ella el navegador no puede cifrar la tarjeta y sólo queda redirigir.
+CLAVE_PUBLICA = os.environ.get("MP_PUBLIC_KEY", "")
 PUERTO = 8801
 
 # Cuenta colombiana: pesos, y sin decimales, que es el camino donde se rompen
@@ -143,7 +146,8 @@ def correr(c: Cuaderno, esc: Escenario) -> None:
             "restaurant_id": esc.restaurante, "provider_id": proveedor, "is_active": True})[0]
         rpc(duenyo, "save_merchant_credentials", {
             "p_method_id": metodo["id"],
-            "p_credentials": {"access_token": TOKEN, "webhook_secret": SECRETO}})
+            "p_credentials": {"access_token": TOKEN, "public_key": CLAVE_PUBLICA,
+                              "webhook_secret": SECRETO}})
         c.check("el comercio la enciende y guarda su token", bool(metodo["id"]), "")
 
         # --- Cobro contra Mercado Pago de verdad ------------------------
@@ -224,7 +228,11 @@ def correr(c: Cuaderno, esc: Escenario) -> None:
         entorno = {**os.environ,
                    "PANEL_EMAIL": esc.correos["owner"],
                    "PANEL_PASSWORD": "ArnesDePruebas123!",
-                   "PANEL_SLUG": f"arnes-{esc.sufijo}"}
+                   "PANEL_SLUG": f"arnes-{esc.sufijo}",
+                   # Quien paga no es el dueño: a domicilio la identificación es
+                   # obligatoria, y sin sesión el formulario queda bloqueado.
+                   "CLIENTE_EMAIL": esc.correos["cliente"],
+                   "MP_PUBLIC_KEY": CLAVE_PUBLICA}
         salida = subprocess.run(
             ["node", str(Path(__file__).resolve().parent / "panel_cobro.mjs")],
             capture_output=True, text=True, env=entorno, timeout=240)
