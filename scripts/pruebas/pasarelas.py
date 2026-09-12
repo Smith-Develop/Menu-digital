@@ -194,9 +194,36 @@ def correr(c: Cuaderno, esc: Escenario) -> None:
         pedido = rpc(esc.tokens["cliente"], "place_order", {
             "p_restaurant_slug": f"arnes-{esc.sufijo}",
             "p_items": [{"product_id": esc.productos["Plato caro"], "quantity": 1}],
-            "p_type": "delivery", "p_payment_method": "card",
+            "p_type": "delivery", "p_payment_method": "online",
             "p_customer_name": "Quien paga", "p_address": "Calle 1"})
         total = pedido["total_cents"]
+
+        # Lo primero que hay que comprobar del pedido pagado por internet no es
+        # que se cobre, sino que NO llegue al local hasta que se cobre. Mientras
+        # esto estuvo mal, cada tarjeta rechazada dejaba una comanda en la
+        # cocina y alguien se ponía a cocinar lo que nadie había pagado.
+        estado = sql(f"select status from public.orders where id = '{pedido['id']}';")[0]["status"]
+        c.check("el pedido nace esperando el dinero, no esperando a la cocina",
+                estado == "awaiting_payment", estado)
+
+        abiertos = rest(duenyo,
+                        "orders?select=id,code&status=in.(pending,confirmed,preparing,ready,served,delivering)"
+                        f"&restaurant_id=eq.{esc.restaurante}")
+        c.check("y no aparece en el panel del local",
+                isinstance(abiertos, list) and all(o["id"] != pedido["id"] for o in abiertos),
+                str(abiertos)[:200])
+
+        # Y que esto no se lleve por delante lo de siempre: quien paga en
+        # efectivo sigue entrando en el local en el momento de pedir.
+        en_efectivo = rpc(esc.tokens["cliente"], "place_order", {
+            "p_restaurant_slug": f"arnes-{esc.sufijo}",
+            "p_items": [{"product_id": esc.productos["Plato barato"], "quantity": 1}],
+            "p_type": "delivery", "p_payment_method": "cash",
+            "p_customer_name": "Quien paga a la puerta", "p_address": "Calle 2"})
+        estado_efectivo = sql(
+            f"select status from public.orders where id = '{en_efectivo['id']}';")[0]["status"]
+        c.check("pagando al recibir, el pedido entra como siempre",
+                estado_efectivo == "pending", estado_efectivo)
 
         salida = subprocess.run([
             "curl", "-s", "-m", "40", f"{APP}/api/pago/iniciar",
@@ -242,6 +269,10 @@ def correr(c: Cuaderno, esc: Escenario) -> None:
                 f"{codigo} · {respuesta}")
 
         o = rest(duenyo, f"orders?id=eq.{pedido['id']}&select=paid_cents,payment_status")[0]
+        entra = sql(f"select status from public.orders where id = '{pedido['id']}';")[0]["status"]
+        c.check("y al llegar el dinero, el pedido entra en el local",
+                entra == "pending", entra)
+
         c.check("el pedido queda cobrado",
                 o["paid_cents"] == total and o["payment_status"] == "paid", json.dumps(o))
 

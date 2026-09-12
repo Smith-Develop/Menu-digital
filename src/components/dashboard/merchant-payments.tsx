@@ -160,10 +160,18 @@ export function MerchantPayments({
     const result = await testGatewayConnection(editando.methodId);
     setOcupado(null);
 
+    // Hay fallos que tienen nombre y arreglo, y decirlos como código en bruto
+    // deja al comercio con un «LLAVES_MEZCLADAS» que no le dice qué hacer.
+    const conocidos = t.merchantPay as unknown as Record<string, string>;
     setPrueba(
       result.ok
         ? { ok: true, texto: interpolate(t.merchantPay.testOk, { host: result.data.host }) }
-        : { ok: false, texto: interpolate(t.merchantPay.testFail, { error: result.error }) },
+        : {
+            ok: false,
+            texto:
+              conocidos[result.error] ??
+              interpolate(t.merchantPay.testFail, { error: result.error }),
+          },
     );
   }
 

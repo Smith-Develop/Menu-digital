@@ -334,6 +334,7 @@ const es = {
     reorder: 'Volver a pedir',
     cancelOrder: 'Cancelar pedido',
     status: {
+      awaiting_payment: 'Esperando el pago',
       pending: 'Pendiente de confirmar',
       confirmed: 'Confirmado',
       preparing: 'En preparación',
@@ -344,6 +345,7 @@ const es = {
       cancelled: 'Cancelado',
     },
     statusHint: {
+      awaiting_payment: 'Tu pedido está guardado pero todavía no se ha pagado. El restaurante no lo verá hasta que el pago se complete.',
       pending: 'El restaurante está revisando tu pedido',
       confirmed: 'El restaurante ha aceptado tu pedido',
       preparing: 'Tu comida se está cocinando',
@@ -1325,6 +1327,8 @@ const es = {
     webhookHint: 'Pégala en el panel de la pasarela, donde configuras los avisos. Es la que te trae la confirmación de cada pago.',
     copied: 'Copiada',
     secret: 'secreta',
+    LLAVES_MEZCLADAS: 'Estás mezclando llaves de prueba con llaves de producción. Mercado Pago las distingue por el principio: las de prueba empiezan por TEST- y las reales por APP_USR-. Pon las dos del mismo juego.',
+    TOKEN_IRRECONOCIBLE: 'Ese access token no parece de Mercado Pago. Los suyos empiezan por TEST- o por APP_USR-.',
     publicKeyHint: 'No es secreta. Es la que permite que tus clientes paguen con tarjeta dentro de tu tienda; sin ella tendrán que salir a la web de la pasarela.',
     onlyWithKeys: 'Guarda primero las llaves: encenderla sin ellas dejaría a tus clientes con un botón que falla.',
     SIN_CREDENCIALES: 'Faltan las llaves de esta pasarela',
@@ -1513,6 +1517,8 @@ const es = {
       intentos: 'Demasiados intentos con esta tarjeta. Prueba con otra.',
       tarjeta: 'Tu banco ha rechazado la tarjeta. Prueba con otra.',
       documento: 'Falta tu número de documento.',
+      credenciales: 'No hemos podido cobrar: el local tiene mal configurado su sistema de pago. No es tu tarjeta. Avísale, o paga al recibir.',
+      pasarela: 'La pasarela de pago no ha respondido bien. No se te ha cobrado nada. Inténtalo en un momento o paga al recibir.',
       generico: 'El pago no se pudo completar. Prueba con otra tarjeta o paga al recibir.',
     },
     inProcess: 'Tu banco está revisando el pago. Te avisamos en cuanto se confirme.',

@@ -2904,7 +2904,7 @@ export type Database = {
       fiscal_document_kind: "simplified" | "invoice" | "credit_note";
       notification_audience: "all" | "cities";
       order_item_status: "queued" | "preparing" | "ready" | "served";
-      order_status: "pending" | "confirmed" | "preparing" | "ready" | "served" | "delivering" | "completed" | "cancelled";
+      order_status: "awaiting_payment" | "pending" | "confirmed" | "preparing" | "ready" | "served" | "delivering" | "completed" | "cancelled";
       order_type: "dine_in" | "delivery" | "pickup";
       payment_entry_kind: "charge" | "refund";
       payment_intent_status: "pending" | "redirected" | "paid" | "failed" | "cancelled" | "expired";

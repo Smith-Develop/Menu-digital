@@ -154,6 +154,16 @@ export async function cobrarEnLinea(
   });
   if (error && resultado.estado === 'paid') return { error: error.message };
 
+  // El porqué, en el propio intento. `settle_payment_intent` guarda la
+  // respuesta cruda, que es la prueba, pero el motivo en claro es lo que
+  // permite ver de un vistazo si al comercio le fallan las llaves.
+  if (resultado.motivo) {
+    await supabase
+      .from('payment_intents')
+      .update({ error_code: resultado.motivo })
+      .eq('id', intentId);
+  }
+
   return {
     ok: resultado.ok,
     estado: resultado.estado,

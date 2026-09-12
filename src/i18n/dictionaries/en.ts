@@ -336,6 +336,7 @@ const en: Dictionary = {
     reorder: 'Order again',
     cancelOrder: 'Cancel order',
     status: {
+      awaiting_payment: 'Waiting for payment',
       pending: 'Awaiting confirmation',
       confirmed: 'Confirmed',
       preparing: 'Preparing',
@@ -346,6 +347,7 @@ const en: Dictionary = {
       cancelled: 'Cancelled',
     },
     statusHint: {
+      awaiting_payment: "Your order is saved but not paid yet. The restaurant will not see it until the payment goes through.",
       pending: 'The restaurant is reviewing your order',
       confirmed: 'The restaurant accepted your order',
       preparing: 'Your food is being cooked',
@@ -1326,6 +1328,8 @@ const en: Dictionary = {
     webhookHint: 'Paste it in the gateway panel, where notifications are configured. It is what brings you each payment confirmation.',
     copied: 'Copied',
     secret: 'secret',
+    LLAVES_MEZCLADAS: 'You are mixing test keys with live keys. Mercado Pago tells them apart by their prefix: test keys start with TEST- and real ones with APP_USR-. Use both from the same set.',
+    TOKEN_IRRECONOCIBLE: 'That access token does not look like a Mercado Pago one. Theirs start with TEST- or APP_USR-.',
     publicKeyHint: "Not a secret. It is what lets your customers pay by card inside your shop; without it they have to leave for the provider's website.",
     onlyWithKeys: 'Save the keys first: switching it on without them would leave your customers with a button that fails.',
     SIN_CREDENCIALES: 'This gateway has no keys yet',
@@ -1514,6 +1518,8 @@ const en: Dictionary = {
       intentos: 'Too many attempts with this card. Try another one.',
       tarjeta: 'Your bank declined the card. Try another one.',
       documento: 'Your ID number is missing.',
+      credenciales: "We couldn't take the payment: this shop's payment setup is wrong. It is not your card. Let them know, or pay on delivery.",
+      pasarela: 'The payment provider did not answer properly. You have not been charged. Try again shortly or pay on delivery.',
       generico: 'The payment could not be completed. Try another card or pay on delivery.',
     },
     inProcess: 'Your bank is reviewing the payment. We will let you know as soon as it clears.',

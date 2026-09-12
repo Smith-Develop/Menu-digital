@@ -1,14 +1,5 @@
 import type { Dictionary } from '@/i18n/dictionaries/es';
-
-type Status =
-  | 'pending'
-  | 'confirmed'
-  | 'preparing'
-  | 'ready'
-  | 'served'
-  | 'delivering'
-  | 'completed'
-  | 'cancelled';
+import type { Enums } from '@/types/database';
 
 /**
  * Texto del aviso para cada estado del pedido.
@@ -16,9 +7,12 @@ type Status =
  * `pending` no avisa: es el instante en que el cliente pulsa el botón y ya está
  * mirando la pantalla. El resto sí, incluido `confirmed`, porque entre pedir y
  * que el local acepte pueden pasar minutos y es justo lo que se quiere saber.
+ *
+ * `awaiting_payment` tampoco avisa, y por el mismo motivo: el cliente acaba de
+ * darle a pagar y tiene el resultado delante.
  */
 export function orderPushMessage(
-  status: Status,
+  status: Enums<'order_status'>,
   t: Dictionary,
   restaurantName: string,
   code: string,

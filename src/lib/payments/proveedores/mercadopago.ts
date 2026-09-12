@@ -124,6 +124,31 @@ export function motivoRechazo(detalle: string): string {
   return conocidos[detalle] ?? 'generico';
 }
 
+/**
+ * ¿Se contradicen las llaves entre sí?
+ *
+ * Mercado Pago entrega dos juegos completos, uno de prueba y otro de
+ * producción, y los distingue en el propio prefijo: `TEST-` y `APP_USR-`.
+ * Mezclarlos no falla al guardar —cada llave es válida por separado— sino
+ * mucho después, cuando un cliente con la tarjeta en la mano recibe un
+ * «Unauthorized use of live credentials» que no dice nada.
+ *
+ * Es barato mirarlo aquí y carísimo descubrirlo allí, así que se mira aquí.
+ */
+export function entornoDeLasLlaves(
+  credenciales: Credenciales,
+): { ok: true; entorno: 'prueba' | 'produccion' } | { ok: false; error: string } {
+  const cual = (valor?: string) =>
+    !valor ? null : valor.startsWith('TEST-') ? 'prueba' : valor.startsWith('APP_USR-') ? 'produccion' : null;
+
+  const token = cual(credenciales.access_token);
+  const publica = cual(credenciales.public_key);
+
+  if (token && publica && token !== publica) return { ok: false, error: 'LLAVES_MEZCLADAS' };
+  if (!token) return { ok: false, error: 'TOKEN_IRRECONOCIBLE' };
+  return { ok: true, entorno: token };
+}
+
 type DatosPago = {
   importeMayor: number;
   descripcion: string;
@@ -231,16 +256,34 @@ function interpretar(r: { ok: boolean; estado: number; datos: unknown }): Result
     status?: string;
     status_detail?: string;
     message?: string;
+    error?: string;
     fee_details?: { amount?: number }[];
   };
 
+  /*
+   * Que la pasarela nos rechace a NOSOTROS no es que rechace la tarjeta.
+   *
+   * Un 401 «Unauthorized use of live credentials» quiere decir que las llaves
+   * del comercio están mal —normalmente mezclando las de prueba con las de
+   * producción— y decirle al cliente «prueba con otra tarjeta» le hace perder
+   * la tarde probando tarjetas que tampoco van a funcionar. El fallo es del
+   * comercio y hay que nombrarlo como tal.
+   */
   if (!r.ok) {
-    return {
-      ok: false,
-      estado: 'failed',
-      motivo: cuerpo?.status_detail ? motivoRechazo(cuerpo.status_detail) : 'generico',
-      crudo: r.datos,
-    };
+    if (r.estado === 401 || r.estado === 403) {
+      return { ok: false, estado: 'failed', motivo: 'credenciales', crudo: r.datos };
+    }
+    // Una tarjeta rechazada llega con su motivo; lo demás es un problema entre
+    // nuestro servidor y el suyo, y el cliente no puede hacer nada con ello.
+    if (cuerpo?.status_detail?.startsWith('cc_rejected')) {
+      return {
+        ok: false,
+        estado: 'failed',
+        motivo: motivoRechazo(cuerpo.status_detail),
+        crudo: r.datos,
+      };
+    }
+    return { ok: false, estado: 'failed', motivo: 'pasarela', crudo: r.datos };
   }
 
   const estado = mapearEstado(cuerpo.status ?? '');

@@ -4,6 +4,7 @@ import { currencyDecimals } from '@/lib/money';
 import { abrirCobro } from './motor';
 import { importeMayor } from './plantilla';
 import type { Contexto, Receta } from './tipos';
+import { entornoDeLasLlaves } from './proveedores/mercadopago';
 
 /**
  * Abre una operación de mentira contra la pasarela para ver si contesta.
@@ -49,6 +50,18 @@ export async function probarPasarela(
   });
   if (!credenciales || Object.keys(credenciales as object).length === 0) {
     return { ok: false, error: 'SIN_CREDENCIALES' };
+  }
+
+  /*
+   * Antes de gastar una llamada: que las llaves no se contradigan entre sí.
+   *
+   * Mezclar las de prueba con las de producción es el error más fácil de
+   * cometer —se copian de dos pestañas distintas del mismo panel— y el más
+   * caro de descubrir, porque no falla al guardar sino delante de un cliente.
+   */
+  if (proveedor.slug === 'mercadopago') {
+    const entorno = entornoDeLasLlaves(credenciales as Record<string, string>);
+    if (!entorno.ok) return { ok: false, error: entorno.error };
   }
 
   // Un importe pequeño pero por encima del mínimo que aceptan casi todas: un

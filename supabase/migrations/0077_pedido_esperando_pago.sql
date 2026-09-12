@@ -1,0 +1,22 @@
+-- =============================================================
+--  Un pedido sin pagar no es una comanda
+--
+--  Pagando por internet, el pedido se creaba en «pendiente» y el cobro venía
+--  después. Si la tarjeta salía rechazada, el cobro fallaba pero la comanda ya
+--  estaba en el panel del local y en la pantalla de cocina: alguien se ponía a
+--  cocinar algo que nadie había pagado.
+--
+--  Hacía falta un estado anterior a «pendiente», que es donde vive un pedido
+--  entre que se levanta y que el dinero llega. Los paneles filtran por estado,
+--  así que uno que no está en sus listas no se ve: la corrección no exige
+--  acordarse de filtrarlo en cada pantalla.
+--
+--  Va delante de «pendiente» en el orden del enumerado porque ocurre antes, y
+--  porque las comparaciones por orden que ya existen tienen que seguir
+--  significando lo mismo.
+--
+--  Va solo en su fichero porque un valor nuevo de enumeración no se puede usar
+--  en la misma transacción en que se crea. Lo enseñó la migración 0059.
+-- =============================================================
+
+alter type order_status add value if not exists 'awaiting_payment' before 'pending';

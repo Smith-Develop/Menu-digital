@@ -475,23 +475,21 @@ export async function removeStaff(staffId: string): Promise<Result> {
 
 // ================================ Pedidos ===============================
 
-type OrderStatus =
-  | 'pending'
-  | 'confirmed'
-  | 'preparing'
-  | 'ready'
-  | 'served'
-  | 'delivering'
-  | 'completed'
-  | 'cancelled';
-
-export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<Result> {
+export async function updateOrderStatus(
+  orderId: string,
+  status: Enums<'order_status'>,
+): Promise<Result> {
   const context = await requireStaffContext();
   const supabase = await createServerSupabase();
 
   // Anular tiene su propia acción porque exige motivo y devuelve el cupón.
   // Llegar aquí con 'cancelled' sería saltarse las dos cosas.
   if (status === 'cancelled') return fail('USE_CANCEL_ORDER');
+
+  // Un pedido no vuelve a estar esperando el dinero: ese estado lo pone
+  // `place_order` al nacer y sólo se sale de él. Moverlo hacia atrás dejaría
+  // una comanda que la cocina ya vio fuera de todos los paneles.
+  if (status === 'awaiting_payment') return fail('INVALID_TRANSITION');
 
   const { error: dbError } = await supabase
     .from('orders')
@@ -515,7 +513,11 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus): P
   return { ok: true };
 }
 
-async function notifyOrderStatus(orderId: string, status: OrderStatus, restaurantName: string) {
+async function notifyOrderStatus(
+  orderId: string,
+  status: Enums<'order_status'>,
+  restaurantName: string,
+) {
   try {
     // Cliente de servicio, no el de la sesión: éste no depende de las cookies
     // de la petición, que ya podrían no estar disponibles al enviar el aviso.
