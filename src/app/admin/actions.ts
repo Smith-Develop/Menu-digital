@@ -1326,3 +1326,126 @@ export async function updateRestaurantProfile(
   revalidatePath(`/admin/restaurants/${restaurantId}`);
   return { ok: true };
 }
+
+// ====================== Países, ciudades y su cobertura ======================
+
+const paisSchema = z.object({
+  code: z.string().length(2).regex(/^[A-Za-z]{2}$/),
+  name: z.string().min(1).max(80),
+  currency: z.string().length(3),
+  timezone: z.string().min(3).max(60),
+  is_active: z.boolean().default(true),
+  position: z.coerce.number().int().min(0).default(0),
+});
+
+/**
+ * Da de alta o corrige un país.
+ *
+ * Los países estaban escritos en el código, de modo que abrir Guatemala exigía
+ * un despliegue. Aquí se abren solos, con su divisa y su hora, que son las que
+ * se le proponen al local al elegirlo.
+ */
+export async function savePlatformCountry(input: unknown): Promise<Result> {
+  if (!(await requireAdmin())) return { ok: false, error: 'FORBIDDEN' };
+
+  const parsed = paisSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'INVALID_INPUT' };
+
+  const fila = { ...parsed.data, code: parsed.data.code.toUpperCase() };
+  const supabase = await createServerSupabase();
+  const { error } = await supabase
+    .from('platform_countries')
+    .upsert(fila, { onConflict: 'code' });
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath('/admin/places');
+  return { ok: true };
+}
+
+export async function deletePlatformCountry(code: string): Promise<Result> {
+  if (!(await requireAdmin())) return { ok: false, error: 'FORBIDDEN' };
+
+  const supabase = await createServerSupabase();
+
+  // Un país con locales dentro no se borra: se apaga. Borrarlo les dejaría la
+  // ficha apuntando a un sitio que ya no existe.
+  const { count } = await supabase
+    .from('restaurants')
+    .select('id', { count: 'exact', head: true })
+    .eq('country', code.toUpperCase());
+  if ((count ?? 0) > 0) return { ok: false, error: 'COUNTRY_IN_USE' };
+
+  const { error } = await supabase
+    .from('platform_countries')
+    .delete()
+    .eq('code', code.toUpperCase());
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath('/admin/places');
+  return { ok: true };
+}
+
+/**
+ * Las ciudades de un país, escritas de una vez.
+ *
+ * Se guarda la lista entera en lugar de una por una porque así es como se
+ * trabaja: se pega un puñado de nombres y se ordena. Las que desaparecen de la
+ * lista se apagan en vez de borrarse, para no dejar huérfanos a los locales que
+ * ya las tenían puestas.
+ */
+export async function savePlatformCities(
+  country: string,
+  nombres: string[],
+): Promise<Result<{ activas: number }>> {
+  if (!(await requireAdmin())) return { ok: false, error: 'FORBIDDEN' };
+
+  const code = country.toUpperCase();
+  const limpias = [...new Set(nombres.map((n) => n.trim()).filter(Boolean))].slice(0, 400);
+
+  const supabase = await createServerSupabase();
+
+  const { error: errorAlta } = await supabase.from('platform_cities').upsert(
+    limpias.map((name, i) => ({ country: code, name, position: i * 10, is_active: true })),
+    { onConflict: 'country,name' },
+  );
+  if (errorAlta) return { ok: false, error: errorAlta.message };
+
+  // Lo que ya no está en la lista se apaga, no se borra.
+  const { data: todas } = await supabase
+    .from('platform_cities')
+    .select('id, name')
+    .eq('country', code);
+
+  const sobran = (todas ?? []).filter((c) => !limpias.includes(c.name)).map((c) => c.id);
+  if (sobran.length > 0) {
+    await supabase.from('platform_cities').update({ is_active: false }).in('id', sobran);
+  }
+
+  revalidatePath('/admin/places');
+  return { ok: true, data: { activas: limpias.length } };
+}
+
+/** Qué pasarelas ofrece la plataforma en un país. */
+export async function setCountryGateways(
+  country: string,
+  providerIds: string[],
+): Promise<Result> {
+  if (!(await requireAdmin())) return { ok: false, error: 'FORBIDDEN' };
+
+  const code = country.toUpperCase();
+  const supabase = await createServerSupabase();
+
+  await supabase.from('country_payment_providers').delete().eq('country', code);
+
+  if (providerIds.length > 0) {
+    const { error } = await supabase.from('country_payment_providers').insert(
+      providerIds.map((provider_id, i) => ({ country: code, provider_id, position: i * 10 })),
+    );
+    if (error) return { ok: false, error: error.message };
+  }
+
+  revalidatePath('/admin/places');
+  revalidatePath('/dashboard/payments');
+  return { ok: true };
+}

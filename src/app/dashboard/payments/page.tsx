@@ -16,8 +16,10 @@ export default async function PaymentsPage() {
   const { restaurant, staffRole } = await requireStaffContext();
   if (!canAccessSection('payments', staffRole)) notFound();
 
+  const pais = restaurant.country ?? '';
+
   const supabase = await createServerSupabase();
-  const [{ data: proveedores }, { data: metodos }] = await Promise.all([
+  const [{ data: proveedores }, { data: metodos }, { data: ofrecidas }] = await Promise.all([
     supabase
       .from('payment_providers')
       .select('id, slug, name, kind, countries, currencies, config_schema')
@@ -28,26 +30,31 @@ export default async function PaymentsPage() {
       .from('merchant_payment_methods')
       .select('id, provider_id, is_active, secret_id, webhook_token')
       .eq('restaurant_id', restaurant.id),
+    // Qué ofrece la plataforma en este país. Es una decisión de negocio que
+    // toma el superadministrador, distinta de dónde opera cada pasarela.
+    pais
+      ? supabase.from('country_payment_providers').select('provider_id').eq('country', pais)
+      : Promise.resolve({ data: [] as { provider_id: string }[] }),
   ]);
 
   const origen = await getPublicOrigin();
   const porProveedor = new Map((metodos ?? []).map((m) => [m.provider_id, m]));
 
   /*
-   * Sólo se ofrece lo que de verdad puede cobrar aquí. Una pasarela que no
-   * opera en el país del local, o que no acepta su divisa, no es una opción:
-   * es una tarde perdida averiguando por qué no funciona. Lista vacía en el
-   * proveedor quiere decir «en todas partes».
+   * Sólo se ofrece lo que de verdad puede cobrar aquí. Una pasarela que no está
+   * ofrecida en su país, o que no acepta su divisa, no es una opción: es una
+   * tarde perdida averiguando por qué no funciona.
+   *
+   * Un local sin país —de los antiguos— las ve todas: esconderlas sin
+   * explicación sería peor que ofrecer alguna de más.
    */
-  // El país puede no estar puesto en locales antiguos; entonces se ofrece todo
-  // y que lo decida quien lo configura, en vez de esconderlo sin explicación.
-  const pais = restaurant.country ?? '';
-  const sirve = (paises: string[], divisas: string[]) =>
-    (paises.length === 0 || !pais || paises.includes(pais)) &&
+  const enEstePais = new Set((ofrecidas ?? []).map((o) => o.provider_id));
+  const sirve = (id: string, divisas: string[]) =>
+    (!pais || enEstePais.has(id)) &&
     (divisas.length === 0 || divisas.includes(restaurant.currency));
 
   const pasarelas: PasarelaDisponible[] = (proveedores ?? [])
-    .filter((p) => sirve(p.countries, p.currencies))
+    .filter((p) => sirve(p.id, p.currencies))
     .map((p) => {
       const mio = porProveedor.get(p.id);
       return {

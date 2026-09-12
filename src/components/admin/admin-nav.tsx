@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import {
   CreditCard,
+  Globe,
   Bell,
   Menu,
   Shield,
@@ -46,6 +47,7 @@ export function AdminNav({ userName }: { userName: string }) {
     // que se vende y lo que entra.
     { href: '/admin/revenue', icon: TrendingUp, label: t.admin.revenue },
     { href: '/admin/payments', icon: CreditCard, label: t.gateway.title },
+    { href: '/admin/places', icon: Globe, label: t.places.title },
     { href: '/admin/categories', icon: LayoutGrid, label: t.catalog.title },
     { href: '/admin/couriers', icon: Bike, label: t.courier.couriers },
     { href: '/admin/coupons', icon: Ticket, label: t.coupon.coupons },

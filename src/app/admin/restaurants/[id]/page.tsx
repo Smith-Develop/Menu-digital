@@ -3,6 +3,7 @@ import { requireSuperadmin, daysUntil, subscriptionIsLive } from '@/lib/auth';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { RestaurantSheet } from '@/components/admin/restaurant-sheet';
 import { RestaurantProfileForm } from '@/components/admin/restaurant-profile';
+import { listPlaces } from '@/lib/queries/places';
 
 export const dynamic = 'force-dynamic';
 
@@ -117,6 +118,7 @@ export default async function AdminRestaurantPage({
 
       <RestaurantProfileForm
         restaurantId={restaurant.id}
+        countries={await listPlaces()}
         initial={{
           name: restaurant.name,
           slug: restaurant.slug,

@@ -10,6 +10,7 @@ import { useToast } from '@/components/ui/toast';
 import { CountryCityFields } from '@/components/ui/location-fields';
 import { createRestaurantAsAdmin, updateRestaurantProfile } from '@/app/admin/actions';
 import { CURRENCIES } from '@/lib/money';
+import type { PaisDisponible } from '@/lib/queries/places';
 import { useT } from '@/i18n/provider';
 import type { Enums } from '@/types/database';
 
@@ -18,10 +19,12 @@ export type PlanSimple = { id: string; name: string };
 const NUEVO = {
   name: '',
   ownerEmail: '',
-  country: 'CO',
+  // Sin país elegido: que lo diga quien da de alta, en vez de heredar el de
+  // quien escribió el código.
+  country: '',
   city: '',
-  currency: 'COP',
-  timezone: 'America/Bogota',
+  currency: 'EUR',
+  timezone: 'Europe/Madrid',
   businessType: 'restaurant' as Enums<'business_type'>,
   planId: '',
 };
@@ -30,15 +33,18 @@ const NUEVO = {
 function CamposDeSitio({
   valores,
   set,
+  countries,
   t,
 }: {
   valores: { country: string; city: string; currency: string; timezone: string };
   set: (cambios: Partial<{ country: string; city: string; currency: string; timezone: string }>) => void;
+  countries: PaisDisponible[];
   t: ReturnType<typeof useT>;
 }) {
   return (
     <>
       <CountryCityFields
+        countries={countries}
         country={valores.country}
         city={valores.city}
         onCountry={(code) => set({ country: code })}
@@ -85,7 +91,13 @@ function CamposDeSitio({
  * al cliente que se apuntara él y después ir a buscarle en la lista. Quien
  * vende necesita poder dejarlo montado antes de la primera llamada.
  */
-export function NewRestaurantButton({ plans }: { plans: PlanSimple[] }) {
+export function NewRestaurantButton({
+  plans,
+  countries,
+}: {
+  plans: PlanSimple[];
+  countries: PaisDisponible[];
+}) {
   const t = useT();
   const toast = useToast();
   const router = useRouter();
@@ -162,7 +174,7 @@ export function NewRestaurantButton({ plans }: { plans: PlanSimple[] }) {
             onChange={(e) => set({ ownerEmail: e.target.value })}
           />
 
-          <CamposDeSitio valores={valores} set={set} t={t} />
+          <CamposDeSitio valores={valores} set={set} countries={countries} t={t} />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Select
@@ -221,9 +233,11 @@ export type FichaValores = {
 export function RestaurantProfileForm({
   restaurantId,
   initial,
+  countries,
 }: {
   restaurantId: string;
   initial: FichaValores;
+  countries: PaisDisponible[];
 }) {
   const t = useT();
   const toast = useToast();
@@ -311,6 +325,7 @@ export function RestaurantProfileForm({
         <CamposDeSitio
           valores={valores}
           set={(cambios) => set(cambios)}
+          countries={countries}
           t={t}
         />
 

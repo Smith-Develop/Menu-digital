@@ -12,6 +12,7 @@ import { OpeningHoursEditor, type OpeningHours } from '@/components/dashboard/op
 import { brandCssVariables } from '@/lib/brand-theme';
 import { CURRENCIES, formatAmount, parseAmount, getCurrency } from '@/lib/money';
 import { CountryCityFields } from '@/components/ui/location-fields';
+import type { PaisDisponible } from '@/lib/queries/places';
 import { useT, interpolate } from '@/i18n/provider';
 import { cn } from '@/lib/utils';
 
@@ -53,11 +54,14 @@ type Pestana = 'profile' | 'orders' | 'hours' | 'appearance' | 'printing' | 'sou
 export function SettingsForm({
   restaurantId,
   initial,
+  countries,
   impresion,
   sonidos,
 }: {
   restaurantId: string;
   initial: SettingsValues;
+  /** Los países y ciudades que ofrece la plataforma, puestos por el superadmin. */
+  countries: PaisDisponible[];
   /*
    * Llegan montadas desde la página, que es de servidor. Guardan lo suyo por su
    * cuenta desde antes de que esto tuviera pestañas; lo único que hace falta es
@@ -228,6 +232,7 @@ export function SettingsForm({
             de pago, y «CO» escrito de tres formas distintas son tres países
             para el filtro. Elegirlo propone además la divisa y la hora. */}
         <CountryCityFields
+          countries={countries}
           country={values.country}
           city={values.city ?? ''}
           onCountry={(code) => set('country', code)}

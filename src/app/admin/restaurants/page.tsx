@@ -3,6 +3,7 @@ import { requireSuperadmin, daysUntil, subscriptionIsLive } from '@/lib/auth';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { RestaurantsTable } from '@/components/admin/restaurants-table';
 import { NewRestaurantButton } from '@/components/admin/restaurant-profile';
+import { listPlaces } from '@/lib/queries/places';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Restaurantes' };
@@ -41,6 +42,7 @@ export default async function AdminRestaurantsPage() {
         <h1 className="font-display text-2xl font-bold text-ink">{t.admin.restaurants}</h1>
         <NewRestaurantButton
           plans={(plans ?? []).map((plan) => ({ id: plan.id, name: plan.name }))}
+          countries={await listPlaces()}
         />
       </div>
 

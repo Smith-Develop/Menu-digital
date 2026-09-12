@@ -4,6 +4,7 @@ import { SettingsForm } from '@/components/dashboard/settings-form';
 import { PrintSettingsForm } from '@/components/dashboard/print-settings-form';
 import { RestaurantSoundSettings } from '@/components/dashboard/restaurant-sound-settings';
 import { createServerSupabase } from '@/lib/supabase/server';
+import { listPlaces } from '@/lib/queries/places';
 import { resolveSounds, type SoundSettings } from '@/lib/sounds';
 import {
   DEFAULT_PRINT_SETTINGS,
@@ -68,6 +69,7 @@ export default async function SettingsPage() {
           accentColor: restaurant.accent_color,
           textColor: restaurant.text_color,
         }}
+        countries={await listPlaces()}
         impresion={<PrintSettingsForm initial={printSettings} />}
         sonidos={<RestaurantSoundSettings initial={sounds} inherited={ownSounds === null} />}
       />

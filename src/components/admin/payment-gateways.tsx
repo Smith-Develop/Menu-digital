@@ -16,6 +16,37 @@ import { useI18n, interpolate } from '@/i18n/provider';
 import { cn } from '@/lib/utils';
 import type { Enums } from '@/types/database';
 
+/** Una credencial que se le pide al comercio. */
+type Campo = { campo: string; etiqueta?: string; secreto?: boolean };
+
+/**
+ * Una credencial por línea: `campo | Etiqueta`.
+ *
+ * Secreta por defecto, que es lo que son casi todas. Terminar la línea en
+ * `| visible` marca las que no lo son —la clave pública de una pasarela se
+ * enseña en el navegador— y así el formulario del comercio puede mostrarla en
+ * claro en vez de como puntitos.
+ *
+ * Este formato existe porque la primera versión guardaba sólo el nombre del
+ * campo: abrir una pasarela ya configurada y pulsar guardar le borraba las
+ * etiquetas y marcaba todo como secreto, sin decir nada.
+ */
+function leerCampo(linea: string): Campo | null {
+  const partes = linea.split('|').map((x) => x.trim());
+  if (!partes[0]) return null;
+  return {
+    campo: partes[0],
+    ...(partes[1] ? { etiqueta: partes[1] } : {}),
+    secreto: partes[2]?.toLowerCase() !== 'visible',
+  };
+}
+
+function escribirCampo(c: Campo): string {
+  const trozos = [c.campo, c.etiqueta ?? ''];
+  if (c.secreto === false) trozos.push('visible');
+  return trozos.filter((x, i) => i === 0 || x !== '').join(' | ');
+}
+
 export type Gateway = {
   id: string;
   slug: string;
@@ -92,7 +123,7 @@ const EJEMPLOS: Record<string, unknown> = {
 const VACIA = {
   slug: '', name: '', kind: 'online' as Enums<'payment_provider_kind'>,
   countries: '', currencies: '', adapter: 'http',
-  credenciales: 'secret_key\nwebhook_secret',
+  credenciales: 'secret_key | Clave secreta\nwebhook_secret | Clave de avisos',
   spec: '{}', isActive: true, position: 0,
 };
 
@@ -136,8 +167,9 @@ export function PaymentGateways({ gateways }: { gateways: Gateway[] }) {
             id: g.id, slug: g.slug, name: g.name, kind: g.kind,
             countries: g.countries.join(', '), currencies: g.currencies.join(', '),
             adapter: g.adapter,
-            credenciales: (g.configSchema as { campo: string }[] | null)
-              ?.map((c) => c.campo).join('\n') ?? '',
+            credenciales: ((g.configSchema as Campo[] | null) ?? [])
+              .map(escribirCampo)
+              .join('\n'),
             spec: JSON.stringify(g.spec, null, 2),
             isActive: g.isActive, position: g.position,
           }
@@ -163,17 +195,17 @@ export function PaymentGateways({ gateways }: { gateways: Gateway[] }) {
     setOcupado('revisar');
     const result = await reviewPaymentSpec({
       ...(receta as object),
-      __credenciales: campos(),
+      __credenciales: campos().map((c) => c.campo),
     });
     setOcupado(null);
     if (result.ok) setAvisos(result.data.avisos);
   }
 
-  const campos = () =>
+  const campos = (): Campo[] =>
     (editando?.credenciales ?? '')
       .split('\n')
-      .map((l) => l.trim())
-      .filter(Boolean);
+      .map(leerCampo)
+      .filter((c): c is Campo => c !== null);
 
   async function guardar() {
     if (!editando) return;
@@ -192,7 +224,7 @@ export function PaymentGateways({ gateways }: { gateways: Gateway[] }) {
       adapter: editando.adapter.trim() || 'http',
       countries: editando.countries.split(',').map((c) => c.trim().toUpperCase()).filter(Boolean),
       currencies: editando.currencies.split(',').map((c) => c.trim().toUpperCase()).filter(Boolean),
-      config_schema: campos().map((campo) => ({ campo, secreto: true })),
+      config_schema: campos(),
       spec: receta,
       is_active: editando.isActive,
       position: editando.position,
@@ -409,7 +441,7 @@ export function PaymentGateways({ gateways }: { gateways: Gateway[] }) {
                   <>
                     {' '}
                     <span className="font-mono text-brand-700">
-                      {campos().map((c) => `{{${c}}}`).join(' ')}
+                      {campos().map((c) => `{{${c.campo}}}`).join(' ')}
                     </span>
                   </>
                 )}

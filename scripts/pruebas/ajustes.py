@@ -71,6 +71,32 @@ def correr(c: Cuaderno, esc: Escenario) -> None:
             fila["city_slug"] == "san-pedro-sula", str(fila))
 
 
+    c.bloque("Los países los pone la plataforma")
+
+    # Estaban en el código, de modo que abrir Guatemala exigía un despliegue y
+    # todos los locales elegían entre la misma lista larga.
+    paises = rest(duenyo, "platform_countries?select=code,name,currency&is_active=eq.true")
+    c.check("hay países dados de alta", isinstance(paises, list) and len(paises) > 0, str(paises)[:120])
+
+    sin_sesion = rest(None, "platform_countries?select=code&limit=1")
+    c.check("y se leen sin sesión, porque el alta ocurre antes de tenerla",
+            isinstance(sin_sesion, list) and len(sin_sesion) == 1, str(sin_sesion)[:120])
+
+    r = rest(duenyo, "platform_countries", "POST", {"code": "ZZ", "name": "Inventado",
+                                                    "currency": "EUR", "timezone": "UTC"})
+    c.check("pero sólo la plataforma los crea",
+            not (isinstance(r, list) and len(r) == 1), str(r)[:140])
+
+    ciudades_es = rest(None, "platform_cities?select=name&country=eq.ES&is_active=eq.true")
+    c.check("cada país trae las suyas",
+            isinstance(ciudades_es, list) and any(x["name"] == "Madrid" for x in ciudades_es),
+            str(ciudades_es)[:120])
+
+    cobertura = rest(None, "country_payment_providers?select=provider_id&country=eq.CO")
+    c.check("y las pasarelas que se ofrecen allí",
+            isinstance(cobertura, list) and len(cobertura) > 0, str(cobertura)[:120])
+
+
 def main() -> int:
     c = Cuaderno("Que el local pueda guardar su ficha")
     with Escenario() as esc:

@@ -107,7 +107,8 @@ def correr(c: Cuaderno, esc: Escenario) -> None:
         # Se prueba la receta que trae la migración, no una copia suya escrita
         # aquí: una copia se queda vieja en cuanto alguien corrige la buena, y
         # entonces la prueba pasa mientras el producto falla.
-        enviada = sql("select spec from public.payment_providers where slug = 'mercadopago';")
+        enviada = sql(
+            "select spec, config_schema from public.payment_providers where slug = 'mercadopago';")
         if not c.check("Mercado Pago viene de serie en el catálogo", len(enviada) == 1,
                        "falta la migración 0063"):
             return
@@ -123,12 +124,20 @@ def correr(c: Cuaderno, esc: Escenario) -> None:
         # Pago por un doble, sin tocar la fila que usan los comercios.
         sql(f"""
             delete from public.payment_providers where slug = 'mercadopago-prueba';
-            insert into public.payment_providers (slug, name, kind, adapter, spec)
+            insert into public.payment_providers (slug, name, kind, adapter, spec, config_schema)
             values ('mercadopago-prueba', 'Mercado Pago (prueba)', 'online', 'http',
-                    {literal(receta)}::jsonb);
+                    {literal(receta)}::jsonb, {literal(enviada[0]["config_schema"])}::jsonb);
         """)
         proveedor = sql(
             "select id from public.payment_providers where slug='mercadopago-prueba';")[0]["id"]
+
+        # El panel del comercio sólo ofrece lo que la plataforma haya puesto en
+        # su país, así que la copia hay que ofrecerla también: comprobarlo es
+        # parte de lo que se está probando.
+        sql(f"""
+            insert into public.country_payment_providers (country, provider_id)
+            values ('{esc.pais}', '{proveedor}') on conflict do nothing;
+        """)
 
         metodo = rest(duenyo, "merchant_payment_methods", "POST", {
             "restaurant_id": esc.restaurante, "provider_id": proveedor, "is_active": True})[0]

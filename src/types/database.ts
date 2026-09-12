@@ -361,6 +361,24 @@ export type Database = {
         };
         Relationships: [];
       };
+      country_payment_providers: {
+        Row: {
+          country: string;
+          provider_id: string;
+          position: number;
+        };
+        Insert: {
+          country: string;
+          provider_id: string;
+          position?: number;
+        };
+        Update: {
+          country?: string;
+          provider_id?: string;
+          position?: number;
+        };
+        Relationships: [];
+      };
       coupon_categories: {
         Row: {
           coupon_id: string;
@@ -1585,6 +1603,36 @@ export type Database = {
         };
         Relationships: [];
       };
+      platform_cities: {
+        Row: {
+          id: string;
+          country: string;
+          name: string;
+          slug: string | null;
+          is_active: boolean;
+          position: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          country: string;
+          name: string;
+          slug?: string | null;
+          is_active?: boolean;
+          position?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          country?: string;
+          name?: string;
+          slug?: string | null;
+          is_active?: boolean;
+          position?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       platform_commissions: {
         Row: {
           id: string;
@@ -1626,6 +1674,36 @@ export type Database = {
           amount_cents?: number;
           currency?: string;
           settlement_id?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      platform_countries: {
+        Row: {
+          code: string;
+          name: string;
+          currency: string;
+          timezone: string;
+          is_active: boolean;
+          position: number;
+          created_at: string;
+        };
+        Insert: {
+          code: string;
+          name: string;
+          currency: string;
+          timezone: string;
+          is_active?: boolean;
+          position?: number;
+          created_at?: string;
+        };
+        Update: {
+          code?: string;
+          name?: string;
+          currency?: string;
+          timezone?: string;
+          is_active?: boolean;
+          position?: number;
           created_at?: string;
         };
         Relationships: [];
