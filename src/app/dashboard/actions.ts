@@ -2120,7 +2120,7 @@ export async function saveGatewayCredentials(
  */
 export async function testGatewayConnection(
   methodId: string,
-): Promise<Result<{ host: string }>> {
+): Promise<Result<{ host: string; entorno: 'prueba' | 'produccion' | null }>> {
   const { context, error: denied } = await guard('settings');
   if (!context) return fail(denied);
 
@@ -2137,5 +2137,5 @@ export async function testGatewayConnection(
   const resultado = await probarPasarela(methodId, await getPublicOrigin());
 
   if (!resultado.ok) return fail(resultado.error);
-  return { ok: true, data: { host: resultado.host } };
+  return { ok: true, data: { host: resultado.host, entorno: resultado.entorno } };
 }

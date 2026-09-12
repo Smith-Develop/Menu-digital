@@ -17,7 +17,10 @@ import { entornoDeLasLlaves } from './proveedores/mercadopago';
 export async function probarPasarela(
   methodId: string,
   origen: string,
-): Promise<{ ok: true; host: string } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; host: string; entorno: 'prueba' | 'produccion' | null }
+  | { ok: false; error: string }
+> {
   const supabase = createAdminSupabase();
 
   const { data: metodo } = await supabase
@@ -59,9 +62,11 @@ export async function probarPasarela(
    * cometer —se copian de dos pestañas distintas del mismo panel— y el más
    * caro de descubrir, porque no falla al guardar sino delante de un cliente.
    */
+  let entorno: 'prueba' | 'produccion' | null = null;
   if (proveedor.slug === 'mercadopago') {
-    const entorno = entornoDeLasLlaves(credenciales as Record<string, string>);
-    if (!entorno.ok) return { ok: false, error: entorno.error };
+    const revision = entornoDeLasLlaves(credenciales as Record<string, string>);
+    if (!revision.ok) return { ok: false, error: revision.error };
+    entorno = revision.entorno;
   }
 
   // Un importe pequeño pero por encima del mínimo que aceptan casi todas: un
@@ -95,8 +100,8 @@ export async function probarPasarela(
   }
 
   try {
-    return { ok: true, host: new URL(resultado.redirect_url).host };
+    return { ok: true, host: new URL(resultado.redirect_url).host, entorno };
   } catch {
-    return { ok: true, host: resultado.redirect_url.slice(0, 40) };
+    return { ok: true, host: resultado.redirect_url.slice(0, 40), entorno };
   }
 }

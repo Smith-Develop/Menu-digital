@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { requireStaffContext } from '@/lib/auth';
 import { canAccessSection } from '@/lib/auth-permissions';
 import { createServerSupabase } from '@/lib/supabase/server';
+import { entornoDelMetodo } from '@/lib/payments/entorno';
 import { getPublicOrigin } from '@/lib/request-url';
 import {
   MerchantPayments,
@@ -61,6 +62,37 @@ export default async function PaymentsPage() {
     (!pais || enEstePais.has(id)) &&
     (divisas.length === 0 || divisas.includes(restaurant.currency));
 
+  /*
+   * En qué entorno están las llaves de cada método, y qué ha fallado hoy.
+   *
+   * Las dos cosas existen por el mismo motivo: mientras un comercio tiene mal
+   * configurado el cobro, sus clientes reciben errores y él no se entera de
+   * nada. Aquí se entera.
+   */
+  const configurados = (metodos ?? []).filter((m) => listos.has(m.id));
+
+  const [entornos, { data: fallos }] = await Promise.all([
+    Promise.all(
+      configurados.map(async (m) => [m.id, await entornoDelMetodo(m.id)] as const),
+    ),
+    supabase
+      .from('payment_intents')
+      .select('method_id, error_code, created_at')
+      .eq('restaurant_id', restaurant.id)
+      .eq('status', 'failed')
+      .gte('created_at', new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString())
+      .order('created_at', { ascending: false }),
+  ]);
+
+  const porEntorno = new Map(entornos);
+  const ultimoFallo = new Map<string, { motivo: string; cuando: string; veces: number }>();
+  for (const f of fallos ?? []) {
+    if (!f.method_id || !f.error_code) continue;
+    const ya = ultimoFallo.get(f.method_id);
+    if (ya) ya.veces += 1;
+    else ultimoFallo.set(f.method_id, { motivo: f.error_code, cuando: f.created_at, veces: 1 });
+  }
+
   const pasarelas: PasarelaDisponible[] = (proveedores ?? [])
     .filter((p) => sirve(p.id, p.currencies))
     .map((p) => {
@@ -79,6 +111,8 @@ export default async function PaymentsPage() {
         // eso el comercio tiene que saberlo antes y no descubrirlo después.
         campoClavePublica:
           (p.inline as { public_field?: string } | null)?.public_field ?? null,
+        entorno: mio ? (porEntorno.get(mio.id) ?? null) : null,
+        ultimoFallo: mio ? (ultimoFallo.get(mio.id) ?? null) : null,
       };
     });
 

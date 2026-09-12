@@ -70,7 +70,18 @@ await campos[0].fill(TOKEN_MP);
 await campos[1].fill(process.env.MP_PUBLIC_KEY ?? 'TEST-public-key').catch(() => {});
 await campos[2].fill('secreto-de-avisos-de-prueba').catch(() => {});
 await p.click('div[role="dialog"] button:has-text("Guardar las llaves")', { force: true });
-await p.waitForTimeout(3000);
+
+// Se espera a que el estado cambie, no una cantidad de segundos. La pantalla
+// pide ahora el entorno de cada llave y los cobros fallidos de la semana, así
+// que refrescar tarda más que antes y un tiempo fijo hacía fallar la prueba por
+// un motivo que no era el suyo.
+const sigueSinLlaves = () =>
+  p.$$eval('li', (ns) =>
+    ns.some((n) => /Mercado Pago/i.test(n.innerText) && /Faltan las llaves/i.test(n.innerText)));
+for (let intento = 0; intento < 20 && (await sigueSinLlaves()); intento += 1) {
+  await p.waitForTimeout(1000);
+}
+
 // Se mira la ficha concreta, no la página entera: en este local hay más de una
 // pasarela ofrecida y el texto de la otra contaminaba el resultado.
 const fichas = await p.$$eval('li', (ns) =>
@@ -83,6 +94,19 @@ await p.waitForTimeout(9000);
 t = await p.$eval('div[role="dialog"]', (e) => e.innerText);
 check('la prueba de conexión llega a Mercado Pago',
   /mercadopago\.com/.test(t), t.slice(-300));
+
+// Y dice CON QUÉ conectó. Decir sólo «conectado» es lo que dejó a un comercio
+// con las llaves reales creyendo que podía cobrar con tarjetas de prueba: la
+// conexión daba bien, porque las credenciales de producción son válidas.
+check('y avisa de que son llaves de prueba',
+  /s[oó]lo aceptan las tarjetas de prueba/i.test(t), t.slice(-400));
+
+await p.reload({ waitUntil: 'networkidle' });
+await p.waitForTimeout(3000);
+const fichas2 = await p.$$eval('li', (ns) =>
+  ns.map((n) => n.innerText.replace(/\s+/g, ' ')).filter((x) => /Mercado Pago/i.test(x)));
+check('la ficha enseña en qué entorno están las llaves',
+  fichas2.some((f) => /Modo prueba/i.test(f)), JSON.stringify(fichas2).slice(0, 300));
 
 // --- Y lo que ve quien paga ------------------------------------------------
 // Sobre el local del arnés, que es el que acaba de quedar configurado: hacerlo

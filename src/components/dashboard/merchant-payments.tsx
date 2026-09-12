@@ -28,6 +28,10 @@ export type PasarelaDisponible = {
   webhookUrl: string | null;
   /** El campo cuya clave permite cobrar sin sacar al cliente de la tienda. */
   campoClavePublica: string | null;
+  /** Si las llaves son de prueba o de verdad. Nulo: esta pasarela no lo dice. */
+  entorno: 'prueba' | 'produccion' | null;
+  /** Lo último que le falló a un cliente intentando pagar aquí. */
+  ultimoFallo: { motivo: string; cuando: string; veces: number } | null;
 };
 
 /**
@@ -165,7 +169,19 @@ export function MerchantPayments({
     const conocidos = t.merchantPay as unknown as Record<string, string>;
     setPrueba(
       result.ok
-        ? { ok: true, texto: interpolate(t.merchantPay.testOk, { host: result.data.host }) }
+        ? {
+            ok: true,
+            // Decir sólo «conectado» era lo que dejaba a un comercio con las
+            // llaves reales creyendo que podía cobrar con tarjetas de prueba.
+            texto:
+              interpolate(t.merchantPay.testOk, { host: result.data.host }) +
+              (result.data.entorno
+                ? ' · ' +
+                  (result.data.entorno === 'prueba'
+                    ? t.merchantPay.modoPruebaHint
+                    : t.merchantPay.modoRealHint)
+                : ''),
+          }
         : {
             ok: false,
             texto:
@@ -220,6 +236,24 @@ export function MerchantPayments({
                         ? t.merchantPay.off
                         : t.merchantPay.needsKeys}
                   </p>
+
+                  {/* En qué entorno están las llaves. Es una etiqueta pequeña y
+                      resuelve la confusión más cara de todas: el panel de la
+                      pasarela enseña por defecto las credenciales reales, y
+                      quien copia las que tiene delante se pasa la tarde
+                      probando tarjetas de prueba que no pueden funcionar. */}
+                  {p.entorno && (
+                    <p
+                      className={cn(
+                        'ml-1.5 mt-1 inline-block rounded-md px-2 py-0.5 text-[11px] font-bold',
+                        p.entorno === 'prueba'
+                          ? 'bg-amber-50 text-amber-800'
+                          : 'bg-state-success/10 text-state-success',
+                      )}
+                    >
+                      {p.entorno === 'prueba' ? t.merchantPay.modoPrueba : t.merchantPay.modoReal}
+                    </p>
+                  )}
                 </div>
                 <Switch
                   checked={p.activa}
@@ -227,6 +261,30 @@ export function MerchantPayments({
                   onChange={(v) => encender(p, v)}
                 />
               </div>
+
+              {p.entorno && (
+                <p className="mt-2 text-xs text-ink-300">
+                  {p.entorno === 'prueba'
+                    ? t.merchantPay.modoPruebaHint
+                    : t.merchantPay.modoRealHint}
+                </p>
+              )}
+
+              {/* Un cobro que falla lo ve el cliente y no lo veía nadie más.
+                  Mientras el comercio tenga algo mal, sus clientes se van sin
+                  pagar y él se entera por una llamada, si se entera. */}
+              {p.ultimoFallo && (
+                <div className="mt-3 rounded-xl bg-state-danger/5 px-3 py-2.5">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-state-danger">
+                    {interpolate(t.merchantPay.fallosRecientes, { n: String(p.ultimoFallo.veces) })}
+                  </p>
+                  <p className="mt-0.5 text-xs text-ink-500">
+                    {(t.merchantPay as unknown as Record<string, string>)[
+                      `fallo_${p.ultimoFallo.motivo}`
+                    ] ?? t.merchantPay.fallo_generico}
+                  </p>
+                </div>
+              )}
 
               <div className="mt-4">
                 <button type="button" onClick={() => abrir(p)} className="btn-soft w-full py-2 text-xs">
