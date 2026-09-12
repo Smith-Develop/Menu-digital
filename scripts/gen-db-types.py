@@ -149,9 +149,12 @@ export type Database = {
           p_billing_address?: string | null;
           p_slot_id?: string | null;
           p_slot_date?: string | null;
+          p_address_id?: string | null;
         };
         Returns: Json;
       };""")
+    out.append("      set_default_address: { Args: { p_id: string }; Returns: undefined };")
+    out.append("      address_looks_complete: { Args: { p_text: string }; Returns: boolean };")
     out.append("      get_order_by_token: { Args: { p_token: string }; Returns: Json };")
     out.append("      call_waiter: { Args: { p_table_code: string; p_type?: Enums<'call_type'>; p_note?: string | null }; Returns: Json };")
     out.append("      restaurant_stats: { Args: { p_restaurant_id: string; p_days?: number }; Returns: Json };")

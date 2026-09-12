@@ -2,9 +2,11 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Banknote, CreditCard, Globe, MapPin, Pencil } from 'lucide-react';
+import { Banknote, CreditCard, Globe, Pencil } from 'lucide-react';
 import { ScreenHeader } from '@/components/ui/misc';
 import { CheckoutIdentity } from '@/components/storefront/checkout-identity';
+import { AddressPicker, type SavedAddress } from '@/components/storefront/address-picker';
+import type { PaisDisponible } from '@/lib/queries/places';
 import { Input, Textarea } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
 import { lineTotal, cartToOrderItems } from '@/lib/cart';
@@ -82,6 +84,11 @@ function errorMessage(
     TABLE_NOT_FOUND: t.table.invalidTable,
     TABLE_REQUIRED: t.table.scanAgain,
     ADDRESS_REQUIRED: t.cart.deliveryAddress,
+    // La ciudad sola dejó de valer como dirección: hay que decirlo con
+    // palabras, no con el nombre de la comprobación que saltó.
+    ADDRESS_INCOMPLETE: t.address.incomplete,
+    ADDRESS_NOT_FOUND: t.address.incomplete,
+    ADDRESS_NOT_YOURS: t.address.incomplete,
     RESTAURANT_SUBSCRIPTION_INACTIVE: t.subscription.expiredWarning,
     COUPON_NOT_FOUND: t.coupon.notFound,
     COUPON_INACTIVE: t.coupon.inactive,
@@ -110,7 +117,10 @@ export function CheckoutView({
   accepts,
   customer,
   isSignedIn,
-  savedLocation,
+  addresses,
+  countries,
+  defaultCity,
+  defaultCountry,
   slots,
   online,
 }: {
@@ -126,7 +136,12 @@ export function CheckoutView({
   accepts: { cash: boolean; card: boolean; tpv: boolean };
   customer: { name: string; phone: string; email: string };
   isSignedIn: boolean;
-  savedLocation: { city: string; address: string | null } | null;
+  /** La libreta del cliente. A domicilio siempre hay cuenta, así que existe. */
+  addresses: SavedAddress[];
+  countries: PaisDisponible[];
+  /** Para proponer ciudad y país al escribir la primera dirección. */
+  defaultCity: string | null;
+  defaultCountry: string | null;
   /** Franjas de entrega libres. Vacío significa que el local no las usa. */
   slots: DeliverySlot[];
   /** Pasarelas encendidas. Vacío quiere decir que aquí sólo se paga al recibir. */
@@ -230,16 +245,20 @@ export function CheckoutView({
       listener.subscription.unsubscribe();
     };
   }, []);
-  // La dirección guardada evita volver a pedirle al cliente lo que ya nos dijo.
-  const savedFull = savedLocation
-    ? [savedLocation.address, savedLocation.city].filter(Boolean).join(', ')
-    : '';
-  const [address, setAddress] = useState(savedFull);
-  const [editingAddress, setEditingAddress] = useState(!savedFull);
+  /*
+   * A dónde se lleva.
+   *
+   * Antes esto se componía como «dirección, ciudad» con lo que hubiera en la
+   * cookie de ubicación, y sin dirección quedaba la ciudad sola: el checkout
+   * daba «Dabeiba» por buena, escondía el campo y el repartidor se encontraba
+   * eso. Ahora el pedido viaja con el identificador de una ficha de la libreta,
+   * y si no hay ninguna utilizable el cliente la escribe aquí mismo.
+   */
+  const predeterminada = addresses.find((a) => a.is_default) ?? addresses[0] ?? null;
+  const [addressId, setAddressId] = useState<string | null>(predeterminada?.id ?? null);
   // Con sesión los datos personales llegan del perfil: solo se editan a petición.
   const [editingData, setEditingData] = useState(!isSignedIn);
 
-  const [addressNotes, setAddressNotes] = useState('');
   // Sin franjas, el pedido sale cuando esté listo, que es como funcionaba
   // antes y como sigue funcionando un restaurante.
   const [slot, setSlot] = useState<DeliverySlot | null>(null);
@@ -265,8 +284,8 @@ export function CheckoutView({
       toast(t.cart.empty, 'error');
       return;
     }
-    if (orderType === 'delivery' && !address.trim()) {
-      toast(t.cart.deliveryAddress, 'error');
+    if (orderType === 'delivery' && !addressId) {
+      toast(t.address.incomplete, 'error');
       return;
     }
     if (orderType !== 'dine_in' && !name.trim()) {
@@ -293,8 +312,12 @@ export function CheckoutView({
         p_customer_name: name.trim() || null,
         p_customer_phone: phone.trim() || null,
         p_customer_email: email.trim() || null,
-        p_address: orderType === 'delivery' ? address.trim() : null,
-        p_address_notes: addressNotes.trim() || null,
+        // La dirección va por identificador, no por texto: así la base compone
+        // la línea, comprueba que la ficha es de quien pide y guarda una copia
+        // de cómo estaba, que es lo que hace falta tres meses después.
+        p_address_id: orderType === 'delivery' ? addressId : null,
+        p_address: null,
+        p_address_notes: null,
         p_notes: notes.trim() || null,
         p_tip_cents: tip,
         p_coupon_code: coupon?.code ?? null,
@@ -505,39 +528,17 @@ export function CheckoutView({
 
           {orderType === 'delivery' && (
             <>
-              {!editingAddress && savedFull ? (
-                <div className="flex items-start gap-3 rounded-xl bg-brand-50 px-4 py-3">
-                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-brand-700">
-                      {t.checkout.usingSavedAddress}
-                    </p>
-                    <p className="truncate text-sm font-semibold text-ink-700">{address}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setEditingAddress(true)}
-                    className="inline-flex shrink-0 items-center gap-1 text-xs font-bold text-brand"
-                  >
-                    <Pencil className="h-3 w-3" />
-                    {t.checkout.changeAddress}
-                  </button>
-                </div>
-              ) : (
-                <Input
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  label={t.cart.deliveryAddress}
-                  placeholder="Calle, número, piso"
-                  autoComplete="street-address"
+              <div>
+                <p className="label">{t.cart.deliveryAddress}</p>
+                <AddressPicker
+                  addresses={addresses}
+                  countries={countries}
+                  defaultCity={defaultCity}
+                  defaultCountry={defaultCountry}
+                  selectedId={addressId}
+                  onSelect={(id) => setAddressId(id)}
                 />
-              )}
-              <Input
-                value={addressNotes}
-                onChange={(e) => setAddressNotes(e.target.value)}
-                label={`${t.common.description} (${t.common.optional})`}
-                placeholder={t.checkout.orderNotesPlaceholder}
-              />
+              </div>
 
               {/* Cuándo. Una compra de la semana hay que estar en casa para
                   recibirla, así que la hora se elige al pedir y no se descubre

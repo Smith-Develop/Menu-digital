@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { Check, Crosshair, Loader2, MapPin, Search } from 'lucide-react';
 import { Sheet } from '@/components/ui/sheet';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { setCustomerLocation, detectCity } from '@/app/actions/location';
@@ -34,7 +33,7 @@ export function LocationPicker({
 
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [address, setAddress] = useState(current?.address ?? '');
+  const address = current?.address ?? null;
   const [selected, setSelected] = useState(current?.citySlug ?? '');
   const [locating, setLocating] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -79,12 +78,11 @@ export function LocationPicker({
     );
   }
 
-  /*
-   * Manda la dirección, no la ciudad: es el dato que de verdad le dice al
-   * cliente dónde va a recibir el pedido, y repetir "Calle X, Madrid · Madrid"
-   * saturaba una cabecera que ya va justa de espacio.
-   */
-  const label = current?.address ?? current?.city ?? t.location.chooseCity;
+  // La ciudad, que es lo que este control decide y lo que filtra el escaparate.
+  // La dirección de entrega ya no se enseña aquí: se elige al pedir, de la
+  // libreta de la cuenta, y confundir las dos fue lo que llevó a mandar
+  // «Dabeiba» como dirección.
+  const label = current?.city ?? t.location.chooseCity;
   const detail = current ? null : t.location.chooseCityHint;
 
   return (
@@ -130,16 +128,13 @@ export function LocationPicker({
           </span>
         </button>
 
-        <Input
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          label={t.location.address}
-          placeholder={t.location.addressPlaceholder}
-          icon={<MapPin className="h-4 w-4" />}
-          autoComplete="street-address"
-        />
-
-        <div className="mt-5">
+        {/* Aquí había un campo de dirección libre, y era la mitad del problema:
+            se guardaba junto a la ciudad, nadie lo exigía, y el checkout
+            acababa mandando la ciudad sola como dirección de entrega. La
+            dirección vive ahora en la libreta de la cuenta, que la valida y la
+            reutiliza; esta hoja elige ciudad, que es lo que filtra el
+            escaparate. */}
+        <div>
           <span className="label">{t.location.city}</span>
 
           {cities.length > 6 && (

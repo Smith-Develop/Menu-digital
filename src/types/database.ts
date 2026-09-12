@@ -562,6 +562,60 @@ export type Database = {
         };
         Relationships: [];
       };
+      customer_addresses: {
+        Row: {
+          id: string;
+          user_id: string;
+          label: string | null;
+          country: string | null;
+          city: string;
+          neighborhood: string | null;
+          street: string;
+          details: string | null;
+          notes: string | null;
+          lat: number | null;
+          lng: number | null;
+          is_default: boolean;
+          created_at: string;
+          updated_at: string;
+          full_line: string | null;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          label?: string | null;
+          country?: string | null;
+          city: string;
+          neighborhood?: string | null;
+          street: string;
+          details?: string | null;
+          notes?: string | null;
+          lat?: number | null;
+          lng?: number | null;
+          is_default?: boolean;
+          created_at?: string;
+          updated_at?: string;
+          full_line?: string | null;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          label?: string | null;
+          country?: string | null;
+          city?: string;
+          neighborhood?: string | null;
+          street?: string;
+          details?: string | null;
+          notes?: string | null;
+          lat?: number | null;
+          lng?: number | null;
+          is_default?: boolean;
+          created_at?: string;
+          updated_at?: string;
+          full_line?: string | null;
+        };
+        Relationships: [];
+      };
       customer_coupons: {
         Row: {
           user_id: string;
@@ -1248,6 +1302,8 @@ export type Database = {
           billing_tax_id: string | null;
           billing_address: string | null;
           delivery_slot_id: string | null;
+          address_id: string | null;
+          address_snapshot: Json | null;
         };
         Insert: {
           id?: string;
@@ -1307,6 +1363,8 @@ export type Database = {
           billing_tax_id?: string | null;
           billing_address?: string | null;
           delivery_slot_id?: string | null;
+          address_id?: string | null;
+          address_snapshot?: Json | null;
         };
         Update: {
           id?: string;
@@ -1366,6 +1424,8 @@ export type Database = {
           billing_tax_id?: string | null;
           billing_address?: string | null;
           delivery_slot_id?: string | null;
+          address_id?: string | null;
+          address_snapshot?: Json | null;
         };
         Relationships: [];
       };
@@ -2639,9 +2699,12 @@ export type Database = {
           p_billing_address?: string | null;
           p_slot_id?: string | null;
           p_slot_date?: string | null;
+          p_address_id?: string | null;
         };
         Returns: Json;
       };
+      set_default_address: { Args: { p_id: string }; Returns: undefined };
+      address_looks_complete: { Args: { p_text: string }; Returns: boolean };
       get_order_by_token: { Args: { p_token: string }; Returns: Json };
       call_waiter: { Args: { p_table_code: string; p_type?: Enums<'call_type'>; p_note?: string | null }; Returns: Json };
       restaurant_stats: { Args: { p_restaurant_id: string; p_days?: number }; Returns: Json };

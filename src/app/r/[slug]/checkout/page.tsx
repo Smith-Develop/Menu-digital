@@ -8,7 +8,8 @@ import {
   type DeliverySlot,
   type OnlineMethod,
 } from '@/components/storefront/checkout-view';
-import { createPublicSupabase } from '@/lib/supabase/server';
+import { createPublicSupabase, createServerSupabase } from '@/lib/supabase/server';
+import { listPlaces } from '@/lib/queries/places';
 import type { Enums } from '@/types/database';
 
 export default async function CheckoutPage({
@@ -25,14 +26,36 @@ export default async function CheckoutPage({
   if (!restaurant) notFound();
 
   const supabase = createPublicSupabase();
-  const [table, profile, location, permiteReparto, { data: franjas }] = await Promise.all([
-    getTableSessionFor(slug),
-    getSessionProfile(),
-    getCustomerLocation(),
-    deliveryAllowed(restaurant.id),
-    // Una semana por delante: más allá, la gente no sabe si estará en casa.
-    supabase.rpc('available_delivery_slots', { p_restaurant_id: restaurant.id, p_days: 7 }),
-  ]);
+  const sesion = await createServerSupabase();
+
+  const [table, profile, location, permiteReparto, { data: franjas }, countries] =
+    await Promise.all([
+      getTableSessionFor(slug),
+      getSessionProfile(),
+      getCustomerLocation(),
+      deliveryAllowed(restaurant.id),
+      // Una semana por delante: más allá, la gente no sabe si estará en casa.
+      supabase.rpc('available_delivery_slots', { p_restaurant_id: restaurant.id, p_days: 7 }),
+      listPlaces(),
+    ]);
+
+  /*
+   * La libreta de direcciones del cliente.
+   *
+   * Antes esto salía de la cookie de ubicación, donde la dirección es opcional:
+   * quien sólo había elegido ciudad acababa pidiendo a «Dabeiba». Ahora sale de
+   * su cuenta, con la sesión, y las políticas se encargan de que sólo vea las
+   * suyas. Sin sesión no hay libreta, y a domicilio la sesión es obligatoria.
+   */
+  const { data: addresses } = profile
+    ? await sesion
+        .from('customer_addresses')
+        .select(
+          'id, label, country, city, neighborhood, street, details, notes, full_line, is_default',
+        )
+        .order('is_default', { ascending: false })
+        .order('created_at', { ascending: false })
+    : { data: null };
 
   // Las formas de cobro por internet que este local tiene encendidas y con
   // llaves. Sin llaves no salen: un botón de pagar que falla es peor que no
@@ -40,6 +63,16 @@ export default async function CheckoutPage({
   const { data: enLinea } = await supabase.rpc('merchant_payment_options', {
     p_restaurant_id: restaurant.id,
   });
+
+  // `full_line` es columna generada y nunca viene vacía, pero el tipo la da por
+  // anulable porque no lleva NOT NULL. Se compone aquí el mismo texto en vez de
+  // dejar pasar una dirección en blanco.
+  const libreta = (addresses ?? []).map((a) => ({
+    ...a,
+    full_line:
+      a.full_line ??
+      [a.street, a.details, a.neighborhood, a.city].filter(Boolean).join(', '),
+  }));
 
   const tableCode = table?.code ?? null;
 
@@ -74,7 +107,10 @@ export default async function CheckoutPage({
         email: profile?.email ?? '',
       }}
       isSignedIn={Boolean(profile)}
-      savedLocation={location ? { city: location.city, address: location.address } : null}
+      addresses={libreta}
+      countries={countries}
+      defaultCity={location?.city ?? profile?.city ?? restaurant.city ?? null}
+      defaultCountry={restaurant.country ?? null}
       slots={(franjas as unknown as DeliverySlot[]) ?? []}
       online={(enLinea as unknown as OnlineMethod[]) ?? []}
     />

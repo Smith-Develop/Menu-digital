@@ -16,7 +16,7 @@ sys.path.insert(0, str(AQUI))
 
 from arnes import Cuaderno, Escenario, limpiar_huerfanos  # noqa: E402
 
-SUITES = ["dinero", "ajustes", "superficie_publica", "pasarelas", "mercadopago"]
+SUITES = ["dinero", "direcciones", "ajustes", "superficie_publica", "pasarelas", "mercadopago"]
 
 
 def main() -> int:

@@ -282,7 +282,11 @@ export function PosView({
             ? t.pos.productGone
             : result.error === 'MIN_ORDER_NOT_REACHED'
               ? t.pos.belowMinimum
-              : t.common.error,
+              // Por teléfono la dirección se dicta de viva voz, y «Dabeiba» es
+              // lo que se apunta cuando hay prisa. La base ya no lo acepta.
+              : result.error === 'ADDRESS_INCOMPLETE'
+                ? t.address.incomplete
+                : t.common.error,
         'error',
       );
       return;
