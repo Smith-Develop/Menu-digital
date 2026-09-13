@@ -175,13 +175,23 @@ export function MerchantPayments({
       result.ok
         ? {
             ok: true,
-            // Conectar no demuestra en qué entorno se conectó: unas llaves
-            // reales abren la operación igual de bien que unas de prueba. Eso
-            // sólo lo dice el primer cobro, y hasta entonces no se afirma.
+            /*
+             * Conectar no distingue el entorno —unas llaves reales abren la
+             * operación igual de bien— así que se dice de quién son. Esa es la
+             * frase que le habría ahorrado la tarde a quien pegó sin querer
+             * las credenciales de producción.
+             */
             texto:
               interpolate(t.merchantPay.testOk, { host: result.data.host }) +
-              ' · ' +
-              t.merchantPay.entornoSinSaber,
+              (result.data.esPrueba === null
+                ? ''
+                : ' · ' +
+                  interpolate(
+                    result.data.esPrueba
+                      ? t.merchantPay.conectadoPrueba
+                      : t.merchantPay.conectadoReal,
+                    { cuenta: result.data.cuenta },
+                  )),
           }
         : {
             ok: false,

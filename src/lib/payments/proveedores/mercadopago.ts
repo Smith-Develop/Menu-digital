@@ -154,6 +154,41 @@ export function llavesCoherentes(
 }
 
 /**
+ * De quién son estas llaves, y si esa cuenta es de pruebas.
+ *
+ * Es la respuesta buena a una pregunta que costó una tarde. El prefijo de la
+ * llave ya no distingue prueba de producción, pero la cuenta a la que
+ * pertenece sí: las credenciales de prueba que emite hoy Mercado Pago son de
+ * un usuario de prueba, y ese usuario viene marcado con la etiqueta
+ * `test_user`. Basta con preguntárselo.
+ *
+ * Se conserva además el formato antiguo: una llave que empieza por `TEST-` es
+ * de prueba aunque pertenezca a una cuenta real, que es como funcionaban antes.
+ */
+export async function cuentaDelToken(
+  credenciales: Credenciales,
+): Promise<{ ok: true; id: number; nombre: string; esPrueba: boolean } | { ok: false; error: string }> {
+  const r = await llamar(credenciales, '/users/me');
+  if (!r.ok) {
+    return { ok: false, error: r.estado === 401 || r.estado === 403 ? 'LLAVES_RECHAZADAS' : 'SIN_RESPUESTA' };
+  }
+
+  const cuenta = r.datos as { id?: number; nickname?: string; tags?: unknown };
+  if (typeof cuenta?.id !== 'number') return { ok: false, error: 'SIN_RESPUESTA' };
+
+  const etiquetas = Array.isArray(cuenta.tags) ? (cuenta.tags as unknown[]).map(String) : [];
+
+  return {
+    ok: true,
+    id: cuenta.id,
+    nombre: String(cuenta.nickname ?? ''),
+    esPrueba:
+      etiquetas.includes('test_user') ||
+      (credenciales.access_token ?? '').startsWith('TEST-'),
+  };
+}
+
+/**
  * Si esta respuesta dice haber movido dinero de verdad.
  *
  * `live_mode` es lo único que no se equivoca, y no viene en todas las

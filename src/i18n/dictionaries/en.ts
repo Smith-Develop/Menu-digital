@@ -1330,6 +1330,8 @@ const en: Dictionary = {
     secret: 'secret',
     LLAVES_MEZCLADAS: 'Those two keys cannot be from the same set: one uses the old format and the other the new one. Copy both from the same block in the provider panel.',
     TOKEN_IRRECONOCIBLE: 'That access token does not look like a Mercado Pago one. Theirs start with TEST- or APP_USR-.',
+    conectadoPrueba: 'This is a TEST account ({cuenta}). It only accepts the provider test cards; nobody can really pay you with these keys.',
+    conectadoReal: 'This is your LIVE account ({cuenta}). It takes real money, and the provider test cards do NOT work with it.',
     entornoSinSaber: 'We do not know yet whether these keys are test or live: the provider only says so when charging. You will see it here as soon as the first payment comes through.',
     modoPrueba: 'Test mode',
     modoReal: 'Live mode',

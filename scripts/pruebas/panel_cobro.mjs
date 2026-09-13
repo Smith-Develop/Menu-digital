@@ -98,17 +98,18 @@ check('la prueba de conexión llega a Mercado Pago',
 // Y dice CON QUÉ conectó. Decir sólo «conectado» es lo que dejó a un comercio
 // con las llaves reales creyendo que podía cobrar con tarjetas de prueba: la
 // conexión daba bien, porque las credenciales de producción son válidas.
-// Conectar no demuestra en qué entorno se conectó: unas llaves reales abren la
-// operación igual de bien que unas de prueba. Afirmarlo era adivinar.
-check('y no se inventa si son de prueba o reales',
-  /todav[ií]a no sabemos/i.test(t), t.slice(-400));
+// Conectar no distingue el entorno: unas llaves reales abren la operación igual
+// de bien que unas de prueba. Lo que sí lo distingue es de quién son, y eso se
+// pregunta. Es la frase que le ahorra la tarde a quien pegó las que no eran.
+check('y dice de qué cuenta son las llaves',
+  /cuenta de PRUEBAS|cuenta REAL/i.test(t), t.slice(-400));
 
 await p.reload({ waitUntil: 'networkidle' });
 await p.waitForTimeout(3000);
 const fichas2 = await p.$$eval('li', (ns) =>
   ns.map((n) => n.innerText.replace(/\s+/g, ' ')).filter((x) => /Mercado Pago/i.test(x)));
-check('y la ficha dice que aún no lo sabe, en vez de adivinarlo',
-  fichas2.some((f) => /todav[ií]a no sabemos/i.test(f)),
+check('y la ficha lo recuerda después de recargar',
+  fichas2.some((f) => /Modo prueba|Modo real/i.test(f)),
   JSON.stringify(fichas2).slice(0, 400));
 
 // --- Y lo que ve quien paga ------------------------------------------------

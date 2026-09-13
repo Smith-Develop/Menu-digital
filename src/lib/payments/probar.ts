@@ -4,7 +4,7 @@ import { currencyDecimals } from '@/lib/money';
 import { abrirCobro } from './motor';
 import { importeMayor } from './plantilla';
 import type { Contexto, Receta } from './tipos';
-import { llavesCoherentes } from './proveedores/mercadopago';
+import { llavesCoherentes, cuentaDelToken } from './proveedores/mercadopago';
 
 /**
  * Abre una operación de mentira contra la pasarela para ver si contesta.
@@ -17,7 +17,10 @@ import { llavesCoherentes } from './proveedores/mercadopago';
 export async function probarPasarela(
   methodId: string,
   origen: string,
-): Promise<{ ok: true; host: string } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; host: string; esPrueba: boolean | null; cuenta: string }
+  | { ok: false; error: string }
+> {
   const supabase = createAdminSupabase();
 
   const { data: metodo } = await supabase
@@ -64,9 +67,24 @@ export async function probarPasarela(
    * reales —eso no se puede saber mirándolas— sino que no mezclen el formato
    * viejo con el nuevo, que es una combinación imposible y acaba en un 401.
    */
+  let esPrueba: boolean | null = null;
+  let cuenta = '';
+
   if (proveedor.slug === 'mercadopago') {
     const revision = llavesCoherentes(credenciales as Record<string, string>);
     if (!revision.ok) return { ok: false, error: revision.error };
+
+    /*
+     * De quién son estas llaves. Es la pregunta que hay que contestar antes de
+     * vender nada: unas credenciales reales abren la operación igual de bien
+     * que unas de prueba, así que «conecta» no distingue las dos. La cuenta sí.
+     */
+    const suya = await cuentaDelToken(credenciales as Record<string, string>);
+    if (!suya.ok) return { ok: false, error: suya.error };
+    esPrueba = suya.esPrueba;
+    cuenta = suya.nombre;
+
+    await supabase.rpc('record_live_mode', { p_method_id: methodId, p_live: !suya.esPrueba });
   }
 
   // Un importe pequeño pero por encima del mínimo que aceptan casi todas: un
@@ -100,8 +118,8 @@ export async function probarPasarela(
   }
 
   try {
-    return { ok: true, host: new URL(resultado.redirect_url).host };
+    return { ok: true, host: new URL(resultado.redirect_url).host, esPrueba, cuenta };
   } catch {
-    return { ok: true, host: resultado.redirect_url.slice(0, 40) };
+    return { ok: true, host: resultado.redirect_url.slice(0, 40), esPrueba, cuenta };
   }
 }

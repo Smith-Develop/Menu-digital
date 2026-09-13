@@ -1329,6 +1329,8 @@ const es = {
     secret: 'secreta',
     LLAVES_MEZCLADAS: 'Esas dos llaves no pueden ser del mismo juego: una tiene el formato antiguo y la otra el nuevo. Cópialas las dos del mismo bloque del panel de la pasarela.',
     TOKEN_IRRECONOCIBLE: 'Ese access token no parece de Mercado Pago. Los suyos empiezan por TEST- o por APP_USR-.',
+    conectadoPrueba: 'Es una cuenta de PRUEBAS ({cuenta}). Sólo acepta las tarjetas de prueba de la pasarela; nadie puede pagarte de verdad con estas llaves.',
+    conectadoReal: 'Es tu cuenta REAL ({cuenta}). Cobra dinero de verdad, y las tarjetas de prueba de la pasarela NO funcionan con ella.',
     entornoSinSaber: 'Todavía no sabemos si estas llaves son de prueba o reales: la pasarela sólo lo dice al cobrar. Lo verás aquí en cuanto entre el primer pago.',
     modoPrueba: 'Modo prueba',
     modoReal: 'Modo real',
