@@ -156,6 +156,7 @@ export type Database = {
     out.append("      set_default_address: { Args: { p_id: string }; Returns: undefined };")
     out.append("      address_looks_complete: { Args: { p_text: string }; Returns: boolean };")
     out.append("      my_saved_cards: { Args: { p_method_id: string }; Returns: Json };")
+    out.append("      record_live_mode: { Args: { p_method_id: string; p_live: boolean }; Returns: undefined };")
     out.append("      get_order_by_token: { Args: { p_token: string }; Returns: Json };")
     out.append("      call_waiter: { Args: { p_table_code: string; p_type?: Enums<'call_type'>; p_note?: string | null }; Returns: Json };")
     out.append("      restaurant_stats: { Args: { p_restaurant_id: string; p_days?: number }; Returns: Json };")

@@ -157,6 +157,21 @@ export async function cobrarEnLinea(
   // El porqué, en el propio intento. `settle_payment_intent` guarda la
   // respuesta cruda, que es la prueba, pero el motivo en claro es lo que
   // permite ver de un vistazo si al comercio le fallan las llaves.
+  /*
+   * Y lo que la pasarela acaba de declarar sobre sí misma.
+   *
+   * `live_mode` es la única fuente que no se equivoca sobre si estas llaves
+   * mueven dinero de verdad: el prefijo de la llave ya no lo distingue, porque
+   * Mercado Pago emite credenciales de prueba que empiezan igual que las
+   * reales. Se anota en cuanto se sabe, salga bien el cobro o salga mal.
+   */
+  if (typeof resultado.enVivo === 'boolean') {
+    await supabase.rpc('record_live_mode', {
+      p_method_id: intento.method_id,
+      p_live: resultado.enVivo,
+    });
+  }
+
   if (resultado.motivo) {
     await supabase
       .from('payment_intents')

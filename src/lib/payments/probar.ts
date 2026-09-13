@@ -4,7 +4,7 @@ import { currencyDecimals } from '@/lib/money';
 import { abrirCobro } from './motor';
 import { importeMayor } from './plantilla';
 import type { Contexto, Receta } from './tipos';
-import { entornoDeLasLlaves } from './proveedores/mercadopago';
+import { llavesCoherentes } from './proveedores/mercadopago';
 
 /**
  * Abre una operación de mentira contra la pasarela para ver si contesta.
@@ -17,10 +17,7 @@ import { entornoDeLasLlaves } from './proveedores/mercadopago';
 export async function probarPasarela(
   methodId: string,
   origen: string,
-): Promise<
-  | { ok: true; host: string; entorno: 'prueba' | 'produccion' | null }
-  | { ok: false; error: string }
-> {
+): Promise<{ ok: true; host: string } | { ok: false; error: string }> {
   const supabase = createAdminSupabase();
 
   const { data: metodo } = await supabase
@@ -62,11 +59,14 @@ export async function probarPasarela(
    * cometer —se copian de dos pestañas distintas del mismo panel— y el más
    * caro de descubrir, porque no falla al guardar sino delante de un cliente.
    */
-  let entorno: 'prueba' | 'produccion' | null = null;
+  /*
+   * Que las llaves no se contradigan entre sí. No dice si son de prueba o
+   * reales —eso no se puede saber mirándolas— sino que no mezclen el formato
+   * viejo con el nuevo, que es una combinación imposible y acaba en un 401.
+   */
   if (proveedor.slug === 'mercadopago') {
-    const revision = entornoDeLasLlaves(credenciales as Record<string, string>);
+    const revision = llavesCoherentes(credenciales as Record<string, string>);
     if (!revision.ok) return { ok: false, error: revision.error };
-    entorno = revision.entorno;
   }
 
   // Un importe pequeño pero por encima del mínimo que aceptan casi todas: un
@@ -100,8 +100,8 @@ export async function probarPasarela(
   }
 
   try {
-    return { ok: true, host: new URL(resultado.redirect_url).host, entorno };
+    return { ok: true, host: new URL(resultado.redirect_url).host };
   } catch {
-    return { ok: true, host: resultado.redirect_url.slice(0, 40), entorno };
+    return { ok: true, host: resultado.redirect_url.slice(0, 40) };
   }
 }

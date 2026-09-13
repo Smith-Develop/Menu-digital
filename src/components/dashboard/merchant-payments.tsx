@@ -28,8 +28,12 @@ export type PasarelaDisponible = {
   webhookUrl: string | null;
   /** El campo cuya clave permite cobrar sin sacar al cliente de la tienda. */
   campoClavePublica: string | null;
-  /** Si las llaves son de prueba o de verdad. Nulo: esta pasarela no lo dice. */
-  entorno: 'prueba' | 'produccion' | null;
+  /**
+   * Si estas llaves mueven dinero de verdad, según la propia pasarela. Nulo
+   * quiere decir que todavía no ha habido ningún cobro que lo dijera, y eso
+   * se enseña como tal: adivinarlo fue el error que hizo falta corregir.
+   */
+  entorno: 'prueba' | 'real' | null;
   /** Lo último que le falló a un cliente intentando pagar aquí. */
   ultimoFallo: { motivo: string; cuando: string; veces: number } | null;
 };
@@ -171,16 +175,13 @@ export function MerchantPayments({
       result.ok
         ? {
             ok: true,
-            // Decir sólo «conectado» era lo que dejaba a un comercio con las
-            // llaves reales creyendo que podía cobrar con tarjetas de prueba.
+            // Conectar no demuestra en qué entorno se conectó: unas llaves
+            // reales abren la operación igual de bien que unas de prueba. Eso
+            // sólo lo dice el primer cobro, y hasta entonces no se afirma.
             texto:
               interpolate(t.merchantPay.testOk, { host: result.data.host }) +
-              (result.data.entorno
-                ? ' · ' +
-                  (result.data.entorno === 'prueba'
-                    ? t.merchantPay.modoPruebaHint
-                    : t.merchantPay.modoRealHint)
-                : ''),
+              ' · ' +
+              t.merchantPay.entornoSinSaber,
           }
         : {
             ok: false,
@@ -262,11 +263,13 @@ export function MerchantPayments({
                 />
               </div>
 
-              {p.entorno && (
+              {p.tieneLlaves && (
                 <p className="mt-2 text-xs text-ink-300">
                   {p.entorno === 'prueba'
                     ? t.merchantPay.modoPruebaHint
-                    : t.merchantPay.modoRealHint}
+                    : p.entorno === 'real'
+                      ? t.merchantPay.modoRealHint
+                      : t.merchantPay.entornoSinSaber}
                 </p>
               )}
 

@@ -98,15 +98,18 @@ check('la prueba de conexión llega a Mercado Pago',
 // Y dice CON QUÉ conectó. Decir sólo «conectado» es lo que dejó a un comercio
 // con las llaves reales creyendo que podía cobrar con tarjetas de prueba: la
 // conexión daba bien, porque las credenciales de producción son válidas.
-check('y avisa de que son llaves de prueba',
-  /s[oó]lo aceptan las tarjetas de prueba/i.test(t), t.slice(-400));
+// Conectar no demuestra en qué entorno se conectó: unas llaves reales abren la
+// operación igual de bien que unas de prueba. Afirmarlo era adivinar.
+check('y no se inventa si son de prueba o reales',
+  /todav[ií]a no sabemos/i.test(t), t.slice(-400));
 
 await p.reload({ waitUntil: 'networkidle' });
 await p.waitForTimeout(3000);
 const fichas2 = await p.$$eval('li', (ns) =>
   ns.map((n) => n.innerText.replace(/\s+/g, ' ')).filter((x) => /Mercado Pago/i.test(x)));
-check('la ficha enseña en qué entorno están las llaves',
-  fichas2.some((f) => /Modo prueba/i.test(f)), JSON.stringify(fichas2).slice(0, 300));
+check('y la ficha dice que aún no lo sabe, en vez de adivinarlo',
+  fichas2.some((f) => /todav[ií]a no sabemos/i.test(f)),
+  JSON.stringify(fichas2).slice(0, 400));
 
 // --- Y lo que ve quien paga ------------------------------------------------
 // Sobre el local del arnés, que es el que acaba de quedar configurado: hacerlo

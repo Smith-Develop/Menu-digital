@@ -815,6 +815,8 @@ export type Database = {
           webhook_token: string;
           created_at: string;
           updated_at: string;
+          live_mode: boolean | null;
+          live_mode_at: string | null;
         };
         Insert: {
           id?: string;
@@ -828,6 +830,8 @@ export type Database = {
           webhook_token?: string;
           created_at?: string;
           updated_at?: string;
+          live_mode?: boolean | null;
+          live_mode_at?: string | null;
         };
         Update: {
           id?: string;
@@ -841,6 +845,8 @@ export type Database = {
           webhook_token?: string;
           created_at?: string;
           updated_at?: string;
+          live_mode?: boolean | null;
+          live_mode_at?: string | null;
         };
         Relationships: [];
       };
@@ -2778,6 +2784,7 @@ export type Database = {
       set_default_address: { Args: { p_id: string }; Returns: undefined };
       address_looks_complete: { Args: { p_text: string }; Returns: boolean };
       my_saved_cards: { Args: { p_method_id: string }; Returns: Json };
+      record_live_mode: { Args: { p_method_id: string; p_live: boolean }; Returns: undefined };
       get_order_by_token: { Args: { p_token: string }; Returns: Json };
       call_waiter: { Args: { p_table_code: string; p_type?: Enums<'call_type'>; p_note?: string | null }; Returns: Json };
       restaurant_stats: { Args: { p_restaurant_id: string; p_days?: number }; Returns: Json };

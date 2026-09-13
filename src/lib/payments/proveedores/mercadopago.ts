@@ -29,6 +29,8 @@ export type Resultado = {
   /** Por qué se rechazó, en clave que la interfaz sabe traducir. */
   motivo?: string;
   comision?: number;
+  /** Lo que la pasarela dice de sí misma: si esto fue dinero de verdad. */
+  enVivo?: boolean | null;
   crudo?: unknown;
 };
 
@@ -127,26 +129,40 @@ export function motivoRechazo(detalle: string): string {
 /**
  * ¿Se contradicen las llaves entre sí?
  *
- * Mercado Pago entrega dos juegos completos, uno de prueba y otro de
- * producción, y los distingue en el propio prefijo: `TEST-` y `APP_USR-`.
- * Mezclarlos no falla al guardar —cada llave es válida por separado— sino
- * mucho después, cuando un cliente con la tarjeta en la mano recibe un
- * «Unauthorized use of live credentials» que no dice nada.
+ * Ojo con lo que esto NO hace: no dice si las llaves son de prueba o de
+ * verdad. Lo intentó una versión anterior mirando el prefijo —`TEST-` contra
+ * `APP_USR-`— y estaba equivocada: las credenciales de prueba que emite hoy el
+ * panel de Mercado Pago empiezan también por `APP_USR-`, así que las dos son
+ * indistinguibles mirando la llave. Eso lo contesta la pasarela, en `live_mode`.
  *
- * Es barato mirarlo aquí y carísimo descubrirlo allí, así que se mira aquí.
+ * Lo que sí detecta es una mezcla imposible: una llave del formato viejo con
+ * otra del nuevo no pueden ser del mismo juego, y esa combinación acaba en un
+ * 401 delante de un cliente.
  */
-export function entornoDeLasLlaves(
+export function llavesCoherentes(
   credenciales: Credenciales,
-): { ok: true; entorno: 'prueba' | 'produccion' } | { ok: false; error: string } {
-  const cual = (valor?: string) =>
-    !valor ? null : valor.startsWith('TEST-') ? 'prueba' : valor.startsWith('APP_USR-') ? 'produccion' : null;
+): { ok: true } | { ok: false; error: string } {
+  const formato = (valor?: string) =>
+    !valor ? null : valor.startsWith('TEST-') ? 'viejo' : valor.startsWith('APP_USR-') ? 'nuevo' : null;
 
-  const token = cual(credenciales.access_token);
-  const publica = cual(credenciales.public_key);
+  const token = formato(credenciales.access_token);
+  const publica = formato(credenciales.public_key);
 
-  if (token && publica && token !== publica) return { ok: false, error: 'LLAVES_MEZCLADAS' };
   if (!token) return { ok: false, error: 'TOKEN_IRRECONOCIBLE' };
-  return { ok: true, entorno: token };
+  if (publica && token !== publica) return { ok: false, error: 'LLAVES_MEZCLADAS' };
+  return { ok: true };
+}
+
+/**
+ * Si esta respuesta dice haber movido dinero de verdad.
+ *
+ * `live_mode` es lo único que no se equivoca, y no viene en todas las
+ * respuestas: las preferencias de Checkout Pro no lo traen y los cobros sí.
+ * Cuando no está, la respuesta honesta es que no se sabe.
+ */
+export function entornoDeLaRespuesta(datos: unknown): boolean | null {
+  const cuerpo = datos as { live_mode?: unknown } | null;
+  return typeof cuerpo?.live_mode === 'boolean' ? cuerpo.live_mode : null;
 }
 
 type DatosPago = {
@@ -293,6 +309,7 @@ function interpretar(r: { ok: boolean; estado: number; datos: unknown }): Result
     referencia: cuerpo.id !== undefined ? String(cuerpo.id) : undefined,
     motivo: estado === 'failed' ? motivoRechazo(cuerpo.status_detail ?? '') : undefined,
     comision: cuerpo.fee_details?.[0]?.amount,
+    enVivo: entornoDeLaRespuesta(r.datos),
     crudo: r.datos,
   };
 }

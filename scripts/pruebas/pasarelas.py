@@ -302,6 +302,29 @@ def correr(c: Cuaderno, esc: Escenario) -> None:
     finally:
         servidor.shutdown()
 
+        # --- Quién dice si las llaves son de verdad -----------------------
+        c.bloque("El entorno lo dice la pasarela, no el comercio")
+
+        # Se intentó deducirlo del prefijo de la llave y estaba mal: Mercado
+        # Pago emite credenciales de prueba que empiezan igual que las reales.
+        # Ahora se guarda lo que contesta la pasarela al cobrar.
+        antes = rest(duenyo, f"merchant_payment_methods?id=eq.{metodo_id}&select=live_mode")
+        c.check("mientras no ha cobrado, no se sabe",
+                antes[0]["live_mode"] is None, str(antes)[:160])
+
+        r = rest(duenyo, f"merchant_payment_methods?id=eq.{metodo_id}", "PATCH",
+                 {"live_mode": False})
+        despues = sql(
+            f"select live_mode from public.merchant_payment_methods where id = '{metodo_id}';")
+        c.check("y el comercio no puede declararlo por su cuenta",
+                despues[0]["live_mode"] is None, str(despues)[:160])
+
+        sql(f"select public.record_live_mode('{metodo_id}', false);")
+        despues = sql(
+            f"select live_mode from public.merchant_payment_methods where id = '{metodo_id}';")
+        c.check("lo anota quien habló con la pasarela",
+                despues[0]["live_mode"] is False, str(despues)[:160])
+
         # --- Las tarjetas guardadas --------------------------------------
         c.bloque("Una tarjeta guardada es de quien la guardó")
 
